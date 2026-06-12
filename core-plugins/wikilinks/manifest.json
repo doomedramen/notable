@@ -1,0 +1,8 @@
+{
+  "id": "wikilinks",
+  "name": "Wikilinks",
+  "version": "1.0.0",
+  "description": "Renders [[wikilinks]] as pills, Mod-click to open (creating the note if needed), and autocompletes [[ as you type.",
+  "entry": "main.js",
+  "defaultEnabled": true
+}

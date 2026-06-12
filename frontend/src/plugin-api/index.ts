@@ -106,6 +106,8 @@ export interface NotableAPI {
     registerSettingsTab(tab: SettingsTabSpec): Disposable;
     registerStatusBarItem(item: StatusBarItemSpec): Disposable;
     openNote(path: string): void;
+    /** Navigate to the note-list view for a tag (`/tag/<tag>`). */
+    openTag(tag: string): void;
     /** Show/hide a registered right panel. */
     toggleRightPanel(id: string): void;
   };

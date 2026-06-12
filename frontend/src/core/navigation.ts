@@ -17,6 +17,10 @@ export function openNote(path: string): void {
   navigateFn(`/note/${encodePath(path)}`);
 }
 
+export function openTag(tag: string): void {
+  navigateFn(`/tag/${encodePath(tag)}`);
+}
+
 /** Called by the shell whenever the route's note id changes. */
 export function setActiveNoteId(id: string | null): void {
   if (id === currentNoteId) return;

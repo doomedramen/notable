@@ -1,0 +1,8 @@
+{
+  "id": "backlinks",
+  "name": "Backlinks",
+  "version": "1.0.0",
+  "description": "Right panel listing notes that link to the currently open note.",
+  "entry": "main.js",
+  "defaultEnabled": true
+}

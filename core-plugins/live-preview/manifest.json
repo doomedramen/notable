@@ -1,0 +1,8 @@
+{
+  "id": "live-preview",
+  "name": "Live Preview",
+  "version": "1.0.0",
+  "description": "Obsidian-style live preview: hides markdown syntax marks on lines the cursor isn't touching, and renders clickable task checkboxes.",
+  "entry": "main.js",
+  "defaultEnabled": true
+}

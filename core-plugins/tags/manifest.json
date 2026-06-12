@@ -1,0 +1,8 @@
+{
+  "id": "tags",
+  "name": "Tags",
+  "version": "1.0.0",
+  "description": "Sidebar panel browsing vault #tags, and clickable #tag chips in the editor.",
+  "entry": "main.js",
+  "defaultEnabled": true
+}

@@ -5,6 +5,7 @@ import "@fontsource-variable/inter";
 import "./styles/globals.css";
 import { AppShell, EmptyState } from "./app/AppShell";
 import { EditorPane } from "./app/EditorPane";
+import { TagView } from "./app/TagView";
 import { useSyncStatus } from "./store/sync-status";
 import { dirtyCount, DIRTY_EVENT } from "./sync/dirty";
 import { registerBuiltinCommands } from "./app/builtin-commands";
@@ -39,6 +40,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <EmptyState /> },
       { path: "note/*", element: <EditorPane /> },
+      { path: "tag/*", element: <TagView /> },
     ],
   },
 ]);

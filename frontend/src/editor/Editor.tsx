@@ -16,6 +16,7 @@ import {
 } from "@codemirror/language";
 import { Compartment, EditorState } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
+import { GFM } from "@lezer/markdown";
 import { tags } from "@lezer/highlight";
 import * as Y from "yjs";
 import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
@@ -82,7 +83,7 @@ export function Editor({ notePath }: { notePath: string }) {
           drawSelection(),
           dropCursor(),
           indentOnInput(),
-          markdown(),
+          markdown({ extensions: [GFM] }),
           syntaxHighlighting(markdownHighlight),
           syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
           EditorView.lineWrapping,

@@ -21,7 +21,7 @@ import * as events from "./events";
 import * as editor from "./editor";
 import * as workspace from "./workspace";
 import * as vault from "./vault";
-import { openNote } from "./navigation";
+import { openNote, openTag } from "./navigation";
 import { notice } from "../components/ui/toast";
 import { confirm } from "../components/ui/confirm";
 
@@ -78,6 +78,7 @@ export function createPluginAPI(
       registerStatusBarItem: (i: StatusBarItemSpec) =>
         track(workspace.registerStatusBarItem(i)),
       openNote,
+      openTag,
       toggleRightPanel: workspace.toggleRightPanel,
     },
     vault: {
