@@ -1,0 +1,8 @@
+{
+  "id": "outline",
+  "name": "Outline",
+  "version": "1.0.0",
+  "description": "Shows the headings in the open note and jumps between sections.",
+  "entry": "main.js",
+  "defaultEnabled": true
+}

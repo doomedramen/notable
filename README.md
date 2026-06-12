@@ -126,7 +126,7 @@ frontend/
   src/sync/provider.ts   Y.Doc ↔ IndexedDB ↔ WebSocket, epochs, reconnect
   src/store/notes.ts     Offline-aware vault listing with mutation queue
   src/editor/Editor.tsx  CodeMirror 6 + yCollab + plugin extensions
-core-plugins/word-count/  Built-in core plugin
+core-plugins/         Built-in plugins (outline, word count)
 plugins/             Installed community plugins in local development
 docs/plugins.md      Plugin author guide
 ```

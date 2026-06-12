@@ -147,4 +147,10 @@ publishes all artifacts to the rolling GitHub release on every push to `main`.
 
 Add core plugins directly under `core-plugins/<id>`. They are part of the
 Notable release and should be reserved for features maintained with the app.
-`core-plugins/word-count` is a complete example.
+Core plugins currently include:
+
+- `outline` - heading navigation in a right panel
+- `word-count` - live status bar word count
+
+They are intentionally limited to features expected to benefit nearly every
+Notable user. More specialized workflows belong in the community registry.
