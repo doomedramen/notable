@@ -7,7 +7,9 @@ COPY frontend/ ./
 RUN npm run build
 
 # ---- Backend build (frontend dist embedded into binary) ----
-FROM rust:1.83-alpine AS server
+# rust:1 tracks the current stable — deps in the tree require edition
+# 2024 support (>= 1.85), so don't pin an older minor.
+FROM rust:1-alpine AS server
 RUN apk add --no-cache musl-dev
 WORKDIR /app
 COPY backend/ ./backend/
