@@ -92,20 +92,27 @@ export function Sidebar() {
     openNote(meta.path);
   };
 
-  if (!open) {
-    return (
-      <div className="flex shrink-0 flex-col border-r border-border bg-surface p-1.5">
-        <Tooltip label="Show sidebar" side="right">
-          <Button variant="ghost" size="icon" onClick={toggle} aria-label="Show sidebar">
-            <PanelLeft size={15} />
-          </Button>
-        </Tooltip>
-      </div>
-    );
-  }
-
   return (
-    <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-surface">
+    <>
+      {/* Desktop collapsed rail (mobile uses the top-bar hamburger). */}
+      {!open && (
+        <div className="hidden shrink-0 flex-col border-r border-border bg-surface p-1.5 md:flex">
+          <Tooltip label="Show sidebar" side="right">
+            <Button variant="ghost" size="icon" onClick={toggle} aria-label="Show sidebar">
+              <PanelLeft size={15} />
+            </Button>
+          </Tooltip>
+        </div>
+      )}
+      {/* Mobile: off-canvas drawer. Desktop: static panel. */}
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-40 flex w-72 max-w-[85vw] shrink-0 flex-col border-r border-border bg-surface pt-[env(safe-area-inset-top)] transition-transform duration-200 md:static md:z-auto md:w-60 md:max-w-none md:pt-0 md:transition-none",
+          open ? "translate-x-0" : "-translate-x-full",
+          !open && "md:hidden",
+        )}
+        data-testid="sidebar"
+      >
       <div className="flex items-center gap-1 px-3 pt-3 pb-2">
         <span className="flex-1 text-[13px] font-semibold tracking-tight select-none">
           Notable
@@ -182,14 +189,15 @@ export function Sidebar() {
 
       <SidebarPanels />
 
-      <RenameDialog note={renaming} onClose={() => setRenaming(null)} activePath={activePath} />
-      <DeleteDialog
-        note={confirmDelete}
-        onClose={() => setConfirmDelete(null)}
-        activePath={activePath}
-      />
-      <NewFolderDialog open={newFolderOpen} onClose={() => setNewFolderOpen(false)} />
-    </aside>
+        <RenameDialog note={renaming} onClose={() => setRenaming(null)} activePath={activePath} />
+        <DeleteDialog
+          note={confirmDelete}
+          onClose={() => setConfirmDelete(null)}
+          activePath={activePath}
+        />
+        <NewFolderDialog open={newFolderOpen} onClose={() => setNewFolderOpen(false)} />
+      </aside>
+    </>
   );
 }
 
@@ -216,7 +224,7 @@ function FolderGroup({
         <ContextMenuTrigger asChild>
           <button
             onClick={() => setCollapsed((c) => !c)}
-            className="flex w-full items-center gap-1.5 rounded-sm px-2 py-1.5 text-left text-[13px] text-muted hover:bg-surface-hover hover:text-foreground"
+            className="flex w-full items-center gap-1.5 rounded-sm px-2 py-2 text-left text-[13px] text-muted hover:bg-surface-hover hover:text-foreground md:py-1.5"
           >
             <ChevronDown
               size={12}
@@ -325,7 +333,7 @@ function NoteRow({
           <button
             onClick={onOpen}
             className={cn(
-              "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-[13px] transition-colors duration-75",
+              "flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-[13px] transition-colors duration-75 md:py-1.5",
               active
                 ? "bg-accent-soft text-foreground"
                 : "text-muted hover:bg-surface-hover hover:text-foreground",

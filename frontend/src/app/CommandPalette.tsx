@@ -69,7 +69,7 @@ export function CommandPalette() {
       onOpenChange={setOpen}
       shouldFilter={false}
       label="Command palette"
-      className="ui-dialog fixed top-[20%] left-1/2 z-50 w-full max-w-lg -translate-x-1/2 overflow-hidden rounded-md bg-background shadow-[var(--shadow-dialog)]"
+      className="ui-dialog fixed top-[8%] left-1/2 z-50 w-[calc(100vw-1.5rem)] max-w-lg -translate-x-1/2 overflow-hidden rounded-md bg-background shadow-[var(--shadow-dialog)] md:top-[20%]"
     >
       <Cmdk.Input
         value={query}

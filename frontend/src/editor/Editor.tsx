@@ -113,7 +113,7 @@ export function Editor({ notePath }: { notePath: string }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="mx-auto w-full max-w-[46rem] shrink-0 px-6 pt-8">
+      <div className="mx-auto w-full max-w-[46rem] shrink-0 px-4 pt-4 md:px-6 md:pt-8">
         <h1 className="text-2xl font-bold tracking-tight">{name}</h1>
       </div>
       <div ref={host} className="min-h-0 flex-1 overflow-auto" />

@@ -14,12 +14,18 @@ interface UIState {
   setSettingsOpen: (open: boolean) => void;
 }
 
+/** Mobile-first: the sidebar is an overlay drawer on small screens, so
+    it starts closed there; on desktop it starts open. */
+const startOpen =
+  typeof window === "undefined" ||
+  window.matchMedia("(min-width: 768px)").matches;
+
 export const useUI = create<UIState>()(
   persist(
     (set) => ({
       theme: "system",
       setTheme: (theme) => set({ theme }),
-      sidebarOpen: true,
+      sidebarOpen: startOpen,
       toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
       paletteOpen: false,
       setPaletteOpen: (paletteOpen) => set({ paletteOpen }),

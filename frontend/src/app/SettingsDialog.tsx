@@ -34,9 +34,11 @@ export function SettingsDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="flex h-[26rem] max-w-2xl gap-0 p-0">
-        <nav className="flex w-44 shrink-0 flex-col gap-0.5 rounded-l-md border-r border-border bg-surface p-2">
-          <DialogTitle className="px-2 pt-1 pb-3 text-[13px]">
+      {/* Mobile-first: near-fullscreen sheet with horizontal tab strip;
+          desktop: classic two-pane settings window. */}
+      <DialogContent className="flex h-[85dvh] w-[calc(100vw-1.5rem)] max-w-2xl flex-col gap-0 p-0 md:h-[26rem] md:flex-row">
+        <nav className="flex w-full shrink-0 gap-0.5 overflow-x-auto rounded-t-md border-b border-border bg-surface p-2 md:w-44 md:flex-col md:overflow-x-visible md:rounded-l-md md:rounded-tr-none md:border-r md:border-b-0">
+          <DialogTitle className="hidden px-2 pt-1 pb-3 text-[13px] md:block">
             Settings
           </DialogTitle>
           {tabs.map((tab) => (
@@ -44,7 +46,7 @@ export function SettingsDialog() {
               key={tab.id}
               onClick={() => setActive(tab.id)}
               className={cn(
-                "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-[13px] transition-colors",
+                "flex shrink-0 items-center gap-2 rounded-sm px-2.5 py-2 text-left text-[13px] whitespace-nowrap transition-colors md:w-full md:shrink md:py-1.5",
                 active === tab.id
                   ? "bg-accent-soft text-foreground"
                   : "text-muted hover:bg-surface-hover hover:text-foreground",
