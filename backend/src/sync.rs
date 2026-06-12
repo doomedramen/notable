@@ -38,16 +38,18 @@ pub struct Room {
     pub guid: String,
     dirty: AtomicBool,
     last_change: StdMutex<Instant>,
+    last_file_hash: StdMutex<String>,
 }
 
 impl Room {
-    fn new(doc: yrs::Doc, guid: String) -> Self {
+    fn new(doc: yrs::Doc, guid: String, last_file_hash: String) -> Self {
         Self {
             doc: tokio::sync::Mutex::new(doc),
             tx: broadcast::channel(256).0,
             guid,
             dirty: AtomicBool::new(false),
             last_change: StdMutex::new(Instant::now()),
+            last_file_hash: StdMutex::new(last_file_hash),
         }
     }
 
@@ -58,6 +60,14 @@ impl Room {
 
     fn idle_for(&self) -> Duration {
         self.last_change.lock().unwrap().elapsed()
+    }
+
+    fn file_hash(&self) -> String {
+        self.last_file_hash.lock().unwrap().clone()
+    }
+
+    fn set_file_hash(&self, hash: String) {
+        *self.last_file_hash.lock().unwrap() = hash;
     }
 }
 
@@ -105,6 +115,7 @@ pub async fn load_room(state: &AppState, path: &str) -> Result<Arc<Room>, Status
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
+    let file_hash = sha256_hex(&file_text);
     let (doc, guid, cache_stale) = match row {
         Some((guid, blob)) => {
             let doc = yrs::Doc::new();
@@ -136,7 +147,7 @@ pub async fn load_room(state: &AppState, path: &str) -> Result<Arc<Room>, Status
         }
     };
 
-    let room = Arc::new(Room::new(doc, guid));
+    let room = Arc::new(Room::new(doc, guid, file_hash));
     if cache_stale {
         update_cache(state, path, &room).await;
     }
@@ -163,6 +174,7 @@ pub async fn flush_room(state: &AppState, path: &str, room: &Room) {
         room.dirty.store(true, Ordering::Relaxed); // retry next sweep
         return;
     }
+    room.set_file_hash(sha256_hex(&text));
     update_cache(state, path, room).await;
 }
 
@@ -362,19 +374,12 @@ async fn reconcile_external_change(state: &Arc<AppState>, path: &str) {
         return; // deleted/moved — vault handlers manage room lifecycle
     };
 
-    // Only treat this as an external edit if the file differs from the
-    // last state we wrote/knew (the cache hash). Comparing against the
-    // LIVE doc would misfire: between flushes the doc legitimately runs
-    // ahead of the file (in-flight typing), and "reconciling" a stale
-    // event — e.g. the echo of our own create/flush — would diff that
-    // typing away.
-    let known: Option<(String,)> =
-        sqlx::query_as("SELECT text_hash FROM doc_cache WHERE path = ?")
-            .bind(path)
-            .fetch_optional(&state.db)
-            .await
-            .unwrap_or(None);
-    if known.map(|(h,)| h) == Some(sha256_hex(&file_text)) {
+    // The active room owns the authoritative last-seen file hash. The
+    // SQLite cache is derived and may be absent or temporarily unwritable;
+    // relying on it here can turn a stale watcher event into a deletion of
+    // in-flight editor text.
+    let file_hash = sha256_hex(&file_text);
+    if room.file_hash() == file_hash {
         return;
     }
 
@@ -391,6 +396,7 @@ async fn reconcile_external_change(state: &Arc<AppState>, path: &str) {
     };
 
     tracing::info!("external edit merged: {path}");
+    room.set_file_hash(file_hash);
     let _ = room.tx.send(update);
     // Doc now matches the file — refresh cache, nothing to write back.
     room.dirty.store(false, Ordering::Relaxed);

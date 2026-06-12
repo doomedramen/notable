@@ -79,19 +79,18 @@ To build locally instead: `docker compose up -d --build` with the
 ## Develop
 
 ```bash
-# Terminal 1 — server (http://localhost:8080)
-cd backend
-mkdir -p ../frontend/dist && touch ../frontend/dist/index.html  # placeholder for rust-embed
-cargo run
-
-# Terminal 2 — frontend with HMR (http://localhost:5173, proxies /api)
-cd frontend
-npm install
-npm run dev
+make dev
+# Frontend: http://localhost:5173
+# Backend:  http://localhost:8080 (Vite proxies /api here)
 ```
 
-Tests: `npm test` (vitest) and `npm run build && npm run test:e2e`
-(Playwright against the real server) in `frontend/`.
+`make dev` installs frontend dependencies when needed and runs both
+processes until you press Ctrl-C. Use `make dev-backend` or
+`make dev-frontend` to run either process separately.
+
+Run the unit tests with `make test`, or run
+`npm --prefix frontend run build && npm --prefix frontend run test:e2e`
+for Playwright tests against the real server.
 
 ## Run modes
 

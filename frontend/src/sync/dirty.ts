@@ -5,6 +5,7 @@
 // be able to SEE when their only copy of an edit is the local one.
 
 const KEY = "notable-dirty-notes";
+const CONTENT_PREFIX = "notable-dirty-content:";
 export const DIRTY_EVENT = "notable-dirty-changed";
 
 function read(): Set<string> {
@@ -20,7 +21,17 @@ function write(ids: Set<string>) {
   window.dispatchEvent(new CustomEvent(DIRTY_EVENT, { detail: ids.size }));
 }
 
-export function markDirty(noteId: string) {
+function contentKey(noteId: string): string {
+  return `${CONTENT_PREFIX}${noteId}`;
+}
+
+export function markDirty(noteId: string, content?: string) {
+  // IndexedDB writes are asynchronous and can be aborted by an immediate
+  // reload. Keep a synchronous recovery copy while the note is unsynced.
+  if (content !== undefined) {
+    localStorage.setItem(contentKey(noteId), content);
+  }
+
   const ids = read();
   if (!ids.has(noteId)) {
     ids.add(noteId);
@@ -29,6 +40,7 @@ export function markDirty(noteId: string) {
 }
 
 export function markClean(noteId: string) {
+  localStorage.removeItem(contentKey(noteId));
   const ids = read();
   if (ids.delete(noteId)) {
     write(ids);
@@ -41,4 +53,8 @@ export function dirtyCount(): number {
 
 export function isDirty(noteId: string): boolean {
   return read().has(noteId);
+}
+
+export function dirtyContent(noteId: string): string | null {
+  return localStorage.getItem(contentKey(noteId));
 }

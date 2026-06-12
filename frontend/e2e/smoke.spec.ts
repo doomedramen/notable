@@ -1,8 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
+import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
 const VAULT = "/tmp/notable-e2e-vault";
+const DATABASE = "/tmp/notable-e2e.db";
 
 /** Create a note via the "+" menu; returns its vault-relative path. */
 async function createNote(page: Page): Promise<string> {
@@ -58,6 +60,55 @@ test("offline edits are flagged and recover on reconnect", async ({
   });
 });
 
+test("offline edits persist across a reload", async ({ page, context }) => {
+  await page.goto("/");
+  const notePath = await createNote(page);
+  await typeInEditor(page, "saved online");
+  await expect(page.locator("footer")).toContainText("Synced");
+
+  // Wait for the PWA shell to be ready and controlled before taking the
+  // browser offline, otherwise the reload itself cannot reach the app.
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+    if (!navigator.serviceWorker.controller) {
+      await new Promise<void>((resolve) => {
+        navigator.serviceWorker.addEventListener(
+          "controllerchange",
+          () => resolve(),
+          { once: true },
+        );
+      });
+    }
+  });
+
+  await context.setOffline(true);
+  await page.keyboard.type(" and edited offline");
+  await expect(page.locator("footer")).toContainText("Offline");
+
+  await page.reload();
+  await expect(page.locator(".cm-content")).toContainText(
+    "saved online and edited offline",
+  );
+
+  await context.setOffline(false);
+  await expect(page.locator("footer")).toContainText("Synced", {
+    timeout: 15_000,
+  });
+  await expect(page.locator(".cm-content")).toContainText(
+    "saved online and edited offline",
+  );
+  await expect(async () => {
+    expect(fs.readFileSync(path.join(VAULT, notePath), "utf8")).toContain(
+      "saved online and edited offline",
+    );
+  }).toPass({ timeout: 10_000 });
+
+  await page.reload();
+  await expect(page.locator(".cm-content")).toContainText(
+    "saved online and edited offline",
+  );
+});
+
 test("external file edits merge live into an open editor", async ({ page }) => {
   await page.goto("/");
   const notePath = await createNote(page);
@@ -77,6 +128,32 @@ test("external file edits merge live into an open editor", async ({ page }) => {
     "added by an external tool",
     { timeout: 10_000 },
   );
+});
+
+test("a stale file event cannot erase in-flight typing", async ({ page }) => {
+  await page.goto("/");
+  const notePath = await createNote(page);
+  await expect(page.locator("footer")).toContainText("Synced");
+
+  // The active room must not depend on the derived cache row to recognize
+  // that an unchanged file event is stale.
+  execFileSync("sqlite3", [
+    DATABASE,
+    `DELETE FROM doc_cache WHERE path = '${notePath.replaceAll("'", "''")}'`,
+  ]);
+
+  await typeInEditor(page, "keep this text");
+  fs.writeFileSync(path.join(VAULT, notePath), "");
+
+  // Watcher debounce is 400ms. Give it enough time to process the stale
+  // empty-file event before checking that the editor was not rolled back.
+  await page.waitForTimeout(1_000);
+  await expect(page.locator(".cm-content")).toContainText("keep this text");
+  await expect(async () => {
+    expect(fs.readFileSync(path.join(VAULT, notePath), "utf8")).toContain(
+      "keep this text",
+    );
+  }).toPass({ timeout: 10_000 });
 });
 
 test("rename a note from the sidebar context menu", async ({ page }) => {

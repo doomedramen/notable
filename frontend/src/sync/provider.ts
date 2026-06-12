@@ -27,7 +27,7 @@
 
 import * as Y from "yjs";
 import { IndexeddbPersistence } from "y-indexeddb";
-import { markDirty, markClean, isDirty } from "./dirty";
+import { dirtyContent, markDirty, markClean, isDirty } from "./dirty";
 import { encodePath } from "../store/notes";
 
 const BACKOFF_MS = [1000, 2000, 5000, 10000, 30000];
@@ -55,18 +55,21 @@ export class NoteConnection {
 
     this.updateHandler = (update, origin) => {
       if (origin === this) return; // came from the server, not a local edit
-      if (this.ws?.readyState === WebSocket.OPEN) {
+      if (navigator.onLine && this.ws?.readyState === WebSocket.OPEN) {
         this.ws.send(update);
         // Note: WebSocket.send has no ack. For a scaffold we treat
         // "sent while open" as synced; a production build could add a
         // server ack frame to make markClean exact.
       } else {
-        markDirty(this.path);
+        markDirty(this.path, this.text.toString());
       }
     };
     this.doc.on("update", this.updateHandler);
 
-    this.idb.whenSynced.then(() => this.connect());
+    this.idb.whenSynced.then(() => {
+      this.restoreDirtyContent();
+      this.connect();
+    });
     window.addEventListener("online", this.handleWake);
     window.addEventListener("offline", this.handleOffline);
     document.addEventListener("visibilitychange", this.handleVisibility);
@@ -90,6 +93,22 @@ export class NoteConnection {
       this.handleWake();
     }
   };
+
+  private restoreDirtyContent() {
+    const content = dirtyContent(this.path);
+    if (content === null || content === this.text.toString()) return;
+
+    // The recovery copy is authoritative while dirty. Apply it only after
+    // IndexedDB hydration so a stale asynchronous restore cannot replace it.
+    this.doc.transact(() => {
+      if (this.text.length > 0) {
+        this.text.delete(0, this.text.length);
+      }
+      if (content) {
+        this.text.insert(0, content);
+      }
+    }, this);
+  }
 
   /** First server frame: doc epoch check. Returns false if we must reset. */
   private handleHello(guid: string): boolean {
