@@ -1,0 +1,11 @@
+services:
+  notable:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - notable-data:/data
+    restart: unless-stopped
+
+volumes:
+  notable-data:
