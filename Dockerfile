@@ -19,7 +19,14 @@ RUN cargo build --release
 FROM alpine:3.20
 WORKDIR /data
 COPY --from=server /app/backend/target/release/notable-server /usr/local/bin/
-ENV DATABASE_URL=sqlite:///data/notable.db
+# Example plugin ships with the image; the /data volume (mountable) is
+# where user plugins/themes live: /data/plugins, /data/themes.
+COPY plugins /data/plugins
+# The vault (your notes, plain .md files) lives in the /data volume.
+ENV VAULT_DIR=/data/vault \
+    DATABASE_URL=sqlite:///data/notable.db \
+    PLUGINS_DIR=/data/plugins \
+    THEMES_DIR=/data/themes
 EXPOSE 8080
 VOLUME ["/data"]
 CMD ["notable-server", "--headless", "--bind", "0.0.0.0:8080"]

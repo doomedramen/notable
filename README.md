@@ -1,28 +1,80 @@
 # Notable — self-hosted, offline-first notes
 
-Obsidian-style notes app. Rust single-binary server, React PWA client,
-Yjs CRDT sync that works offline and merges automatically when back online.
+An Obsidian-style notes app you host yourself. **Your notes are plain
+markdown files in a folder** (the vault) — grep them, back them up, sync
+them, edit them with anything. A Rust single-binary server and a React
+PWA add a Linear-quality interface, real-time + offline sync (CRDT),
+a command palette, and runtime plugins on top.
+
+- **Files are canonical.** The SQLite database holds only derived data
+  (settings, CRDT cache, search index). Delete it and you lose no notes.
+- **Offline-first.** Edits land in IndexedDB instantly and merge
+  conflict-free when your server is reachable again — "offline" includes
+  "away from home wifi" for a home-hosted server.
+- **External edits welcome.** The server watches the vault; changes made
+  by other tools merge live into open editors.
+- **Plugins.** Obsidian-style runtime plugins (ES modules) with a typed
+  API — see [docs/plugins.md](docs/plugins.md).
+
+## Run it (Docker)
+
+Every push to `main` publishes a multi-arch image (amd64 + arm64) to
+GitHub Container Registry. A minimal `docker-compose.yml`:
+
+```yaml
+services:
+  notable:
+    image: ghcr.io/OWNER/notable-scaffold:latest   # ← your GitHub owner/repo
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/data   # vault lives at ./data/vault — plain .md files
+    restart: unless-stopped
+```
+
+```bash
+docker compose up -d
+# → http://your-server:8080  (put TLS in front; PWA install requires HTTPS)
+```
+
+Everything lives under the volume:
+
+```
+data/
+  vault/      your notes (.md files & folders) — the source of truth
+  plugins/    runtime plugins (one folder per plugin)
+  themes/     custom CSS themes
+  notable.db  derived data only (settings, CRDT cache)
+```
+
+To build locally instead: `docker compose up -d --build` with the
+`docker-compose.yml` in this repo.
 
 ## Architecture
 
 ```
-┌─────────────────── Browser (PWA) ───────────────────┐
-│  CodeMirror 6 ←→ Y.Doc ←→ y-indexeddb (offline store)│
-│                    ↕ NoteConnection (WebSocket)       │
-└──────────────────────────┼───────────────────────────┘
-                           ↕ /api/sync/{id}  (Yjs updates)
-┌─────────────────── Rust server (Axum) ───────────────┐
-│  yrs Doc per room ←→ SQLite (append-only update log)  │
-│  REST /api/notes  ←→ SQLite (metadata)                │
-│  Serves embedded frontend (rust-embed)                │
-└───────────────────────────────────────────────────────┘
+┌─────────────────── Browser (PWA) ────────────────────┐
+│  CodeMirror 6 ←→ Y.Doc ←→ y-indexeddb (offline store) │
+│  plugin runtime · command palette · Radix/Tailwind UI │
+└──────────────────────────┼────────────────────────────┘
+                           ↕ /api/sync/{path}  (Yjs updates)
+┌─────────────────── Rust server (Axum) ────────────────┐
+│  yrs Doc per open note  ──debounced──▶  vault/*.md     │
+│        ▲ file watcher (external edits diffed back in)  │
+│  SQLite: settings + CRDT cache (derived, disposable)   │
+│  Serves embedded frontend (rust-embed, single binary)  │
+└────────────────────────────────────────────────────────┘
 ```
 
-**Offline strategy**
-- App shell: cached by the service worker (vite-plugin-pwa) → app opens with no network.
-- Note content: every keystroke goes into a Y.Doc persisted to IndexedDB → edits never block on the network.
-- Sync: on reconnect, the client sends its full state as a Yjs update; the server merges it (CRDT, idempotent) and sends back its own state. No conflict dialogs, ever.
-- Metadata (note list): cached in IndexedDB, offline creates/deletes are queued and replayed (`flushQueue`). Client-generated UUIDs make this safe.
+**Sync strategy**
+- App shell cached by a service worker → opens with no network.
+- Every keystroke goes into a Y.Doc persisted to IndexedDB; when the
+  server is reachable, updates stream over WebSocket and merge (CRDT,
+  idempotent — no conflict dialogs).
+- The server flushes doc state to the `.md` file after ~2s idle and on
+  last-disconnect; the file is always the source of truth.
+- Note metadata (the file listing) is cached with an offline mutation
+  queue; creates pick their path client-side so replay is idempotent.
 
 ## Develop
 
@@ -38,77 +90,59 @@ npm install
 npm run dev
 ```
 
-## Deploy
+Tests: `npm test` (vitest) and `npm run build && npm run test:e2e`
+(Playwright against the real server) in `frontend/`.
+
+## Run modes
 
 ```bash
-docker compose up -d --build
-# → http://your-server:8080  (put TLS in front; PWA install requires HTTPS)
+notable-server                  # desktop mode: starts server + opens the app
+notable-server --headless       # server mode: Docker / systemd / VPS
+notable-server --vault-dir ~/Notes --bind 0.0.0.0:9000
 ```
+
+| Flag / env | Default | Meaning |
+| --- | --- | --- |
+| `--vault-dir` / `VAULT_DIR` | `./vault` | Your notes (plain .md files) |
+| `--database-url` / `DATABASE_URL` | `sqlite://notable.db` | Derived data only |
+| `--plugins-dir` / `PLUGINS_DIR` | `./plugins` | Runtime plugins |
+| `--themes-dir` / `THEMES_DIR` | `./themes` | Custom CSS themes |
+| `--bind` / `BIND` | `127.0.0.1:8080` | Listen address |
 
 ## Project map
 
 ```
 backend/
-  src/main.rs        Axum router, embedded static serving, SQLite pool
-  src/sync.rs        WebSocket rooms, yrs doc per note, update persistence
-  src/notes.rs       Note metadata REST (idempotent create for offline)
-  migrations/        notes + append-only note_updates tables
+  src/main.rs        Axum router, embedded static serving, background tasks
+  src/vault.rs       The vault: list/create/read/rename/delete .md files
+  src/sync.rs        WebSocket rooms, file write-behind, watcher, doc cache
+  src/plugins.rs     Plugin manifests + serving, enable/disable
+  src/settings.rs    Generic settings KV
 frontend/
-  src/sync/provider.ts   Y.Doc ↔ IndexedDB ↔ WebSocket, reconnect/backoff
-  src/store/notes.ts     Offline-aware note list with mutation queue
-  src/editor/Editor.tsx  CodeMirror 6 + yCollab binding
-  vite.config.ts         PWA manifest + service worker config
+  src/plugin-api/    The typed plugin API contract
+  src/core/          Commands, hotkeys, workspace registries, plugin loader
+  src/sync/provider.ts   Y.Doc ↔ IndexedDB ↔ WebSocket, epochs, reconnect
+  src/store/notes.ts     Offline-aware vault listing with mutation queue
+  src/editor/Editor.tsx  CodeMirror 6 + yCollab + plugin extensions
+plugins/word-count/  Example runtime plugin
+docs/plugins.md      Plugin author guide
 ```
 
-## Known gaps (intentionally out of scope for the scaffold)
+## Known gaps (roadmap)
 
-- **Auth** — add an auth layer (e.g. tower middleware + session cookie) before exposing publicly.
-- **Update-log compaction** — `note_updates` grows unbounded; periodically squash into one snapshot.
-- **Awareness/cursors** — y-protocols awareness channel for live multi-user cursors.
-- **PWA icons** — drop real `icon-192.png` / `icon-512.png` into `frontend/public/`.
-- **Markdown export** — walk each Y.Doc and write `.md` files for Obsidian-compatible backup.
+- **Auth** — planned: optional shared-password mode. Until then, don't
+  expose the port publicly (bind to localhost / LAN, or front with an
+  authenticating proxy).
+- **Full-text search, wikilinks, backlinks, tags** — in progress.
+- **Live preview** (Obsidian-style rendered markdown) — in progress.
+- **Awareness/cursors** — y-protocols awareness channel for live
+  multi-user cursors.
 
-## Run modes
+## iOS notes
 
-```bash
-notable-server                  # desktop mode: starts server + opens the app in your browser
-notable-server --headless       # server mode: for Docker / systemd / VPS
-notable-server --bind 0.0.0.0:9000 --database-url sqlite:///srv/notes.db
-```
-
-## Cross-platform builds
-
-The binary is fully self-contained (frontend embedded, SQLite bundled).
-Build per target — easiest with `cargo zigbuild` or `cross`:
-
-```bash
-cargo build --release --target x86_64-unknown-linux-musl   # Linux (static)
-cargo build --release --target aarch64-apple-darwin        # macOS (Apple Silicon)
-cargo build --release --target x86_64-pc-windows-msvc      # Windows
-```
-
-## iOS sync caveat
-
-iOS PWAs cannot sync in the background: Safari supports neither the
-Background Sync API nor silent push. Sync runs when the app is opened or
-foregrounded — which the local-first design makes near-instant (a single
-CRDT state exchange). Android Chrome does support Background Sync if you
-want to add it for that platform. True iOS background sync requires a
-native wrapper (Capacitor + BGTaskScheduler), and even that is
-opportunistic rather than guaranteed.
-
-## iOS storage-eviction mitigations
-
-Safari can evict script-writable storage (incl. IndexedDB) after 7 days of
-inactivity for sites used in the browser, and under disk pressure for
-everyone. Three layers of defense are built in:
-
-1. `navigator.storage.persist()` requested on startup (main.tsx).
-2. Unsynced-edit tracking (`sync/dirty.ts`): edits made while disconnected
-   mark the note dirty (persisted), and a banner warns that the local copy
-   is the only copy until sync completes.
-3. Install prompt (`InstallPrompt.tsx`): iOS users in Safari are nudged to
-   Add to Home Screen — installed web apps are exempt from the 7-day rule.
-
-The sync provider also reconnects on `visibilitychange`, since iOS suspends
-WebSockets in the background and has no Background Sync API.
+iOS PWAs cannot sync in the background (no Background Sync API, no
+silent push) — sync runs on open/foreground, which the local-first
+design makes near-instant. Safari can also evict IndexedDB after 7 days
+of inactivity for non-installed sites; Notable requests persistent
+storage, tracks unsynced edits with a visible warning, and nudges iOS
+users to Add to Home Screen (installed apps are exempt).

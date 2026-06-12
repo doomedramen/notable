@@ -38,3 +38,7 @@ export function markClean(noteId: string) {
 export function dirtyCount(): number {
   return read().size;
 }
+
+export function isDirty(noteId: string): boolean {
+  return read().has(noteId);
+}

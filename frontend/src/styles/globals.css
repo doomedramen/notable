@@ -1,0 +1,148 @@
+@import "tailwindcss";
+@import "./tokens.css";
+
+/* Dark variant keyed off data-theme (set pre-paint in index.html). */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* Bridge tokens into Tailwind utility names (bg-surface, text-muted, …).
+   `inline` so utilities resolve through the var at use-site, which is what
+   lets [data-theme] / user themes swap values without re-generating CSS. */
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-active: var(--surface-active);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --radius-md: var(--radius);
+  --radius-sm: var(--radius-sm);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  background: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--accent-soft);
+}
+
+/* Thin, theme-aware scrollbars everywhere. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 4px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---------------------------------------------------------------- */
+/* Radix open/close animations (keyed on data-state attributes)      */
+/* ---------------------------------------------------------------- */
+
+@keyframes ui-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes ui-pop-in {
+  from { opacity: 0; scale: 0.98; }
+  to { opacity: 1; scale: 1; }
+}
+/* Animate ONLY opacity + the standalone `scale` property: Tailwind v4's
+   translate utilities use the `translate` property, and animating
+   `transform` alongside it would double-shift the dialog while the
+   animation runs (visible as a jump from off-center). */
+@keyframes ui-dialog-in {
+  from { opacity: 0; scale: 0.97; }
+  to { opacity: 1; scale: 1; }
+}
+
+.ui-overlay[data-state="open"] {
+  animation: ui-fade-in 150ms ease-out;
+}
+.ui-popover[data-state="open"] {
+  animation: ui-pop-in 120ms ease-out;
+}
+.ui-dialog[data-state="open"] {
+  animation: ui-dialog-in 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ---------------------------------------------------------------- */
+/* CodeMirror style bridge                                            */
+/*                                                                    */
+/* CM6 renders inside .cm-editor with its own DOM. Two jobs here:     */
+/* 1. map its colors/typography onto the design tokens, and           */
+/* 2. neutralize Tailwind preflight resets inside .cm-content so      */
+/*    live-preview widgets (checkboxes, lists — Phase 4) keep their   */
+/*    native rendering.                                               */
+/* ---------------------------------------------------------------- */
+
+.cm-editor {
+  height: 100%;
+  background: transparent;
+  color: var(--foreground);
+}
+.cm-editor.cm-focused {
+  outline: none;
+}
+.cm-editor .cm-scroller {
+  font-family: var(--font-sans);
+  line-height: 1.65;
+}
+.cm-editor .cm-content {
+  /* Readable centered column, Obsidian-style. */
+  max-width: 46rem;
+  margin-inline: auto;
+  padding: 1rem 1.5rem 40dvh;
+  font-size: 15.5px;
+  caret-color: var(--accent);
+}
+.cm-editor .cm-line {
+  padding-inline: 0;
+}
+.cm-editor .cm-cursor {
+  border-left-color: var(--accent);
+}
+.cm-editor .cm-selectionBackground,
+.cm-editor.cm-focused .cm-selectionBackground {
+  background: var(--accent-soft) !important;
+}
+.cm-editor .cm-placeholder {
+  color: var(--faint);
+}
+
+/* Preflight un-reset for content rendered inside the editor. */
+.cm-content input[type="checkbox"] {
+  appearance: auto;
+  accent-color: var(--accent);
+}

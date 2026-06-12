@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "notable",
+      "runtimeExecutable": "./backend/target/debug/notable-server",
+      "runtimeArgs": [
+        "--headless",
+        "--bind", "127.0.0.1:8080",
+        "--vault-dir", "/tmp/notable-dev-vault",
+        "--database-url", "sqlite:///tmp/notable-dev.db",
+        "--plugins-dir", "./plugins"
+      ],
+      "port": 8080
+    }
+  ]
+}

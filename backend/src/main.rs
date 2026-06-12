@@ -1,10 +1,12 @@
-mod notes;
+mod plugins;
+mod settings;
 mod sync;
+mod vault;
 
 use axum::{
     http::{header, StatusCode, Uri},
     response::{IntoResponse, Response},
-    routing::{get, post},
+    routing::{get, post, put},
     Router,
 };
 use clap::Parser;
@@ -23,9 +25,21 @@ struct Args {
     #[arg(long, env = "BIND", default_value = "127.0.0.1:8080")]
     bind: String,
 
-    /// SQLite database location
+    /// The vault: a directory of markdown files — the canonical store.
+    #[arg(long, env = "VAULT_DIR", default_value = "./vault")]
+    vault_dir: std::path::PathBuf,
+
+    /// SQLite for derived data only (settings, CRDT cache, search index).
     #[arg(long, env = "DATABASE_URL", default_value = "sqlite://notable.db")]
     database_url: String,
+
+    /// Directory of runtime plugins (each a folder with manifest.json)
+    #[arg(long, env = "PLUGINS_DIR", default_value = "./plugins")]
+    plugins_dir: std::path::PathBuf,
+
+    /// Directory of user themes (*.css files overriding design tokens)
+    #[arg(long, env = "THEMES_DIR", default_value = "./themes")]
+    themes_dir: std::path::PathBuf,
 }
 
 /// Frontend build output, embedded into the binary at compile time.
@@ -36,8 +50,11 @@ struct FrontendAssets;
 
 pub struct AppState {
     pub db: sqlx::SqlitePool,
-    /// In-memory Y.Doc rooms for notes with active editors.
-    pub rooms: dashmap::DashMap<uuid::Uuid, Arc<sync::Room>>,
+    pub vault: vault::Vault,
+    /// In-memory Y.Doc rooms for notes with active editors, by path.
+    pub rooms: dashmap::DashMap<String, Arc<sync::Room>>,
+    pub plugins_dir: std::path::PathBuf,
+    pub themes_dir: std::path::PathBuf,
 }
 
 #[tokio::main]
@@ -53,17 +70,38 @@ async fn main() -> anyhow::Result<()> {
 
     let state = Arc::new(AppState {
         db,
+        vault: vault::Vault::new(args.vault_dir)?,
         rooms: dashmap::DashMap::new(),
+        plugins_dir: args.plugins_dir,
+        themes_dir: args.themes_dir,
     });
 
+    // Write-behind flusher + cold-room eviction.
+    tokio::spawn(sync::sweeper(state.clone()));
+    // Merge external file edits into live sessions.
+    tokio::spawn(sync::watcher(state.clone()));
+
     let app = Router::new()
-        // REST: note metadata & lifecycle
-        .route("/api/notes", get(notes::list).post(notes::create))
-        .route("/api/notes/{id}", get(notes::get_one).delete(notes::delete))
+        // Vault: note files & lifecycle (note id = vault-relative path)
+        .route("/api/notes", get(vault::list).post(vault::create))
+        .route(
+            "/api/notes/{*path}",
+            get(vault::read).patch(vault::rename).delete(vault::delete),
+        )
+        .route("/api/folders", post(vault::create_folder))
         // Sync: one WebSocket per note (Yjs update protocol)
-        .route("/api/sync/{id}", get(sync::ws_handler))
-        // Bulk pull for offline catch-up: state vectors -> missing updates
-        .route("/api/sync/{id}/diff", post(sync::diff))
+        .route("/api/sync/{*path}", get(sync::ws_handler))
+        // Bulk pull for offline catch-up: state vector -> missing updates
+        .route("/api/diff/{*path}", post(sync::diff))
+        // Runtime plugins: manifests, code, enablement
+        .route("/api/plugins", get(plugins::list))
+        .route("/api/plugins/{id}/enabled", put(plugins::set_enabled))
+        .route("/api/plugins/{id}/{file}", get(plugins::serve_file))
+        // Generic settings KV (also used for per-plugin settings)
+        .route(
+            "/api/settings/{key}",
+            get(settings::get).put(settings::put),
+        )
         .with_state(state)
         .fallback(static_handler)
         .layer(tower_http::trace::TraceLayer::new_for_http())
@@ -96,11 +134,15 @@ async fn static_handler(uri: Uri) -> Response {
     let path = uri.path().trim_start_matches('/');
     let path = if path.is_empty() { "index.html" } else { path };
 
-    match FrontendAssets::get(path).or_else(|| FrontendAssets::get("index.html")) {
-        Some(content) => {
-            let mime = mime_guess::from_path(path).first_or_octet_stream();
-            ([(header::CONTENT_TYPE, mime.as_ref())], content.data).into_response()
-        }
-        None => (StatusCode::NOT_FOUND, "not found").into_response(),
-    }
+    // Track which file we actually serve so the MIME type matches the
+    // fallback (deep links like /note/<path> must come back as text/html).
+    let (path, content) = match FrontendAssets::get(path) {
+        Some(content) => (path, content),
+        None => match FrontendAssets::get("index.html") {
+            Some(content) => ("index.html", content),
+            None => return (StatusCode::NOT_FOUND, "not found").into_response(),
+        },
+    };
+    let mime = mime_guess::from_path(path).first_or_octet_stream();
+    ([(header::CONTENT_TYPE, mime.as_ref())], content.data).into_response()
 }

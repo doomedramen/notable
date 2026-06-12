@@ -1,0 +1,19 @@
+# Rust
+/backend/target
+
+# Node
+/frontend/node_modules
+/frontend/dist
+/frontend/dev-dist
+
+# Tests
+/frontend/test-results
+/frontend/playwright-report
+
+# Local data — never commit a vault or its derived DB
+/vault
+*.db
+*.db-shm
+*.db-wal
+
+.DS_Store

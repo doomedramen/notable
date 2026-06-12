@@ -1,0 +1,125 @@
+import { createStore } from "zustand";
+import type { Disposable, NotablePlugin, PluginManifest } from "../plugin-api";
+import { createPluginAPI } from "./api";
+import { notice } from "../components/ui/toast";
+
+/* Loads runtime plugins from the server. A broken plugin must degrade to
+   a toast + disabled state, never a white screen. */
+
+export interface PluginInfo extends PluginManifest {
+  enabled: boolean;
+}
+
+interface LoadedPlugin {
+  manifest: PluginManifest;
+  instance: NotablePlugin;
+  disposables: Disposable[];
+}
+
+interface PluginState {
+  /** All plugins known to the server (manifest + enabled flag). */
+  available: readonly PluginInfo[];
+  /** Ids currently loaded and running. */
+  running: ReadonlySet<string>;
+}
+
+export const pluginStore = createStore<PluginState>(() => ({
+  available: [],
+  running: new Set(),
+}));
+
+const loaded = new Map<string, LoadedPlugin>();
+
+export async function fetchPlugins(): Promise<PluginInfo[]> {
+  try {
+    const res = await fetch("/api/plugins");
+    if (!res.ok) return [];
+    const available = (await res.json()) as PluginInfo[];
+    pluginStore.setState({ available });
+    return available;
+  } catch {
+    return []; // offline — plugins just don't load this session
+  }
+}
+
+/** Load every enabled plugin. Called once at startup. */
+export async function loadEnabledPlugins(): Promise<void> {
+  const available = await fetchPlugins();
+  await Promise.all(
+    available.filter((p) => p.enabled).map((p) => loadPlugin(p)),
+  );
+}
+
+export async function loadPlugin(manifest: PluginManifest): Promise<boolean> {
+  if (loaded.has(manifest.id)) return true;
+  const entry = manifest.entry ?? "main.js";
+  try {
+    const url = `/api/plugins/${encodeURIComponent(manifest.id)}/${entry}`;
+    const mod = (await import(/* @vite-ignore */ url)) as {
+      default?: NotablePlugin;
+    };
+    const instance = mod.default;
+    if (!instance || typeof instance.onload !== "function") {
+      throw new Error("module must default-export { onload }");
+    }
+    const disposables: Disposable[] = [];
+    const api = createPluginAPI(manifest, disposables);
+    await instance.onload(api);
+    loaded.set(manifest.id, { manifest, instance, disposables });
+    pluginStore.setState((s) => ({
+      running: new Set(s.running).add(manifest.id),
+    }));
+    return true;
+  } catch (err) {
+    console.error(`[plugins] "${manifest.id}" failed to load`, err);
+    notice(`Plugin “${manifest.name}” failed to load — see console.`, {
+      variant: "danger",
+    });
+    return false;
+  }
+}
+
+export async function unloadPlugin(id: string): Promise<void> {
+  const plugin = loaded.get(id);
+  if (!plugin) return;
+  loaded.delete(id);
+  try {
+    await plugin.instance.onunload?.();
+  } catch (err) {
+    console.error(`[plugins] "${id}" onunload threw`, err);
+  }
+  // Dispose everything the plugin registered, even what onunload forgot.
+  for (const d of plugin.disposables.splice(0)) {
+    try {
+      d.dispose();
+    } catch (err) {
+      console.error(`[plugins] "${id}" disposable threw`, err);
+    }
+  }
+  pluginStore.setState((s) => {
+    const running = new Set(s.running);
+    running.delete(id);
+    return { running };
+  });
+}
+
+/** Toggle a plugin: persists the flag and loads/unloads live. */
+export async function setPluginEnabled(
+  id: string,
+  enabled: boolean,
+): Promise<void> {
+  await fetch(`/api/plugins/${encodeURIComponent(id)}/enabled`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ enabled }),
+  });
+  pluginStore.setState((s) => ({
+    available: s.available.map((p) => (p.id === id ? { ...p, enabled } : p)),
+  }));
+  if (enabled) {
+    const manifest = pluginStore.getState().available.find((p) => p.id === id);
+    if (manifest) await loadPlugin(manifest);
+  } else {
+    await unloadPlugin(id);
+  }
+}
