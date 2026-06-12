@@ -20,6 +20,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Tooltip } from "../components/ui/tooltip";
 import { notice } from "../components/ui/toast";
+import { confirm } from "../components/ui/confirm";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -46,6 +47,7 @@ export function Sidebar() {
   const notes = useNotesStore((s) => s.notes);
   const folders = useNotesStore((s) => s.folders);
   const create = useNotesStore((s) => s.create);
+  const rmdir = useNotesStore((s) => s.rmdir);
   const open = useUI((s) => s.sidebarOpen);
   const toggle = useUI((s) => s.toggleSidebar);
   const params = useParams();
@@ -90,6 +92,15 @@ export function Sidebar() {
   const handleCreate = async (folder = "") => {
     const meta = await create("Untitled", folder);
     openNote(meta.path);
+  };
+
+  const handleDeleteFolder = async (folder: string) => {
+    if (!(await confirm(`Delete the empty folder “${folder}”?`))) return;
+    try {
+      await rmdir(folder);
+    } catch {
+      notice("Folder is not empty.", { variant: "danger" });
+    }
   };
 
   return (
@@ -181,6 +192,7 @@ export function Sidebar() {
                 onCreateNote={() => void handleCreate(folder)}
                 onRename={setRenaming}
                 onDelete={setConfirmDelete}
+                onDeleteFolder={() => void handleDeleteFolder(folder)}
               />
             ))}
           </>
@@ -208,6 +220,7 @@ function FolderGroup({
   onCreateNote,
   onRename,
   onDelete,
+  onDeleteFolder,
 }: {
   folder: string;
   notes: NoteMeta[];
@@ -215,6 +228,7 @@ function FolderGroup({
   onCreateNote: () => void;
   onRename: (n: NoteMeta) => void;
   onDelete: (n: NoteMeta) => void;
+  onDeleteFolder: () => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -236,6 +250,10 @@ function FolderGroup({
         </ContextMenuTrigger>
         <ContextMenuContent>
           <ContextMenuItem onSelect={onCreateNote}>New note here</ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem danger onSelect={onDeleteFolder}>
+            Delete folder
+          </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
       {!collapsed && (

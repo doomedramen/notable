@@ -21,13 +21,15 @@ RUN cargo build --release
 FROM alpine:3.20
 WORKDIR /data
 COPY --from=server /app/backend/target/release/notable-server /usr/local/bin/
-# Example plugin ships with the image; the /data volume (mountable) is
-# where user plugins/themes live: /data/plugins, /data/themes.
-COPY plugins /data/plugins
+# Core plugins are immutable image assets. Community plugins are installed
+# into the persistent /data volume from the configured registry.
+COPY core-plugins /usr/local/share/notable/core-plugins
 # The vault (your notes, plain .md files) lives in the /data volume.
 ENV VAULT_DIR=/data/vault \
     DATABASE_URL=sqlite:///data/notable.db \
+    CORE_PLUGINS_DIR=/usr/local/share/notable/core-plugins \
     PLUGINS_DIR=/data/plugins \
+    PLUGIN_REGISTRY_URL=https://github.com/doomedramen/notable-plugins/releases/download/plugins-latest/plugins.json \
     THEMES_DIR=/data/themes
 EXPOSE 8080
 VOLUME ["/data"]

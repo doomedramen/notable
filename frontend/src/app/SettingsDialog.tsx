@@ -1,6 +1,15 @@
 import { useEffect, useState } from "react";
 import { useStore } from "zustand";
-import { Monitor, Moon, Palette, Puzzle, Sun } from "lucide-react";
+import {
+  ExternalLink,
+  Monitor,
+  Moon,
+  Palette,
+  Puzzle,
+  Search,
+  Sun,
+  Trash2,
+} from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "../components/ui/dialog";
 import { Switch } from "../components/ui/switch";
 import { Button } from "../components/ui/button";
@@ -8,13 +17,16 @@ import { MountHost } from "../components/MountHost";
 import { useUI, type ThemePref } from "../store/ui";
 import { workspaceStore } from "../core/workspace";
 import {
+  fetchPluginStore,
   fetchPlugins,
+  installCommunityPlugin,
   pluginStore,
   setPluginEnabled,
+  uninstallCommunityPlugin,
 } from "../core/plugin-loader";
 import { cn } from "../lib/cn";
-
-type BuiltinTab = "appearance" | "plugins";
+import { notice } from "../components/ui/toast";
+import { confirm } from "../components/ui/confirm";
 
 export function SettingsDialog() {
   const open = useUI((s) => s.settingsOpen);
@@ -23,7 +35,7 @@ export function SettingsDialog() {
   const [active, setActive] = useState<string>("appearance");
 
   useEffect(() => {
-    if (open) void fetchPlugins();
+    if (open) void Promise.all([fetchPlugins(), fetchPluginStore()]);
   }, [open]);
 
   const tabs: { id: string; title: string; icon?: typeof Sun }[] = [
@@ -107,33 +119,97 @@ function AppearanceTab() {
 function PluginsTab() {
   const available = useStore(pluginStore, (s) => s.available);
   const running = useStore(pluginStore, (s) => s.running);
+  const store = useStore(pluginStore, (s) => s.store);
+  const storeError = useStore(pluginStore, (s) => s.storeError);
+  const registryUrl = useStore(pluginStore, (s) => s.registryUrl);
   const [busy, setBusy] = useState<string | null>(null);
+  const [view, setView] = useState<"installed" | "browse">("installed");
+  const [query, setQuery] = useState("");
 
   const toggle = async (id: string, enabled: boolean) => {
     setBusy(id);
     try {
       await setPluginEnabled(id, enabled);
+    } catch (error) {
+      notice(error instanceof Error ? error.message : "Could not update plugin", {
+        variant: "danger",
+      });
     } finally {
       setBusy(null);
     }
   };
 
+  const install = async (id: string, update = false) => {
+    setBusy(id);
+    try {
+      await installCommunityPlugin(id);
+      notice(update ? "Plugin updated." : "Plugin installed.");
+    } catch (error) {
+      notice(error instanceof Error ? error.message : "Could not install plugin", {
+        variant: "danger",
+      });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const uninstall = async (id: string, name: string) => {
+    if (!(await confirm(`Uninstall ${name}? Its saved settings will be kept.`))) {
+      return;
+    }
+    setBusy(id);
+    try {
+      await uninstallCommunityPlugin(id);
+      notice(`${name} uninstalled.`);
+    } catch (error) {
+      notice(error instanceof Error ? error.message : "Could not uninstall plugin", {
+        variant: "danger",
+      });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const filteredStore = store.filter((plugin) => {
+    const needle = query.trim().toLowerCase();
+    return (
+      !needle ||
+      plugin.name.toLowerCase().includes(needle) ||
+      plugin.description.toLowerCase().includes(needle)
+    );
+  });
+
   return (
     <section>
-      <h3 className="text-[13px] font-semibold">Plugins</h3>
+      <div className="flex items-center gap-2">
+        <h3 className="flex-1 text-[13px] font-semibold">Plugins</h3>
+        <div className="flex rounded-sm border border-border bg-surface p-0.5">
+          {(["installed", "browse"] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setView(tab)}
+              className={cn(
+                "rounded-sm px-2 py-1 text-xs capitalize",
+                view === tab
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted hover:text-foreground",
+              )}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+      </div>
       <p className="mt-1 text-[13px] leading-relaxed text-muted">
-        Plugins are folders in the server’s plugins directory. They run with
-        full access to the app and your notes — only install code you trust.
+        Core plugins ship with Notable. Community plugins run with full access
+        to the app and your notes, so only install code you trust.
       </p>
-      {available.length === 0 ? (
+
+      {view === "installed" && available.length === 0 ? (
         <p className="mt-4 text-[13px] text-faint">
-          No plugins installed. Drop a plugin folder into the server’s{" "}
-          <code className="rounded-sm bg-surface px-1 font-mono text-xs">
-            plugins/
-          </code>{" "}
-          directory and reopen this dialog.
+          No plugins are installed.
         </p>
-      ) : (
+      ) : view === "installed" ? (
         <ul className="mt-4 space-y-1">
           {available.map((p) => (
             <li
@@ -144,6 +220,9 @@ function PluginsTab() {
                 <div className="flex items-baseline gap-2">
                   <span className="text-[13px] font-medium">{p.name}</span>
                   <span className="text-xs text-faint">v{p.version}</span>
+                  <span className="rounded-sm bg-surface-hover px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-faint">
+                    {p.source}
+                  </span>
                   {running.has(p.id) && (
                     <span className="text-xs text-success">running</span>
                   )}
@@ -154,6 +233,18 @@ function PluginsTab() {
                   </p>
                 )}
               </div>
+              {p.userManaged && (
+                <Button
+                  variant="danger"
+                  size="icon"
+                  disabled={busy === p.id}
+                  onClick={() => void uninstall(p.id, p.name)}
+                  aria-label={`Uninstall ${p.name}`}
+                  title="Uninstall"
+                >
+                  <Trash2 size={14} />
+                </Button>
+              )}
               <Switch
                 checked={p.enabled}
                 disabled={busy === p.id}
@@ -163,6 +254,89 @@ function PluginsTab() {
             </li>
           ))}
         </ul>
+      ) : (
+        <div className="mt-4">
+          <label className="relative block">
+            <Search
+              size={14}
+              className="absolute top-1/2 left-2.5 -translate-y-1/2 text-faint"
+            />
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search community plugins"
+              className="h-8 w-full rounded-sm border border-border bg-background pr-3 pl-8 text-[13px] outline-none focus:border-accent"
+            />
+          </label>
+          {storeError ? (
+            <p className="mt-3 text-[13px] text-danger">{storeError}</p>
+          ) : filteredStore.length === 0 ? (
+            <p className="mt-3 text-[13px] text-faint">
+              {query ? "No plugins match your search." : "No community plugins available."}
+            </p>
+          ) : (
+            <ul className="mt-3 space-y-1">
+              {filteredStore.map((plugin) => (
+                <li
+                  key={plugin.id}
+                  className="flex items-start gap-3 rounded-md border border-border p-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-baseline gap-2">
+                      <span className="text-[13px] font-medium">{plugin.name}</span>
+                      <span className="text-xs text-faint">v{plugin.version}</span>
+                      {plugin.author && (
+                        <span className="text-xs text-faint">by {plugin.author}</span>
+                      )}
+                    </div>
+                    <p className="mt-0.5 text-[13px] text-muted">
+                      {plugin.description}
+                    </p>
+                  </div>
+                  {plugin.homepage && (
+                    <a
+                      href={plugin.homepage}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-sm p-1.5 text-faint hover:bg-surface-hover hover:text-foreground"
+                      aria-label={`${plugin.name} homepage`}
+                    >
+                      <ExternalLink size={14} />
+                    </a>
+                  )}
+                  <Button
+                    variant={plugin.updateAvailable ? "primary" : "secondary"}
+                    size="sm"
+                    disabled={
+                      busy !== null ||
+                      !plugin.installable ||
+                      (plugin.installed && !plugin.updateAvailable)
+                    }
+                    onClick={() =>
+                      void install(plugin.id, plugin.updateAvailable)
+                    }
+                  >
+                    {busy === plugin.id
+                      ? "Working…"
+                      : plugin.updateAvailable
+                        ? "Update"
+                        : plugin.installed
+                          ? "Installed"
+                          : plugin.installable
+                            ? "Install"
+                            : "Unavailable"}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {registryUrl && (
+            <p className="mt-3 truncate text-[11px] text-faint" title={registryUrl}>
+              Registry: {registryUrl}
+            </p>
+          )}
+        </div>
       )}
     </section>
   );

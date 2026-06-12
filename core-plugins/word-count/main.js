@@ -1,4 +1,4 @@
-// Example Notable plugin: live word count in the status bar.
+// Core Notable plugin: live word count in the status bar.
 //
 // Demonstrates the core API surface:
 //   - workspace.registerStatusBarItem (mount-based UI)

@@ -51,6 +51,42 @@ test("backdrop tap closes the drawer", async ({ page }) => {
   await expect(sidebar).not.toBeInViewport();
 });
 
+/** Dispatch a synthetic horizontal swipe from (x1,y) to (x2,y). */
+async function swipe(page: import("@playwright/test").Page, x1: number, x2: number, y = 300) {
+  await page.evaluate(
+    ([from, to, yPos]) => {
+      const target = document.querySelector('[data-testid="mobile-top-bar"]')!;
+      const touch = (x: number) =>
+        new Touch({ identifier: 1, target, clientX: x, clientY: yPos });
+      target.dispatchEvent(
+        new TouchEvent("touchstart", { bubbles: true, cancelable: true, touches: [touch(from)] }),
+      );
+      target.dispatchEvent(
+        new TouchEvent("touchend", {
+          bubbles: true,
+          cancelable: true,
+          changedTouches: [touch(to)],
+        }),
+      );
+    },
+    [x1, x2, y],
+  );
+}
+
+test("edge swipe opens the drawer, swipe left closes it", async ({ page }) => {
+  await page.goto("/");
+  const sidebar = page.getByTestId("sidebar");
+  await expect(sidebar).not.toBeInViewport();
+
+  // Swipe right starting near the left edge -> opens the drawer.
+  await swipe(page, 5, 200);
+  await expect(sidebar).toBeInViewport();
+
+  // Swipe left anywhere -> closes the drawer.
+  await swipe(page, 250, 50);
+  await expect(sidebar).not.toBeInViewport();
+});
+
 test("settings opens as a near-fullscreen sheet with tab strip", async ({
   page,
 }) => {

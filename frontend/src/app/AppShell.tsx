@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef, type TouchEvent } from "react";
 import { Outlet, useMatch, useNavigate } from "react-router";
 import { useStore } from "zustand";
 import { PanelLeft, Search, X } from "lucide-react";
@@ -35,10 +35,39 @@ export function AppShell() {
     }
   }, [activePath]);
 
+  // Mobile edge-swipe: drag in from the left edge to open the drawer,
+  // swipe left anywhere to close it — matches native app conventions.
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const onTouchStart = (e: TouchEvent) => {
+    if (!isMobile()) return;
+    const t = e.touches[0];
+    touchStart.current = { x: t.clientX, y: t.clientY };
+  };
+  const onTouchEnd = (e: TouchEvent) => {
+    const start = touchStart.current;
+    touchStart.current = null;
+    if (!start || !isMobile()) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    // Ignore mostly-vertical drags (scrolling) and short flicks.
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    const open = useUI.getState().sidebarOpen;
+    if (dx > 0 && !open && start.x < 32) {
+      useUI.getState().toggleSidebar();
+    } else if (dx < 0 && open) {
+      useUI.getState().toggleSidebar();
+    }
+  };
+
   return (
     <ThemeProvider>
       <TooltipProvider delayDuration={400}>
-        <div className="flex h-dvh flex-col bg-background text-foreground">
+        <div
+          className="flex h-dvh flex-col bg-background text-foreground"
+          onTouchStart={onTouchStart}
+          onTouchEnd={onTouchEnd}
+        >
           <div className="relative flex min-h-0 flex-1">
             {/* Mobile: backdrop behind the drawer */}
             {sidebarOpen && (

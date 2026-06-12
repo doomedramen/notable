@@ -7,7 +7,7 @@ mod vault;
 use axum::{
     http::{header, StatusCode, Uri},
     response::{IntoResponse, Response},
-    routing::{get, post, put},
+    routing::{delete, get, post, put},
     Router,
 };
 use clap::Parser;
@@ -108,6 +108,7 @@ async fn main() -> anyhow::Result<()> {
             get(vault::read).patch(vault::rename).delete(vault::delete),
         )
         .route("/api/folders", post(vault::create_folder))
+        .route("/api/folders/{*path}", delete(vault::delete_folder))
         // Sync: one WebSocket per note (Yjs update protocol)
         .route("/api/sync/{*path}", get(sync::ws_handler))
         // Bulk pull for offline catch-up: state vector -> missing updates
@@ -127,10 +128,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/plugins/{id}/enabled", put(plugins::set_enabled))
         .route("/api/plugins/{id}/{*file}", get(plugins::serve_file))
         // Generic settings KV (also used for per-plugin settings)
-        .route(
-            "/api/settings/{key}",
-            get(settings::get).put(settings::put),
-        )
+        .route("/api/settings/{key}", get(settings::get).put(settings::put))
         .with_state(state)
         .fallback(static_handler)
         .layer(tower_http::trace::TraceLayer::new_for_http())

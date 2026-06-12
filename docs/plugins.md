@@ -1,23 +1,29 @@
-# Writing Notable plugins
+# Notable plugins
 
-Notable plugins are ES modules loaded at runtime from the server's plugins
-directory (`--plugins-dir`, env `PLUGINS_DIR`, default `./plugins`; in the
-Docker image `/data/plugins`).
+Notable loads browser-side ES module plugins through a typed API. There are two
+sources:
 
-## Trust model — read this first
+- **Core plugins** live in `core-plugins/`, ship with every Notable build, and
+  cannot be uninstalled. A core manifest may set `defaultEnabled: true`.
+- **Community plugins** are published by the separate
+  [`notable-plugins`](https://github.com/doomedramen/notable-plugins) repository.
+  Notable downloads a package from its registry, verifies its SHA-256 checksum,
+  validates the manifest, and installs it into `PLUGINS_DIR`.
 
-A plugin runs in the app's origin with **full access** to the UI, the API,
-and every note. There is no sandbox. This is the same stance as Obsidian:
-the gate is filesystem access to your server. Only install code you trust
-or wrote.
+Both kinds can be enabled or disabled live in **Settings -> Plugins**.
 
-## Anatomy
+## Trust model
 
-```
-plugins/
-  my-plugin/              ← directory name MUST equal manifest "id"
-    manifest.json
-    main.js               ← ES module (the "entry" field, default main.js)
+A plugin runs in the app's origin with full access to the UI, API, and every
+note. There is no browser sandbox. Package checksums protect download integrity;
+they do not make untrusted code safe. Only install plugins you trust.
+
+## Plugin anatomy
+
+```text
+my-plugin/
+  manifest.json
+  main.js
 ```
 
 `manifest.json`:
@@ -32,6 +38,10 @@ plugins/
 }
 ```
 
+The directory name must equal `id`. IDs use lowercase letters, numbers, and
+hyphens. Versions must be valid semantic versions. `entry` must be a relative
+path inside the plugin package.
+
 `main.js` default-exports the plugin object:
 
 ```js
@@ -45,76 +55,96 @@ export default {
     });
   },
   async onunload() {
-    // Optional. Everything registered through `api` is disposed
-    // automatically when the plugin is disabled — use this only for
-    // cleanup the API doesn't know about (external connections, etc.).
+    // Optional cleanup for resources not registered through api.
   },
 };
 ```
 
-Enable it in **Settings → Plugins** (Cmd/Ctrl-, ). Toggling applies live —
-no reload needed.
+Everything registered through `api` is disposed automatically when the plugin
+is disabled or updated.
 
-## The API surface
+## API surface
 
-See [`frontend/src/plugin-api/index.ts`](../frontend/src/plugin-api/index.ts)
-for the full typed contract. Summary:
+The complete typed contract is in
+[`frontend/src/plugin-api/index.ts`](../frontend/src/plugin-api/index.ts).
 
-| Area | What you can do |
+| Area | What it can do |
 | --- | --- |
-| `api.commands.register(cmd)` | Add commands (appear in the Cmd-K palette) |
-| `api.hotkeys.register(key, commandId)` | Bind keys, e.g. `"Mod-Shift-X"` |
-| `api.editor.registerExtension(ext)` | Add CodeMirror 6 extensions to every editor |
-| `api.editor.activeView()` | The live `EditorView` (or null) |
-| `api.workspace.registerSidebarPanel / registerRightPanel` | Add panels (mount-based, any framework) |
-| `api.workspace.registerSettingsTab / registerStatusBarItem` | Settings pages, status bar widgets |
-| `api.workspace.openNote(id)` / `toggleRightPanel(id)` | Navigation |
-| `api.vault.list() / create() / activeNoteId()` | Note metadata |
-| `api.events.on("note:open" \| "editor:ready" \| …)` | App lifecycle events |
-| `api.settings.load() / save(data)` | Per-plugin persistent JSON settings |
-| `api.ui.notice(msg)` / `api.ui.confirm(msg)` | Toasts and confirm dialogs |
+| `api.commands` / `api.hotkeys` | Register commands and keyboard shortcuts |
+| `api.editor` | Add CodeMirror extensions and access the active editor |
+| `api.workspace` | Add panels, settings tabs, and status bar items |
+| `api.vault` | List/create notes and inspect the active note |
+| `api.events` | Subscribe to note, editor, and theme lifecycle events |
+| `api.settings` | Store per-plugin JSON settings |
+| `api.ui` | Show notices and confirmation dialogs |
 
-Panels and status items use `mount(el) => cleanup` so you can use plain DOM,
-React, or anything else.
+## Share host modules
 
-## The one hard rule: share the host's modules
-
-If your plugin touches CodeMirror or Yjs, you **must** use the instances the
-host exposes at `api.modules` — a second bundled copy of `@codemirror/state`
-breaks the editor silently.
+Plugins that use CodeMirror or Yjs must consume the instances exposed at
+`api.modules`. Bundling a second `@codemirror/state` instance can break editor
+extensions.
 
 ```js
 export default {
   onload(api) {
-    const { view, state } = api.modules.codemirror; // host instances
+    const { view } = api.modules.codemirror;
     api.editor.registerExtension(
-      view.EditorView.updateListener.of((u) => { /* … */ }),
+      view.EditorView.updateListener.of((update) => {
+        if (update.docChanged) {
+          // React to the edit.
+        }
+      }),
     );
   },
 };
 ```
 
-If you build with a bundler, mark them external. esbuild example:
+If a plugin has a build step, mark `@codemirror/*` and `yjs` as external and
+read them from `api.modules` at runtime.
 
-```sh
-esbuild src/main.ts --bundle --format=esm --outfile=main.js \
-  --external:@codemirror/* --external:yjs
+## Community registry
+
+The default registry is the rolling `plugins-latest` release asset:
+
+```text
+https://github.com/doomedramen/notable-plugins/releases/download/plugins-latest/plugins.json
 ```
 
-…and import from `api.modules` at runtime rather than from the externals.
-(Simplest reliable pattern: don't import CodeMirror at all; destructure
-everything you need from `api.modules`.)
+Operators can set `PLUGIN_REGISTRY_URL` to another HTTP(S) URL or a `file://`
+URL for a private registry.
 
-## Lifecycle and failure
+The registry format is:
 
-- Enabled plugins load once at app startup (in parallel) and on toggle.
-- A plugin that throws during load shows a toast and stays disabled-in-
-  effect; it can never take the app down.
-- On disable, `onunload()` runs, then every `Disposable` created through
-  your `api` handle is disposed automatically (commands, panels, editor
-  extensions, event listeners — all of it).
+```json
+{
+  "plugins": [
+    {
+      "id": "reading-time",
+      "name": "Reading time",
+      "version": "1.0.0",
+      "description": "Shows an estimated reading time.",
+      "author": "Notable community",
+      "homepage": "https://github.com/doomedramen/notable-plugins",
+      "package": {
+        "url": "https://github.com/doomedramen/notable-plugins/releases/download/plugins-latest/reading-time.tar.gz",
+        "sha256": "64 hexadecimal characters",
+        "size": 1234
+      }
+    }
+  ]
+}
+```
 
-## Example
+Packages are gzip-compressed tar archives containing `manifest.json`, the entry
+module, and any assets. Installs reject path traversal, links, oversized
+archives, checksum mismatches, and registry/manifest identity mismatches.
 
-[`plugins/word-count`](../plugins/word-count) is a complete, commented
-single-file plugin: status bar item + editor update listener.
+Community submissions belong in the separate plugin repository. Its CI builds
+every plugin, creates deterministic packages, generates `plugins.json`, and
+publishes all artifacts to the rolling GitHub release on every push to `main`.
+
+## Core plugin development
+
+Add core plugins directly under `core-plugins/<id>`. They are part of the
+Notable release and should be reserved for features maintained with the app.
+`core-plugins/word-count` is a complete example.

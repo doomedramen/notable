@@ -2,6 +2,7 @@ import { create } from "zustand";
 import {
   createFolder,
   createNote,
+  deleteFolder,
   deleteNote,
   flushQueue,
   listVault,
@@ -21,6 +22,7 @@ interface NotesState {
   remove: (path: string) => Promise<void>;
   rename: (from: string, to: string) => Promise<NoteMeta>;
   mkdir: (path: string) => Promise<void>;
+  rmdir: (path: string) => Promise<void>;
 }
 
 export const useNotesStore = create<NotesState>((set, get) => ({
@@ -51,6 +53,14 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     if (!folders.includes(path)) {
       set({ folders: [...folders, path].sort() });
     }
+  },
+  rmdir: async (path) => {
+    await deleteFolder(path);
+    set({
+      folders: get().folders.filter(
+        (f) => f !== path && !f.startsWith(`${path}/`),
+      ),
+    });
   },
 }));
 

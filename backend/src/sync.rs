@@ -28,9 +28,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex as StdMutex};
 use std::time::{Duration, Instant};
 use tokio::sync::broadcast;
-use yrs::{
-    updates::decoder::Decode, GetString, ReadTxn, StateVector, Text, Transact, Update,
-};
+use yrs::{updates::decoder::Decode, GetString, ReadTxn, StateVector, Text, Transact, Update};
 
 pub struct Room {
     pub doc: tokio::sync::Mutex<yrs::Doc>,

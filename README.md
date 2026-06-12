@@ -13,8 +13,9 @@ a command palette, and runtime plugins on top.
   "away from home wifi" for a home-hosted server.
 - **External edits welcome.** The server watches the vault; changes made
   by other tools merge live into open editors.
-- **Plugins.** Obsidian-style runtime plugins (ES modules) with a typed
-  API — see [docs/plugins.md](docs/plugins.md).
+- **Plugins.** Built-in core plugins plus checksum-verified community
+  plugins from a separately published registry — see
+  [docs/plugins.md](docs/plugins.md).
 
 ## Run it (Docker)
 
@@ -42,7 +43,7 @@ Everything lives under the volume:
 ```
 data/
   vault/      your notes (.md files & folders) — the source of truth
-  plugins/    runtime plugins (one folder per plugin)
+  plugins/    installed community plugins (one folder per plugin)
   themes/     custom CSS themes
   notable.db  derived data only (settings, CRDT cache)
 ```
@@ -104,7 +105,9 @@ notable-server --vault-dir ~/Notes --bind 0.0.0.0:9000
 | --- | --- | --- |
 | `--vault-dir` / `VAULT_DIR` | `./vault` | Your notes (plain .md files) |
 | `--database-url` / `DATABASE_URL` | `sqlite://notable.db` | Derived data only |
-| `--plugins-dir` / `PLUGINS_DIR` | `./plugins` | Runtime plugins |
+| `--core-plugins-dir` / `CORE_PLUGINS_DIR` | `./core-plugins` | Immutable bundled plugins |
+| `--plugins-dir` / `PLUGINS_DIR` | `./plugins` | Installed community plugins |
+| `--plugin-registry-url` / `PLUGIN_REGISTRY_URL` | Notable community registry | Registry JSON URL |
 | `--themes-dir` / `THEMES_DIR` | `./themes` | Custom CSS themes |
 | `--bind` / `BIND` | `127.0.0.1:8080` | Listen address |
 
@@ -123,7 +126,8 @@ frontend/
   src/sync/provider.ts   Y.Doc ↔ IndexedDB ↔ WebSocket, epochs, reconnect
   src/store/notes.ts     Offline-aware vault listing with mutation queue
   src/editor/Editor.tsx  CodeMirror 6 + yCollab + plugin extensions
-plugins/word-count/  Example runtime plugin
+core-plugins/word-count/  Built-in core plugin
+plugins/             Installed community plugins in local development
 docs/plugins.md      Plugin author guide
 ```
 

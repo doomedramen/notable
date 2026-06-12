@@ -23,6 +23,9 @@ import { NoteConnection } from "../sync/provider";
 import { useSyncStatus } from "../store/sync-status";
 import { editorExtensionStore, setActiveView } from "../core/editor";
 import { emit } from "../core/events";
+import { useNotesStore } from "../store/notes-store";
+import { openNote } from "../core/navigation";
+import { notice } from "../components/ui/toast";
 
 /* Typographic markdown styling — headings scale, syntax markers fade.
    (Full live preview that hides markers lands as a core plugin in a
@@ -109,14 +112,84 @@ export function Editor({ notePath }: { notePath: string }) {
     };
   }, [notePath, generation]);
 
-  const name = notePath.split("/").pop()!.replace(/\.md$/, "");
-
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="mx-auto w-full max-w-[46rem] shrink-0 px-4 pt-4 md:px-6 md:pt-8">
-        <h1 className="text-2xl font-bold tracking-tight">{name}</h1>
+        <EditableTitle notePath={notePath} />
       </div>
       <div ref={host} className="min-h-0 flex-1 overflow-auto" />
     </div>
+  );
+}
+
+/** Note title, doubling as a rename control — click to edit the filename. */
+function EditableTitle({ notePath }: { notePath: string }) {
+  const folder = notePath.includes("/")
+    ? notePath.slice(0, notePath.lastIndexOf("/"))
+    : "";
+  const name = notePath.split("/").pop()!.replace(/\.md$/, "");
+  const rename = useNotesStore((s) => s.rename);
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(name);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setValue(name);
+  }, [name]);
+
+  useEffect(() => {
+    if (editing) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [editing]);
+
+  const commit = async () => {
+    setEditing(false);
+    const trimmed = value.trim();
+    if (!trimmed || trimmed === name) {
+      setValue(name);
+      return;
+    }
+    const newPath = folder ? `${folder}/${trimmed}.md` : `${trimmed}.md`;
+    try {
+      const meta = await rename(notePath, newPath);
+      openNote(meta.path);
+    } catch {
+      setValue(name);
+      notice("Rename failed — is the name taken?", { variant: "danger" });
+    }
+  };
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={() => void commit()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            void commit();
+          } else if (e.key === "Escape") {
+            setValue(name);
+            setEditing(false);
+          }
+        }}
+        className="w-full rounded-sm bg-transparent text-2xl font-bold tracking-tight outline-none ring-2 ring-accent"
+        aria-label="Note title"
+      />
+    );
+  }
+
+  return (
+    <h1
+      onClick={() => setEditing(true)}
+      className="-mx-1 cursor-text rounded-sm px-1 text-2xl font-bold tracking-tight hover:bg-surface-hover"
+      title="Click to rename"
+    >
+      {name}
+    </h1>
   );
 }

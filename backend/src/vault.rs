@@ -69,7 +69,9 @@ impl Vault {
 
     /// Write a note atomically (tmp file + rename), creating parent dirs.
     pub fn write(&self, rel: &str, text: &str) -> anyhow::Result<()> {
-        let abs = self.resolve_note(rel).map_err(|s| anyhow::anyhow!("bad path: {s}"))?;
+        let abs = self
+            .resolve_note(rel)
+            .map_err(|s| anyhow::anyhow!("bad path: {s}"))?;
         if let Some(parent) = abs.parent() {
             std::fs::create_dir_all(parent)?;
         }
@@ -308,6 +310,33 @@ pub async fn create_folder(
     };
     match std::fs::create_dir_all(abs) {
         Ok(_) => StatusCode::CREATED,
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
+    }
+}
+
+/// DELETE /api/folders/{*path} — remove a folder, but only if it (and
+/// any subfolders) contain no notes. Refuses non-empty folders rather
+/// than silently deleting notes.
+pub async fn delete_folder(
+    AxumPath(path): AxumPath<String>,
+    State(state): State<Arc<AppState>>,
+) -> StatusCode {
+    let Ok(abs) = state.vault.resolve(&path) else {
+        return StatusCode::BAD_REQUEST;
+    };
+    if !abs.is_dir() {
+        return StatusCode::NOT_FOUND;
+    }
+    let has_notes = walkdir::WalkDir::new(&abs)
+        .into_iter()
+        .filter_entry(|e| !e.file_name().to_string_lossy().starts_with('.'))
+        .flatten()
+        .any(|e| e.file_type().is_file());
+    if has_notes {
+        return StatusCode::CONFLICT;
+    }
+    match std::fs::remove_dir_all(&abs) {
+        Ok(_) => StatusCode::NO_CONTENT,
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }

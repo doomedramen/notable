@@ -7,7 +7,23 @@ import { notice } from "../components/ui/toast";
    a toast + disabled state, never a white screen. */
 
 export interface PluginInfo extends PluginManifest {
+  source: "core" | "community";
   enabled: boolean;
+  userManaged: boolean;
+}
+
+export interface CommunityPlugin {
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  author: string;
+  homepage: string;
+  installed: boolean;
+  enabled: boolean;
+  activeVersion: string | null;
+  updateAvailable: boolean;
+  installable: boolean;
 }
 
 interface LoadedPlugin {
@@ -21,11 +37,18 @@ interface PluginState {
   available: readonly PluginInfo[];
   /** Ids currently loaded and running. */
   running: ReadonlySet<string>;
+  /** Community plugins published by the configured registry. */
+  store: readonly CommunityPlugin[];
+  registryUrl: string | null;
+  storeError: string | null;
 }
 
 export const pluginStore = createStore<PluginState>(() => ({
   available: [],
   running: new Set(),
+  store: [],
+  registryUrl: null,
+  storeError: null,
 }));
 
 const loaded = new Map<string, LoadedPlugin>();
@@ -42,6 +65,28 @@ export async function fetchPlugins(): Promise<PluginInfo[]> {
   }
 }
 
+export async function fetchPluginStore(): Promise<CommunityPlugin[]> {
+  try {
+    const res = await fetch("/api/plugins/store");
+    if (!res.ok) throw new Error(await responseError(res));
+    const data = (await res.json()) as {
+      registryUrl: string;
+      plugins: CommunityPlugin[];
+    };
+    pluginStore.setState({
+      store: data.plugins,
+      registryUrl: data.registryUrl,
+      storeError: null,
+    });
+    return data.plugins;
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Could not load plugin registry";
+    pluginStore.setState({ storeError: message });
+    return [];
+  }
+}
+
 /** Load every enabled plugin. Called once at startup. */
 export async function loadEnabledPlugins(): Promise<void> {
   const available = await fetchPlugins();
@@ -54,7 +99,8 @@ export async function loadPlugin(manifest: PluginManifest): Promise<boolean> {
   if (loaded.has(manifest.id)) return true;
   const entry = manifest.entry ?? "main.js";
   try {
-    const url = `/api/plugins/${encodeURIComponent(manifest.id)}/${entry}`;
+    const entryPath = entry.split("/").map(encodeURIComponent).join("/");
+    const url = `/api/plugins/${encodeURIComponent(manifest.id)}/${entryPath}?v=${encodeURIComponent(manifest.version)}`;
     const mod = (await import(/* @vite-ignore */ url)) as {
       default?: NotablePlugin;
     };
@@ -108,11 +154,12 @@ export async function setPluginEnabled(
   id: string,
   enabled: boolean,
 ): Promise<void> {
-  await fetch(`/api/plugins/${encodeURIComponent(id)}/enabled`, {
+  const res = await fetch(`/api/plugins/${encodeURIComponent(id)}/enabled`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ enabled }),
   });
+  if (!res.ok) throw new Error(await responseError(res));
   pluginStore.setState((s) => ({
     available: s.available.map((p) => (p.id === id ? { ...p, enabled } : p)),
   }));
@@ -122,4 +169,31 @@ export async function setPluginEnabled(
   } else {
     await unloadPlugin(id);
   }
+}
+
+export async function installCommunityPlugin(id: string): Promise<void> {
+  const wasRunning = loaded.has(id);
+  const res = await fetch(`/api/plugins/${encodeURIComponent(id)}`, {
+    method: "POST",
+  });
+  if (!res.ok) throw new Error(await responseError(res));
+
+  if (wasRunning) await unloadPlugin(id);
+  const [available] = await Promise.all([fetchPlugins(), fetchPluginStore()]);
+  const installed = available.find((plugin) => plugin.id === id);
+  if (installed?.enabled) await loadPlugin(installed);
+}
+
+export async function uninstallCommunityPlugin(id: string): Promise<void> {
+  const res = await fetch(`/api/plugins/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error(await responseError(res));
+  await unloadPlugin(id);
+  await Promise.all([fetchPlugins(), fetchPluginStore()]);
+}
+
+async function responseError(response: Response): Promise<string> {
+  const body = (await response.text()).trim();
+  return body || `Plugin request failed (${response.status})`;
 }

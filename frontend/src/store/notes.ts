@@ -189,6 +189,21 @@ export async function createFolder(path: string): Promise<void> {
   }
 }
 
+/** Delete an empty folder. Throws if the server refuses (not empty). */
+export async function deleteFolder(path: string): Promise<void> {
+  const res = await fetch(`/api/folders/${encodePath(path)}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error(res.status === 409 ? "not-empty" : "failed");
+  const cached = (await kvGet<VaultListing>("vault")) ?? EMPTY;
+  await kvSet("vault", {
+    ...cached,
+    folders: cached.folders.filter(
+      (f) => f !== path && !f.startsWith(`${path}/`),
+    ),
+  });
+}
+
 async function enqueue(op: Pending) {
   const q = (await kvGet<Pending[]>("queue")) ?? [];
   await kvSet("queue", [...q, op]);

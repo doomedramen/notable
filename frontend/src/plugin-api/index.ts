@@ -28,6 +28,8 @@ export interface PluginManifest {
   description?: string;
   /** Entry module relative to the plugin dir. Default: "main.js". */
   entry?: string;
+  /** Core plugins may opt into loading on a fresh install. */
+  defaultEnabled?: boolean;
 }
 
 export interface NoteMeta {

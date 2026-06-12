@@ -210,7 +210,11 @@ pub async fn move_note(state: &AppState, from: &str, to: &str) {
         "UPDATE links SET target_path = ? WHERE target_path = ?",
         "UPDATE tags SET note_path = ? WHERE note_path = ?",
     ] {
-        let _ = sqlx::query(sql).bind(to).bind(from).execute(&state.db).await;
+        let _ = sqlx::query(sql)
+            .bind(to)
+            .bind(from)
+            .execute(&state.db)
+            .await;
     }
     // The filename (= link name + FTS name column) may have changed.
     if let Ok(body) = state.vault.read(to) {
@@ -257,8 +261,7 @@ pub async fn reindex_vault(state: Arc<AppState>) {
         .fetch_all(&state.db)
         .await
         .unwrap_or_default();
-    let live: std::collections::HashSet<&str> =
-        files.iter().map(|(p, _)| p.as_str()).collect();
+    let live: std::collections::HashSet<&str> = files.iter().map(|(p, _)| p.as_str()).collect();
     for (path,) in &known {
         if !live.contains(path.as_str()) {
             remove_note(&state, path).await;
@@ -267,12 +270,11 @@ pub async fn reindex_vault(state: Arc<AppState>) {
 
     let mut indexed = 0u32;
     for (path, mtime) in files {
-        let row: Option<(i64,)> =
-            sqlx::query_as("SELECT indexed_at FROM note_text WHERE path = ?")
-                .bind(&path)
-                .fetch_optional(&state.db)
-                .await
-                .unwrap_or(None);
+        let row: Option<(i64,)> = sqlx::query_as("SELECT indexed_at FROM note_text WHERE path = ?")
+            .bind(&path)
+            .fetch_optional(&state.db)
+            .await
+            .unwrap_or(None);
         if row.is_some_and(|(at,)| at >= mtime) {
             continue;
         }
@@ -397,15 +399,12 @@ pub struct TagCount {
 }
 
 /// GET /api/tags
-pub async fn tags(
-    State(state): State<Arc<AppState>>,
-) -> Result<Json<Vec<TagCount>>, StatusCode> {
-    let rows: Vec<(String, i64)> = sqlx::query_as(
-        "SELECT tag, COUNT(*) FROM tags GROUP BY tag ORDER BY COUNT(*) DESC, tag",
-    )
-    .fetch_all(&state.db)
-    .await
-    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+pub async fn tags(State(state): State<Arc<AppState>>) -> Result<Json<Vec<TagCount>>, StatusCode> {
+    let rows: Vec<(String, i64)> =
+        sqlx::query_as("SELECT tag, COUNT(*) FROM tags GROUP BY tag ORDER BY COUNT(*) DESC, tag")
+            .fetch_all(&state.db)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(Json(
         rows.into_iter()
             .map(|(tag, count)| TagCount { tag, count })
@@ -487,7 +486,9 @@ mod tests {
             db,
             vault: crate::vault::Vault::new(dir).unwrap(),
             rooms: dashmap::DashMap::new(),
+            core_plugins_dir: "/nonexistent".into(),
             plugins_dir: "/nonexistent".into(),
+            plugin_registry_url: String::new(),
             themes_dir: "/nonexistent".into(),
         })
     }
@@ -496,7 +497,12 @@ mod tests {
     async fn index_search_backlinks_round_trip() {
         let state = test_state().await;
 
-        index_note(&state, "Plan.md", "# The plan\n\nShip the search feature #roadmap").await;
+        index_note(
+            &state,
+            "Plan.md",
+            "# The plan\n\nShip the search feature #roadmap",
+        )
+        .await;
         index_note(&state, "Journal/Today.md", "Working on [[Plan]] today #log").await;
 
         // Full-text search finds by body, ranked, with match markers.
@@ -513,12 +519,11 @@ mod tests {
         assert!(rows[0].1.contains("<search>"), "snippet: {}", rows[0].1);
 
         // The wikilink resolved by filename stem.
-        let link: (String, Option<String>) = sqlx::query_as(
-            "SELECT source_path, target_path FROM links WHERE target_name = 'Plan'",
-        )
-        .fetch_one(&state.db)
-        .await
-        .unwrap();
+        let link: (String, Option<String>) =
+            sqlx::query_as("SELECT source_path, target_path FROM links WHERE target_name = 'Plan'")
+                .fetch_one(&state.db)
+                .await
+                .unwrap();
         assert_eq!(link.0, "Journal/Today.md");
         assert_eq!(link.1.as_deref(), Some("Plan.md"));
 

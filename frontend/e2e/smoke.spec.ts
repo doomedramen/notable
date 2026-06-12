@@ -183,6 +183,73 @@ test("rename a note from the sidebar context menu", async ({ page }) => {
   }).toPass({ timeout: 5_000 });
 });
 
+test("rename a note from the editor title", async ({ page }) => {
+  await page.goto("/");
+  const notePath = await createNote(page);
+  const oldName = notePath.replace(/\.md$/, "").split("/").pop()!;
+  const newName = `Renamed from editor ${Date.now()}`;
+
+  await page.getByRole("heading", { name: oldName, exact: true }).click();
+  const input = page.getByLabel("Note title");
+  await input.fill(newName);
+  await input.press("Enter");
+
+  await expect(page).toHaveURL(new RegExp(encodeURIComponent(newName)));
+  await expect(page.getByRole("heading", { name: newName })).toBeVisible();
+  await expect(async () => {
+    expect(fs.existsSync(path.join(VAULT, `${newName}.md`))).toBe(true);
+    expect(fs.existsSync(path.join(VAULT, notePath))).toBe(false);
+  }).toPass({ timeout: 5_000 });
+});
+
+test("delete an empty folder, but not a non-empty one", async ({ page }) => {
+  await page.goto("/");
+
+  // Empty folder
+  await page.getByLabel("New…").click();
+  await page.getByRole("menuitem", { name: "New folder" }).click();
+  const emptyFolder = `Empty ${Date.now()}`;
+  await page.getByLabel("Folder name").fill(emptyFolder);
+  await page.getByRole("button", { name: "Create" }).click();
+  await expect(page.locator("nav")).toContainText(emptyFolder);
+
+  // Non-empty folder with a note inside
+  await page.getByLabel("New…").click();
+  await page.getByRole("menuitem", { name: "New folder" }).click();
+  const fullFolder = `Full ${Date.now()}`;
+  await page.getByLabel("Folder name").fill(fullFolder);
+  await page.getByRole("button", { name: "Create" }).click();
+  await page
+    .locator("nav")
+    .getByRole("button", { name: fullFolder, exact: true })
+    .click({ button: "right" });
+  await page.getByRole("menuitem", { name: "New note here" }).click();
+  await expect(page).toHaveURL(new RegExp(`${encodeURIComponent(fullFolder)}/`));
+
+  // Deleting the non-empty folder is refused.
+  await page
+    .locator("nav")
+    .getByRole("button", { name: fullFolder, exact: true })
+    .click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Delete folder" }).click();
+  await page.getByRole("button", { name: "Confirm" }).click();
+  await expect(page.locator("nav")).toContainText(fullFolder);
+  await expect(
+    page.getByText("Folder is not empty."),
+  ).toBeVisible();
+  expect(fs.statSync(path.join(VAULT, fullFolder)).isDirectory()).toBe(true);
+
+  // Deleting the empty folder succeeds and removes it from disk.
+  await page
+    .locator("nav")
+    .getByRole("button", { name: emptyFolder, exact: true })
+    .click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Delete folder" }).click();
+  await page.getByRole("button", { name: "Confirm" }).click();
+  await expect(page.locator("nav")).not.toContainText(emptyFolder);
+  expect(fs.existsSync(path.join(VAULT, emptyFolder))).toBe(false);
+});
+
 test("create a folder and a note inside it", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("New…").click();

@@ -3,5 +3,6 @@
   "name": "Word count",
   "version": "1.0.0",
   "description": "Shows a live word count for the open note in the status bar.",
-  "entry": "main.js"
+  "entry": "main.js",
+  "defaultEnabled": true
 }
