@@ -1,3 +1,4 @@
+mod indexer;
 mod plugins;
 mod settings;
 mod sync;
@@ -33,9 +34,21 @@ struct Args {
     #[arg(long, env = "DATABASE_URL", default_value = "sqlite://notable.db")]
     database_url: String,
 
-    /// Directory of runtime plugins (each a folder with manifest.json)
+    /// Directory of installed community plugins (each a folder with manifest.json)
     #[arg(long, env = "PLUGINS_DIR", default_value = "./plugins")]
     plugins_dir: std::path::PathBuf,
+
+    /// Directory of immutable plugins shipped with Notable
+    #[arg(long, env = "CORE_PLUGINS_DIR", default_value = "./core-plugins")]
+    core_plugins_dir: std::path::PathBuf,
+
+    /// Community plugin registry JSON URL (http(s):// or file://)
+    #[arg(
+        long,
+        env = "PLUGIN_REGISTRY_URL",
+        default_value = "https://github.com/doomedramen/notable-plugins/releases/download/plugins-latest/plugins.json"
+    )]
+    plugin_registry_url: String,
 
     /// Directory of user themes (*.css files overriding design tokens)
     #[arg(long, env = "THEMES_DIR", default_value = "./themes")]
@@ -53,7 +66,9 @@ pub struct AppState {
     pub vault: vault::Vault,
     /// In-memory Y.Doc rooms for notes with active editors, by path.
     pub rooms: dashmap::DashMap<String, Arc<sync::Room>>,
+    pub core_plugins_dir: std::path::PathBuf,
     pub plugins_dir: std::path::PathBuf,
+    pub plugin_registry_url: String,
     pub themes_dir: std::path::PathBuf,
 }
 
@@ -72,7 +87,9 @@ async fn main() -> anyhow::Result<()> {
         db,
         vault: vault::Vault::new(args.vault_dir)?,
         rooms: dashmap::DashMap::new(),
+        core_plugins_dir: args.core_plugins_dir,
         plugins_dir: args.plugins_dir,
+        plugin_registry_url: args.plugin_registry_url,
         themes_dir: args.themes_dir,
     });
 
@@ -80,6 +97,8 @@ async fn main() -> anyhow::Result<()> {
     tokio::spawn(sync::sweeper(state.clone()));
     // Merge external file edits into live sessions.
     tokio::spawn(sync::watcher(state.clone()));
+    // Catch up the search index with files changed while we were down.
+    tokio::spawn(indexer::reindex_vault(state.clone()));
 
     let app = Router::new()
         // Vault: note files & lifecycle (note id = vault-relative path)
@@ -93,10 +112,20 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/sync/{*path}", get(sync::ws_handler))
         // Bulk pull for offline catch-up: state vector -> missing updates
         .route("/api/diff/{*path}", post(sync::diff))
+        // Search & graph index (derived from vault files)
+        .route("/api/search", get(indexer::search))
+        .route("/api/backlinks/{*path}", get(indexer::backlinks))
+        .route("/api/tags", get(indexer::tags))
+        .route("/api/tags/{*tag}", get(indexer::notes_with_tag))
         // Runtime plugins: manifests, code, enablement
         .route("/api/plugins", get(plugins::list))
+        .route("/api/plugins/store", get(plugins::store))
+        .route(
+            "/api/plugins/{id}",
+            post(plugins::install).delete(plugins::uninstall),
+        )
         .route("/api/plugins/{id}/enabled", put(plugins::set_enabled))
-        .route("/api/plugins/{id}/{file}", get(plugins::serve_file))
+        .route("/api/plugins/{id}/{*file}", get(plugins::serve_file))
         // Generic settings KV (also used for per-plugin settings)
         .route(
             "/api/settings/{key}",

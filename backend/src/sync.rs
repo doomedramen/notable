@@ -176,6 +176,7 @@ pub async fn flush_room(state: &AppState, path: &str, room: &Room) {
     }
     room.set_file_hash(sha256_hex(&text));
     update_cache(state, path, room).await;
+    crate::indexer::index_note(state, path, &text).await;
 }
 
 async fn update_cache(state: &AppState, path: &str, room: &Room) {
@@ -367,11 +368,13 @@ pub async fn watcher(state: Arc<AppState>) {
 /// Merge an on-disk change into a live room, if one is open. Cold notes
 /// need nothing: load_room reconciles when they're next opened.
 async fn reconcile_external_change(state: &Arc<AppState>, path: &str) {
-    let Some(room) = state.rooms.get(path).map(|r| r.clone()) else {
-        return;
-    };
     let Ok(file_text) = state.vault.read(path) else {
         return; // deleted/moved — vault handlers manage room lifecycle
+    };
+    let Some(room) = state.rooms.get(path).map(|r| r.clone()) else {
+        // No live session — just keep the search index fresh.
+        crate::indexer::index_note(state, path, &file_text).await;
+        return;
     };
 
     // The active room owns the authoritative last-seen file hash. The
@@ -401,6 +404,7 @@ async fn reconcile_external_change(state: &Arc<AppState>, path: &str) {
     // Doc now matches the file — refresh cache, nothing to write back.
     room.dirty.store(false, Ordering::Relaxed);
     update_cache(state, path, &room).await;
+    crate::indexer::index_note(state, path, &file_text).await;
 }
 
 /// Offline catch-up over plain HTTP: client POSTs its state vector,

@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useStore } from "zustand";
 import { Command as Cmdk } from "cmdk";
 import fuzzysort from "fuzzysort";
-import { FileText, Terminal } from "lucide-react";
+import { FileSearch, FileText, Terminal } from "lucide-react";
 import { commandStore, runCommand } from "../core/commands";
 import { openNote } from "../core/navigation";
 import { useNotesStore } from "../store/notes-store";
@@ -32,16 +32,69 @@ function prettyHotkey(hotkey: string): string {
     .join(IS_MAC ? "" : "+");
 }
 
+interface SearchHit {
+  path: string;
+  name: string;
+  /** Body excerpt; … wrap matched terms (rendered as <mark>). */
+  snippet: string;
+}
+
+/** Render a server snippet, turning the control-char markers into
+    highlights without ever interpreting note content as HTML. */
+function Snippet({ text }: { text: string }) {
+  const parts = text.split(/[\u0001\u0002]/);
+  return (
+    <span className="truncate text-xs text-muted">
+      {parts.map((part, i) => (
+        <Fragment key={i}>
+          {i % 2 === 1 ? (
+            <mark className="rounded-xs bg-accent-soft px-0.5 text-accent">
+              {part}
+            </mark>
+          ) : (
+            part
+          )}
+        </Fragment>
+      ))}
+    </span>
+  );
+}
+
 export function CommandPalette() {
   const open = useUI((s) => s.paletteOpen);
   const setOpen = useUI((s) => s.setPaletteOpen);
   const [query, setQuery] = useState("");
+  const [hits, setHits] = useState<SearchHit[]>([]);
   const notes = useNotesStore((s) => s.notes);
   const commands = useStore(commandStore, (s) => s.commands);
 
   useEffect(() => {
     if (!open) setQuery("");
   }, [open]);
+
+  // Debounced server-side full-text search. Offline (or any failure)
+  // degrades to the local fuzzy title match below.
+  useEffect(() => {
+    if (!query.trim()) {
+      setHits([]);
+      return;
+    }
+    const ctrl = new AbortController();
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`, {
+          signal: ctrl.signal,
+        });
+        if (res.ok) setHits(await res.json());
+      } catch {
+        setHits([]);
+      }
+    }, 120);
+    return () => {
+      clearTimeout(t);
+      ctrl.abort();
+    };
+  }, [query]);
 
   const visibleCommands = useMemo(
     () => [...commands.values()].filter((c) => !c.when || c.when()),
@@ -104,6 +157,29 @@ export function CommandPalette() {
                     {note.folder}
                   </span>
                 )}
+              </Cmdk.Item>
+            ))}
+          </Cmdk.Group>
+        )}
+
+        {hits.length > 0 && (
+          <Cmdk.Group
+            heading="Content"
+            className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-faint"
+          >
+            {hits.map((hit) => (
+              <Cmdk.Item
+                key={`s-${hit.path}`}
+                value={`search-${hit.path}`}
+                onSelect={() => {
+                  setOpen(false);
+                  openNote(hit.path);
+                }}
+                className="flex cursor-default items-center gap-2 rounded-sm px-2 py-2 text-[13px] text-foreground select-none data-[selected=true]:bg-surface-hover"
+              >
+                <FileSearch size={14} className="shrink-0 text-faint" />
+                <span className="shrink-0">{hit.name}</span>
+                <Snippet text={hit.snippet} />
               </Cmdk.Item>
             ))}
           </Cmdk.Group>

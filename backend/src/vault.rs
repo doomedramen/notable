@@ -213,6 +213,7 @@ pub async fn create(
             .vault
             .write(&rel, &req.content)
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        crate::indexer::index_note(&state, &rel, &req.content).await;
     }
     let modified = abs
         .metadata()
@@ -262,6 +263,7 @@ pub async fn rename(
         .bind(&path)
         .execute(&state.db)
         .await;
+    crate::indexer::move_note(&state, &path, &req.new_path).await;
 
     let modified = to
         .metadata()
@@ -283,6 +285,7 @@ pub async fn delete(
         .bind(&path)
         .execute(&state.db)
         .await;
+    crate::indexer::remove_note(&state, &path).await;
     match std::fs::remove_file(abs) {
         Ok(_) => StatusCode::NO_CONTENT,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => StatusCode::NO_CONTENT,

@@ -84,6 +84,11 @@ test("offline edits persist across a reload", async ({ page, context }) => {
   await context.setOffline(true);
   await page.keyboard.type(" and edited offline");
   await expect(page.locator("footer")).toContainText("Offline");
+  // Guard: the offline keystrokes must be in the live editor before we
+  // measure persistence (distinguishes "lost at reload" from "never typed").
+  await expect(page.locator(".cm-content")).toContainText(
+    "saved online and edited offline",
+  );
 
   await page.reload();
   await expect(page.locator(".cm-content")).toContainText(
@@ -194,6 +199,36 @@ test("create a folder and a note inside it", async ({ page }) => {
     .click({ button: "right" });
   await page.getByRole("menuitem", { name: "New note here" }).click();
   await expect(page).toHaveURL(/\/note\/Projects\//);
+});
+
+test("full-text search finds notes by content in the palette", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const notePath = await createNote(page);
+  await typeInEditor(
+    page,
+    "# Recipes\n\nThe secret ingredient is cardamom obviously",
+  );
+  await expect(page.locator("footer")).toContainText("Synced");
+
+  // Indexing happens on the write-behind flush (~2s idle).
+  await expect(async () => {
+    const res = await page.request.get("/api/search?q=cardamom");
+    const hits = (await res.json()) as { path: string }[];
+    expect(hits.some((h) => h.path === notePath)).toBe(true);
+  }).toPass({ timeout: 10_000 });
+
+  await page.keyboard.press("ControlOrMeta+k");
+  await page.getByPlaceholder("Search notes and commands…").fill("cardamom");
+
+  // The Content group surfaces the match with a highlighted snippet.
+  const hit = page.getByRole("option", { name: /cardamom/ }).first();
+  await expect(hit).toBeVisible();
+  await hit.click();
+  await expect(page).toHaveURL(
+    new RegExp(encodeURIComponent(notePath.replace(/\.md$/, ""))),
+  );
 });
 
 test("command palette opens with Mod-K and runs commands", async ({ page }) => {

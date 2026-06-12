@@ -54,7 +54,11 @@ export class NoteConnection {
     this.idb = new IndexeddbPersistence(`note-${path}`, this.doc);
 
     this.updateHandler = (update, origin) => {
-      if (origin === this) return; // came from the server, not a local edit
+      // Ignore non-edits: server echoes (origin === this) and IndexedDB
+      // hydration on boot (origin === idb). Treating hydration as a local
+      // edit would, while offline, overwrite the dirty-content recovery
+      // copy with the partially-hydrated doc — losing the newest edits.
+      if (origin === this || origin === this.idb) return;
       if (navigator.onLine && this.ws?.readyState === WebSocket.OPEN) {
         this.ws.send(update);
         // Note: WebSocket.send has no ack. For a scaffold we treat
