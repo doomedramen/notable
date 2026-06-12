@@ -24,7 +24,7 @@ GitHub Container Registry. A minimal `docker-compose.yml`:
 ```yaml
 services:
   notable:
-    image: ghcr.io/OWNER/notable-scaffold:latest   # ← your GitHub owner/repo
+    image: ghcr.io/doomedramen/notable:latest
     ports:
       - "8080:8080"
     volumes:
