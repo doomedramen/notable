@@ -362,6 +362,22 @@ async fn reconcile_external_change(state: &Arc<AppState>, path: &str) {
         return; // deleted/moved — vault handlers manage room lifecycle
     };
 
+    // Only treat this as an external edit if the file differs from the
+    // last state we wrote/knew (the cache hash). Comparing against the
+    // LIVE doc would misfire: between flushes the doc legitimately runs
+    // ahead of the file (in-flight typing), and "reconciling" a stale
+    // event — e.g. the echo of our own create/flush — would diff that
+    // typing away.
+    let known: Option<(String,)> =
+        sqlx::query_as("SELECT text_hash FROM doc_cache WHERE path = ?")
+            .bind(path)
+            .fetch_optional(&state.db)
+            .await
+            .unwrap_or(None);
+    if known.map(|(h,)| h) == Some(sha256_hex(&file_text)) {
+        return;
+    }
+
     let update = {
         let doc = room.doc.lock().await;
         let current = doc_text(&doc);
