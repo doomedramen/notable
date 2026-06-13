@@ -66,7 +66,12 @@ export function AppShell() {
     <ThemeProvider>
       <TooltipProvider delayDuration={400}>
         <div
-          className="flex h-dvh flex-col bg-background text-foreground"
+          // Reserve the iOS home-indicator inset here, on the app background,
+          // rather than inside the StatusBar. That keeps the footer a slim bar
+          // sitting just above a background-coloured safe-area strip, instead
+          // of a tall surface-coloured block whose text floats up off the edge.
+          // (Drawers are position:fixed and handle their own insets.)
+          className="flex h-dvh flex-col bg-background text-foreground pb-[env(safe-area-inset-bottom)]"
           onTouchStart={onTouchStart}
           onTouchEnd={onTouchEnd}
         >
