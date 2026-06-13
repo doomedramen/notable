@@ -1,8 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-notebook-icon lucide-notebook">
-  <path d="M2 6h4"/>
-  <path d="M2 10h4"/>
-  <path d="M2 14h4"/>
-  <path d="M2 18h4"/>
-  <rect width="16" height="20" x="4" y="2" rx="2"/>
-  <path d="M16 2v20"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512">
+  <!-- Background -->
+  <rect width="512" height="512" fill="#5e6ad2" />
+  
+  <!-- Scale 13.33, Offset 96 -->
+  <!-- Notebook Outer Body (White) -->
+  <rect x="149.33" y="122.66" width="213.33" height="266.66" rx="26.66" fill="white" />
+  <!-- Notebook Inner Body (Blue to create stroke effect) -->
+  <rect x="175.99" y="149.33" width="160.0" height="213.33" rx="13.33" fill="#5e6ad2" />
+  
+  <!-- Binder Rings (White) -->
+  <rect x="122.66" y="162.66" width="80.0" height="26.66" rx="13.33" fill="white" />
+  <rect x="122.66" y="215.99" width="80.0" height="26.66" rx="13.33" fill="white" />
+  <rect x="122.66" y="269.32" width="80.0" height="26.66" rx="13.33" fill="white" />
+  <rect x="122.66" y="322.65" width="80.0" height="26.66" rx="13.33" fill="white" />
+  
+  <!-- Vertical Spine Line (White) -->
+  <rect x="296.0" y="122.66" width="26.66" height="266.66" fill="white" />
 </svg>
