@@ -28,7 +28,7 @@ export function UpdatePrompt() {
   return (
     <div
       role="status"
-      className="fixed bottom-24 left-1/2 z-50 flex w-[min(26rem,calc(100vw-2rem))] -translate-x-1/2 items-center gap-3 rounded-md bg-background p-3 text-[13px] shadow-[var(--shadow-dialog)]"
+      className="fixed bottom-24 left-1/2 z-50 flex w-[min(26rem,calc(100vw-2rem))] -translate-x-1/2 items-center gap-3 rounded-md bg-background p-3 text-sm shadow-[var(--shadow-dialog)]"
     >
       <p className="m-0 flex-1">
         {needRefresh

@@ -114,7 +114,7 @@ function MobileTopBar({ activePath }: { activePath: string | null }) {
       >
         <PanelLeft size={16} />
       </Button>
-      <span className="flex-1 truncate px-1 text-[13px] font-medium">
+      <span className="flex-1 truncate px-1 text-sm font-medium">
         {name ?? "Notable"}
       </span>
       <Button
@@ -139,7 +139,7 @@ function RightPanel() {
   return (
     <aside className="fixed inset-y-0 right-0 z-40 flex w-80 max-w-[85vw] flex-col border-l border-border bg-surface md:static md:z-auto md:w-72">
       <div className="flex h-9 shrink-0 items-center gap-2 border-b border-border px-3">
-        <span className="flex-1 text-[13px] font-medium">{panel.title}</span>
+        <span className="flex-1 text-sm font-medium">{panel.title}</span>
         <Button
           variant="ghost"
           size="icon"

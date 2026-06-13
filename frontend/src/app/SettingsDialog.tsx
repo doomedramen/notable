@@ -27,6 +27,8 @@ import {
 import { cn } from "../lib/cn";
 import { notice } from "../components/ui/toast";
 import { confirm } from "../components/ui/confirm";
+import { Badge } from "../components/ui/badge";
+import { EmptyState } from "../components/ui/empty-state";
 
 export function SettingsDialog() {
   const open = useUI((s) => s.settingsOpen);
@@ -50,7 +52,7 @@ export function SettingsDialog() {
           desktop: classic two-pane settings window. */}
       <DialogContent className="flex h-[85dvh] w-[calc(100vw-1.5rem)] max-w-2xl flex-col gap-0 p-0 md:h-[26rem] md:flex-row">
         <nav className="flex w-full shrink-0 gap-0.5 overflow-x-auto rounded-t-md border-b border-border bg-surface p-2 md:w-44 md:flex-col md:overflow-x-visible md:rounded-l-md md:rounded-tr-none md:border-r md:border-b-0">
-          <DialogTitle className="hidden px-2 pt-1 pb-3 text-[13px] md:block">
+          <DialogTitle className="hidden px-2 pt-1 pb-3 text-sm md:block">
             Settings
           </DialogTitle>
           {tabs.map((tab) => (
@@ -58,7 +60,7 @@ export function SettingsDialog() {
               key={tab.id}
               onClick={() => setActive(tab.id)}
               className={cn(
-                "flex shrink-0 items-center gap-2 rounded-sm px-2.5 py-2 text-left text-[13px] whitespace-nowrap transition-colors md:w-full md:shrink md:py-1.5",
+                "flex shrink-0 items-center gap-1.5 rounded-sm px-2.5 py-2 text-left text-sm whitespace-nowrap transition-colors duration-100 md:w-full md:shrink md:py-1.5",
                 active === tab.id
                   ? "bg-accent-soft text-foreground"
                   : "text-muted hover:bg-surface-hover hover:text-foreground",
@@ -108,8 +110,8 @@ function AppearanceTab() {
 
   return (
     <section>
-      <h3 className="text-[13px] font-semibold">Theme</h3>
-      <p className="mt-1 text-[13px] text-muted">
+      <h3 className="text-sm font-semibold">Theme</h3>
+      <p className="mt-1 text-sm text-muted">
         How Notable looks. “System” follows your OS preference.
       </p>
       <div className="mt-3 flex gap-2">
@@ -125,8 +127,8 @@ function AppearanceTab() {
         ))}
       </div>
 
-      <h3 className="mt-5 text-[13px] font-semibold">Editor font size</h3>
-      <p className="mt-1 text-[13px] text-muted">
+      <h3 className="mt-5 text-sm font-semibold">Editor font size</h3>
+      <p className="mt-1 text-sm text-muted">
         Size of the note text in the editor.
       </p>
       <div className="mt-3 flex items-center gap-3">
@@ -139,7 +141,7 @@ function AppearanceTab() {
         >
           A-
         </Button>
-        <span className="w-10 text-center text-[13px] text-muted">
+        <span className="w-10 text-center text-sm text-muted">
           {editorFontSize}px
         </span>
         <Button
@@ -160,8 +162,8 @@ function AppearanceTab() {
 
       {themes.length > 0 && (
         <>
-          <h3 className="mt-5 text-[13px] font-semibold">Custom theme</h3>
-          <p className="mt-1 text-[13px] text-muted">
+          <h3 className="mt-5 text-sm font-semibold">Custom theme</h3>
+          <p className="mt-1 text-sm text-muted">
             CSS files from the themes directory, overriding the colors above.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -253,7 +255,7 @@ function PluginsTab() {
   return (
     <section>
       <div className="flex items-center gap-2">
-        <h3 className="flex-1 text-[13px] font-semibold">Plugins</h3>
+        <h3 className="flex-1 text-sm font-semibold">Plugins</h3>
         <div className="flex rounded-sm border border-border bg-surface p-0.5">
           {(["installed", "browse"] as const).map((tab) => (
             <button
@@ -271,15 +273,15 @@ function PluginsTab() {
           ))}
         </div>
       </div>
-      <p className="mt-1 text-[13px] leading-relaxed text-muted">
+      <p className="mt-1 text-sm leading-relaxed text-muted">
         Core plugins ship with Notable. Community plugins run with full access
         to the app and your notes, so only install code you trust.
       </p>
 
       {view === "installed" && available.length === 0 ? (
-        <p className="mt-4 text-[13px] text-faint">
+        <EmptyState icon={Puzzle} className="mt-4">
           No plugins are installed.
-        </p>
+        </EmptyState>
       ) : view === "installed" ? (
         <ul className="mt-4 space-y-1">
           {available.map((p) => (
@@ -289,17 +291,15 @@ function PluginsTab() {
             >
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-[13px] font-medium">{p.name}</span>
+                  <span className="text-sm font-medium">{p.name}</span>
                   <span className="text-xs text-faint">v{p.version}</span>
-                  <span className="rounded-sm bg-surface-hover px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-faint">
-                    {p.source}
-                  </span>
+                  <Badge>{p.source}</Badge>
                   {running.has(p.id) && (
                     <span className="text-xs text-success">running</span>
                   )}
                 </div>
                 {p.description && (
-                  <p className="mt-0.5 text-[13px] text-muted">
+                  <p className="mt-0.5 text-sm text-muted">
                     {p.description}
                   </p>
                 )}
@@ -337,13 +337,13 @@ function PluginsTab() {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search community plugins"
-              className="h-8 w-full rounded-sm border border-border bg-background pr-3 pl-8 text-[13px] outline-none focus:border-accent"
+              className="h-8 w-full rounded-sm border border-border bg-background pr-3 pl-8 text-sm outline-none focus:border-accent"
             />
           </label>
           {storeError ? (
-            <p className="mt-3 text-[13px] text-danger">{storeError}</p>
+            <p className="mt-3 text-sm text-danger">{storeError}</p>
           ) : filteredStore.length === 0 ? (
-            <p className="mt-3 text-[13px] text-faint">
+            <p className="mt-3 text-sm text-faint">
               {query ? "No plugins match your search." : "No community plugins available."}
             </p>
           ) : (
@@ -355,13 +355,13 @@ function PluginsTab() {
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-baseline gap-2">
-                      <span className="text-[13px] font-medium">{plugin.name}</span>
+                      <span className="text-sm font-medium">{plugin.name}</span>
                       <span className="text-xs text-faint">v{plugin.version}</span>
                       {plugin.author && (
                         <span className="text-xs text-faint">by {plugin.author}</span>
                       )}
                     </div>
-                    <p className="mt-0.5 text-[13px] text-muted">
+                    <p className="mt-0.5 text-sm text-muted">
                       {plugin.description}
                     </p>
                   </div>
@@ -403,7 +403,7 @@ function PluginsTab() {
             </ul>
           )}
           {registryUrl && (
-            <p className="mt-3 truncate text-[11px] text-faint" title={registryUrl}>
+            <p className="mt-3 truncate text-xs text-faint" title={registryUrl}>
               Registry: {registryUrl}
             </p>
           )}

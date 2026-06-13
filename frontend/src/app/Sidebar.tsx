@@ -20,6 +20,7 @@ import type { NoteMeta } from "../store/notes";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Tooltip } from "../components/ui/tooltip";
+import { EmptyState } from "../components/ui/empty-state";
 import { notice } from "../components/ui/toast";
 import { confirm } from "../components/ui/confirm";
 import {
@@ -127,8 +128,8 @@ export function Sidebar() {
         )}
         data-testid="sidebar"
       >
-      <div className="flex items-center gap-1 px-3 pt-3 pb-2">
-        <span className="flex-1 text-[13px] font-semibold tracking-tight select-none">
+      <div className="flex items-center gap-1.5 px-3 pt-3 pb-2">
+        <span className="flex-1 text-sm font-semibold tracking-tight select-none">
           Notable
         </span>
         <Tooltip label="Settings">
@@ -169,9 +170,9 @@ export function Sidebar() {
 
       <nav className="flex-1 overflow-y-auto px-1.5 pb-2">
         {notes.length === 0 && groups.rest.length === 0 ? (
-          <p className="px-2 py-4 text-[13px] text-faint">
+          <EmptyState icon={FileText}>
             No notes yet. Create one to start writing.
-          </p>
+          </EmptyState>
         ) : (
           <>
             <ul>
@@ -208,7 +209,7 @@ export function Sidebar() {
         <button
           onClick={() => navigate("/trash")}
           className={cn(
-            "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-[13px] text-muted hover:bg-surface-hover hover:text-foreground",
+            "flex w-full items-center gap-1.5 rounded-sm px-2 py-1.5 text-left text-sm text-muted hover:bg-surface-hover hover:text-foreground",
             location.pathname === "/trash" && "bg-surface-hover text-foreground",
           )}
         >
@@ -254,11 +255,11 @@ function FolderGroup({
         <ContextMenuTrigger asChild>
           <button
             onClick={() => setCollapsed((c) => !c)}
-            className="flex w-full items-center gap-1.5 rounded-sm px-2 py-2 text-left text-[13px] text-muted hover:bg-surface-hover hover:text-foreground md:py-1.5"
+            className="flex w-full items-center gap-1.5 rounded-sm px-2 py-2 text-left text-sm text-muted hover:bg-surface-hover hover:text-foreground md:py-1.5"
           >
             <ChevronDown
               size={12}
-              className={cn("shrink-0 transition-transform", collapsed && "-rotate-90")}
+              className={cn("shrink-0 transition-transform duration-200", collapsed && "-rotate-90")}
             />
             <Folder size={14} className="shrink-0 text-faint" />
             <span className="truncate font-medium">{folder}</span>
@@ -367,7 +368,7 @@ function NoteRow({
           <button
             onClick={onOpen}
             className={cn(
-              "flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-[13px] transition-colors duration-75 md:py-1.5",
+              "flex w-full items-center gap-1.5 rounded-sm px-2 py-2 text-left text-sm transition-colors duration-100 md:py-1.5",
               active
                 ? "bg-accent-soft text-foreground"
                 : "text-muted hover:bg-surface-hover hover:text-foreground",
@@ -376,7 +377,7 @@ function NoteRow({
             <FileText size={14} className={cn("shrink-0", active ? "text-accent" : "text-faint")} />
             <span className="truncate">{note.name}</span>
             {!hideFolder && note.folder && (
-              <span className="ml-auto truncate text-[11px] text-faint">
+              <span className="ml-auto truncate text-xs text-faint">
                 {note.folder}
               </span>
             )}
@@ -485,11 +486,7 @@ function DeleteDialog({
         </DialogDescription>
         <DialogFooter>
           <Button onClick={onClose}>Cancel</Button>
-          <Button
-            variant="primary"
-            className="bg-danger text-white"
-            onClick={handleDelete}
-          >
+          <Button variant="dangerSolid" onClick={handleDelete}>
             Delete
           </Button>
         </DialogFooter>
@@ -512,12 +509,12 @@ function SidebarPanels() {
             onClick={() =>
               setCollapsed((c) => ({ ...c, [panel.id]: !c[panel.id] }))
             }
-            className="flex w-full items-center gap-1 px-3 py-2 text-xs font-medium text-muted hover:text-foreground"
+            className="flex w-full items-center gap-1.5 px-3 py-2 text-xs font-medium text-muted hover:text-foreground"
           >
             <ChevronDown
               size={12}
               className={cn(
-                "transition-transform",
+                "transition-transform duration-200",
                 collapsed[panel.id] && "-rotate-90",
               )}
             />

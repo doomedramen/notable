@@ -82,7 +82,7 @@ function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
         className="w-full max-w-xs rounded-md border border-border bg-surface p-5 shadow-dialog"
       >
         <h1 className="text-[15px] font-semibold">Notable</h1>
-        <p className="mt-1 text-[13px] text-muted">
+        <p className="mt-1 text-sm text-muted">
           Enter the password to continue.
         </p>
         <Input
@@ -93,7 +93,7 @@ function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
           placeholder="Password"
           className="mt-3"
         />
-        {error && <p className="mt-2 text-[13px] text-danger">{error}</p>}
+        {error && <p className="mt-2 text-sm text-danger">{error}</p>}
         <Button
           type="submit"
           variant="primary"

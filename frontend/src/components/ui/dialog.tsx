@@ -28,7 +28,7 @@ export function DialogContent({
         {children}
         {showClose && (
           <DialogPrimitive.Close
-            className="absolute top-3.5 right-3.5 rounded-sm p-1 text-muted transition-colors hover:bg-surface-hover hover:text-foreground"
+            className="absolute top-3.5 right-3.5 rounded-sm p-1 text-muted transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
             aria-label="Close"
           >
             <X size={15} />
@@ -57,7 +57,7 @@ export function DialogDescription({
 }: ComponentProps<typeof DialogPrimitive.Description>) {
   return (
     <DialogPrimitive.Description
-      className={cn("mt-1.5 text-[13px] leading-relaxed text-muted", className)}
+      className={cn("mt-1.5 text-sm leading-relaxed text-muted", className)}
       {...props}
     />
   );

@@ -10,6 +10,8 @@ import { syncNotesList } from "../store/notes-store";
 import { confirm } from "../components/ui/confirm";
 import { notice } from "../components/ui/toast";
 import { on } from "../core/events";
+import { EmptyState } from "../components/ui/empty-state";
+import { PageContainer, PageHeader } from "../components/ui/page-header";
 
 /** Lists notes sitting in `.trash/`, with restore / delete-forever (route: /trash). */
 export function TrashView() {
@@ -47,24 +49,23 @@ export function TrashView() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-[46rem] flex-1 overflow-y-auto px-4 pt-4 md:px-6 md:pt-8">
-      <h1 className="flex items-center gap-1.5 text-2xl font-bold tracking-tight">
-        <Trash2 size={22} className="text-faint" />
-        Trash
-      </h1>
+    <PageContainer>
+      <PageHeader icon={Trash2}>Trash</PageHeader>
       {loaded && items.length === 0 ? (
-        <p className="mt-4 text-[13px] text-faint">Trash is empty.</p>
+        <EmptyState icon={Trash2} className="mt-4">
+          Trash is empty.
+        </EmptyState>
       ) : (
         <ul className="mt-4">
           {items.map((note) => (
             <li
               key={note.path}
-              className="flex items-center gap-2 rounded-sm px-2 py-2 text-[13px] text-foreground hover:bg-surface-hover"
+              className="flex items-center gap-2 rounded-sm px-2 py-2 text-sm text-foreground hover:bg-surface-hover"
             >
               <span className="flex-1 truncate">
                 {note.name}
                 {note.original_path.includes("/") && (
-                  <span className="ml-2 text-[11px] text-faint">
+                  <span className="ml-2 text-xs text-faint">
                     {note.original_path.slice(0, note.original_path.lastIndexOf("/"))}
                   </span>
                 )}
@@ -89,6 +90,6 @@ export function TrashView() {
           ))}
         </ul>
       )}
-    </div>
+    </PageContainer>
   );
 }

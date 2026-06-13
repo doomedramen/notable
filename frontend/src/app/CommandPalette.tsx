@@ -8,6 +8,7 @@ import { openNote } from "../core/navigation";
 import { useNotesStore } from "../store/notes-store";
 import { useUI } from "../store/ui";
 import { normalizeKey } from "../core/hotkeys";
+import { Skeleton } from "../components/ui/skeleton";
 
 const IS_MAC =
   typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
@@ -65,6 +66,7 @@ export function CommandPalette() {
   const setOpen = useUI((s) => s.setPaletteOpen);
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SearchHit[]>([]);
+  const [searching, setSearching] = useState(false);
   const notes = useNotesStore((s) => s.notes);
   const commands = useStore(commandStore, (s) => s.commands);
 
@@ -77,8 +79,10 @@ export function CommandPalette() {
   useEffect(() => {
     if (!query.trim()) {
       setHits([]);
+      setSearching(false);
       return;
     }
+    setSearching(true);
     const ctrl = new AbortController();
     const t = setTimeout(async () => {
       try {
@@ -88,6 +92,8 @@ export function CommandPalette() {
         if (res.ok) setHits(await res.json());
       } catch {
         setHits([]);
+      } finally {
+        setSearching(false);
       }
     }, 120);
     return () => {
@@ -131,7 +137,7 @@ export function CommandPalette() {
         className="h-11 w-full border-b border-border bg-transparent px-4 text-sm text-foreground outline-none placeholder:text-faint"
       />
       <Cmdk.List className="max-h-80 overflow-y-auto p-1.5">
-        <Cmdk.Empty className="px-3 py-6 text-center text-[13px] text-faint">
+        <Cmdk.Empty className="px-3 py-8 text-center text-sm text-faint">
           No results.
         </Cmdk.Empty>
 
@@ -148,18 +154,25 @@ export function CommandPalette() {
                   setOpen(false);
                   openNote(note.path);
                 }}
-                className="flex cursor-default items-center gap-2 rounded-sm px-2 py-2 text-[13px] text-foreground select-none data-[selected=true]:bg-surface-hover"
+                className="flex cursor-default items-center gap-2 rounded-sm px-2 py-2 text-sm text-foreground select-none data-[selected=true]:bg-surface-hover"
               >
                 <FileText size={14} className="shrink-0 text-faint" />
                 <span className="truncate">{note.name}</span>
                 {note.folder && (
-                  <span className="ml-auto truncate text-[11px] text-faint">
+                  <span className="ml-auto truncate text-xs text-faint">
                     {note.folder}
                   </span>
                 )}
               </Cmdk.Item>
             ))}
           </Cmdk.Group>
+        )}
+
+        {searching && hits.length === 0 && (
+          <div className="space-y-1.5 px-2 py-1.5">
+            <Skeleton className="h-7 w-full" />
+            <Skeleton className="h-7 w-3/4" />
+          </div>
         )}
 
         {hits.length > 0 && (
@@ -175,7 +188,7 @@ export function CommandPalette() {
                   setOpen(false);
                   openNote(hit.path);
                 }}
-                className="flex cursor-default items-center gap-2 rounded-sm px-2 py-2 text-[13px] text-foreground select-none data-[selected=true]:bg-surface-hover"
+                className="flex cursor-default items-center gap-2 rounded-sm px-2 py-2 text-sm text-foreground select-none data-[selected=true]:bg-surface-hover"
               >
                 <FileSearch size={14} className="shrink-0 text-faint" />
                 <span className="shrink-0">{hit.name}</span>
@@ -198,12 +211,12 @@ export function CommandPalette() {
                   setOpen(false);
                   runCommand(cmd.id);
                 }}
-                className="flex cursor-default items-center gap-2 rounded-sm px-2 py-2 text-[13px] text-foreground select-none data-[selected=true]:bg-surface-hover"
+                className="flex cursor-default items-center gap-2 rounded-sm px-2 py-2 text-sm text-foreground select-none data-[selected=true]:bg-surface-hover"
               >
                 <Terminal size={14} className="shrink-0 text-faint" />
                 <span className="flex-1 truncate">{cmd.name}</span>
                 {cmd.hotkey && (
-                  <kbd className="rounded-sm border border-border bg-surface px-1.5 py-0.5 font-sans text-[11px] text-muted">
+                  <kbd className="rounded-sm border border-border bg-surface px-1.5 py-0.5 font-sans text-xs text-muted">
                     {prettyHotkey(cmd.hotkey)}
                   </kbd>
                 )}

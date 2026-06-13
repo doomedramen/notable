@@ -78,7 +78,7 @@ function ThemeToggle() {
       <Tooltip label="Theme">
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" className="h-5 w-5" aria-label="Theme">
-            <Icon size={13} />
+            <Icon size={14} />
           </Button>
         </DropdownMenuTrigger>
       </Tooltip>

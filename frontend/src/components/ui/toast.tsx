@@ -49,7 +49,7 @@ export function Toaster() {
         <div
           key={t.id}
           role="status"
-          className="ui-popover flex items-start gap-2 rounded-md bg-background px-3 py-2.5 text-[13px] shadow-[var(--shadow-popover)]"
+          className="ui-popover flex items-start gap-2 rounded-md bg-background px-3 py-2.5 text-sm shadow-[var(--shadow-popover)]"
           data-state="open"
         >
           <span
