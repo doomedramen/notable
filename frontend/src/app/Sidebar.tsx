@@ -258,7 +258,7 @@ export function Sidebar() {
         overlayZIndex={30}
         showToggle={false}
       >
-        {isMobile ? sidebarBody : <></>}
+        {isMobile ? sidebarBody : <div aria-hidden />}
       </SwipeBarLeft>
 
       <RenameDialog note={renaming} onClose={() => setRenaming(null)} activePath={activePath} />
