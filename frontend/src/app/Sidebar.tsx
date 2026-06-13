@@ -385,7 +385,6 @@ export function Sidebar() {
         ariaLabel="Sidebar"
         className="flex flex-col border-r border-border bg-surface pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] md:hidden"
         sidebarWidthPx={MOBILE_DRAWER_WIDTH}
-        isAbsolute
         mediaQueryWidth={768}
         transitionMs={SWIPE_TRANSITION_MS}
         swipeBarZIndex={40}

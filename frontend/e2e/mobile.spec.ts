@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+const MOBILE_DRAWER_WIDTH = 288;
+
 /* Mobile-first behavior: the sidebar is an off-canvas drawer, the top
    bar provides drawer + palette access, and navigation closes the
    drawer to reveal the editor. Runs under the "mobile" project
@@ -167,9 +169,14 @@ test("swiping the drawer open does not trigger header tooltips", async ({
 test("edge swipe dims the page while the drawer is moving", async ({ page }) => {
   await page.goto("/");
   const backdrop = page.getByTestId("sidebar-swipe-backdrop");
+  const sidebar = page.getByRole("dialog", { name: "Sidebar" });
   await expect(backdrop).toHaveCount(1);
 
   await dragWithoutRelease(page, 5, 150);
+  const sidebarBox = await sidebar.boundingBox();
+  expect(sidebarBox).not.toBeNull();
+  expect(sidebarBox!.x).toBeGreaterThan(-MOBILE_DRAWER_WIDTH + 20);
+  expect(sidebarBox!.width).toBe(MOBILE_DRAWER_WIDTH);
   const opacity = await backdrop.evaluate((element) =>
     Number(getComputedStyle(element).opacity),
   );
@@ -192,7 +199,7 @@ test("edge swipe dims the page while the drawer is moving", async ({ page }) => 
       }),
     );
   });
-  await expect(page.getByRole("dialog", { name: "Sidebar" })).toBeInViewport();
+  await expect(sidebar).toBeInViewport();
 });
 
 test("settings opens as a near-fullscreen sheet with tab strip", async ({
