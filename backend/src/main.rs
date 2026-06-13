@@ -124,9 +124,15 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/sync/{*path}", get(sync::ws_handler))
         // Bulk pull for offline catch-up: state vector -> missing updates
         .route("/api/diff/{*path}", post(sync::diff))
+        // Revisioned, CRDT-safe document reads and writes for plugins.
+        .route(
+            "/api/documents/{*path}",
+            get(sync::read_document).put(sync::replace_document),
+        )
         // Search & graph index (derived from vault files)
         .route("/api/search", get(indexer::search))
         .route("/api/backlinks/{*path}", get(indexer::backlinks))
+        .route("/api/links/{*path}", get(indexer::outgoing_links))
         .route("/api/tags", get(indexer::tags))
         .route("/api/tags/{*tag}", get(indexer::notes_with_tag))
         .route(

@@ -15,6 +15,8 @@ import type {
   SettingsTabSpec,
   StatusBarItemSpec,
 } from "../plugin-api";
+import * as documents from "./documents";
+import * as search from "./search";
 import { registerTheme } from "./appearance";
 import {
   registerIconPack,
@@ -125,8 +127,30 @@ export function createPluginAPI(
     },
     vault: {
       list: vault.list,
+      listFolders: vault.listFolders,
+      refresh: vault.refresh,
+      stat: vault.stat,
+      exists: vault.exists,
       create: vault.create,
+      rename: vault.rename,
+      trash: vault.trash,
+      delete: vault.remove,
+      createFolder: vault.createFolder,
+      renameFolder: vault.renameFolder,
+      deleteFolder: vault.deleteFolder,
       activeNoteId: vault.activeNoteId,
+    },
+    documents: {
+      read: documents.read,
+      replace: documents.replace,
+      applyEdits: documents.applyEdits,
+    },
+    search: {
+      query: search.query,
+      backlinks: search.backlinks,
+      outgoingLinks: search.outgoingLinks,
+      tags: search.tags,
+      notesWithTag: search.notesWithTag,
     },
     events: {
       on: <K extends keyof AppEvents>(event: K, fn: AppEvents[K]) =>

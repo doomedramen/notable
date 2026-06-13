@@ -44,6 +44,17 @@ test("top bar search button opens the command palette", async ({ page }) => {
   ).toBeVisible();
 });
 
+test("footer sits flush with the viewport bottom", async ({ page }) => {
+  await page.goto("/");
+  const footer = page.locator("footer");
+  const viewport = page.viewportSize()!;
+  const box = (await footer.boundingBox())!;
+
+  expect(box.y + box.height).toBe(viewport.height);
+  await expect(footer).toHaveCSS("margin-bottom", "0px");
+  await expect(footer).toHaveCSS("padding-bottom", "0px");
+});
+
 test("backdrop tap closes the drawer", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("Open sidebar").click();

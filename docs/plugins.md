@@ -35,7 +35,7 @@ my-plugin/
   "version": "1.0.0",
   "description": "What it does",
   "entry": "main.js",
-  "apiVersion": 2,
+  "apiVersion": 3,
   "categories": ["productivity"]
 }
 ```
@@ -78,7 +78,9 @@ The complete typed contract is in
 | `api.icons` | Register icon packs/themes, open the picker, and assign icons |
 | `api.editor` | Add CodeMirror extensions and access the active editor |
 | `api.workspace` | Add panels, settings tabs, and status bar items |
-| `api.vault` | List/create notes and inspect the active note |
+| `api.vault` | Manage notes/folders through the offline metadata queue |
+| `api.documents` | Read and edit note text through live CRDT documents |
+| `api.search` | Query full text, links, backlinks, and tags |
 | `api.events` | Subscribe to note, editor, and theme lifecycle events |
 | `api.settings` | Store per-plugin JSON settings |
 | `api.ui` | Show notices and confirmation dialogs |
@@ -87,6 +89,11 @@ API v2 adds appearance contributions and optional icons on commands, panels,
 and settings tabs. Plugins may also add note/folder context-menu actions.
 Contributions registered through these APIs are removed automatically when the
 plugin unloads.
+
+API v3 adds complete vault operations, revisioned CRDT-safe document access,
+typed search/graph queries, and richer vault/editor lifecycle events. See the
+[API v3 guide](plugin-api-v3.md) for behavior, examples, error handling, and
+offline guarantees.
 
 ## Icon packs and themes
 

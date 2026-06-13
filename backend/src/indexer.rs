@@ -298,6 +298,7 @@ const MARK_CLOSE: &str = "\u{2}";
 #[derive(Deserialize)]
 pub struct SearchParams {
     pub q: String,
+    pub limit: Option<i64>,
 }
 
 #[derive(Serialize)]
@@ -325,14 +326,16 @@ pub async fn search(
     if q.is_empty() {
         return Ok(Json(vec![]));
     }
+    let limit = params.limit.unwrap_or(20).clamp(1, 100);
     let rows: Vec<(String, String, String)> = sqlx::query_as(
         "SELECT path, name, snippet(notes_fts, 2, ?, ?, '…', 12)
          FROM notes_fts WHERE notes_fts MATCH ?
-         ORDER BY bm25(notes_fts, 0.0, 2.0, 1.0) LIMIT 20",
+         ORDER BY bm25(notes_fts, 0.0, 2.0, 1.0) LIMIT ?",
     )
     .bind(MARK_OPEN)
     .bind(MARK_CLOSE)
     .bind(fts_query(q))
+    .bind(limit)
     .fetch_all(&state.db)
     .await
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -390,6 +393,34 @@ pub async fn backlinks(
         })
         .collect();
     Ok(Json(backlinks))
+}
+
+#[derive(Serialize)]
+pub struct OutgoingLink {
+    /// Target exactly as written inside the wikilink.
+    pub target: String,
+    /// Resolved vault path, or null while the target is missing.
+    pub path: Option<String>,
+}
+
+/// GET /api/links/{*path}
+pub async fn outgoing_links(
+    AxumPath(path): AxumPath<String>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Vec<OutgoingLink>>, StatusCode> {
+    let rows: Vec<(String, Option<String>)> = sqlx::query_as(
+        "SELECT target_name, target_path FROM links
+         WHERE source_path = ? ORDER BY target_name",
+    )
+    .bind(path)
+    .fetch_all(&state.db)
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(Json(
+        rows.into_iter()
+            .map(|(target, path)| OutgoingLink { target, path })
+            .collect(),
+    ))
 }
 
 #[derive(Serialize)]

@@ -159,22 +159,32 @@ pub async fn load_room(state: &AppState, path: &str) -> Result<Arc<Room>, Status
 }
 
 /// Persist the room's text to its file (atomic) + refresh doc_cache.
-pub async fn flush_room(state: &AppState, path: &str, room: &Room) {
+///
+/// This checked form is used by document API writes, whose completion means
+/// the canonical Markdown file is durable. Background callers use
+/// `flush_room`, which logs and retries failures on the next sweep.
+async fn persist_room(state: &AppState, path: &str, room: &Room) -> anyhow::Result<()> {
     if !room.dirty.swap(false, Ordering::Relaxed) {
-        return;
+        return Ok(());
     }
     let text = {
         let doc = room.doc.lock().await;
         doc_text(&doc)
     };
     if let Err(e) = state.vault.write(path, &text) {
-        tracing::error!("failed to write {path}: {e}");
         room.dirty.store(true, Ordering::Relaxed); // retry next sweep
-        return;
+        return Err(e);
     }
     room.set_file_hash(sha256_hex(&text));
     update_cache(state, path, room).await;
     crate::indexer::index_note(state, path, &text).await;
+    Ok(())
+}
+
+pub async fn flush_room(state: &AppState, path: &str, room: &Room) {
+    if let Err(error) = persist_room(state, path, room).await {
+        tracing::error!("failed to write {path}: {error}");
+    }
 }
 
 async fn update_cache(state: &AppState, path: &str, room: &Room) {
@@ -219,6 +229,107 @@ pub async fn ws_handler(
     State(state): State<Arc<AppState>>,
 ) -> impl IntoResponse {
     ws.on_upgrade(move |socket| handle_socket(socket, path, state))
+}
+
+#[derive(serde::Serialize, Debug, PartialEq, Eq)]
+pub struct DocumentSnapshot {
+    pub path: String,
+    pub text: String,
+    pub revision: String,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReplaceDocument {
+    pub text: String,
+    pub expected_revision: Option<String>,
+}
+
+/// Return the latest CRDT text, including edits not yet flushed to disk.
+pub async fn read_document(
+    Path(path): Path<String>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<DocumentSnapshot>, StatusCode> {
+    Ok(Json(document_snapshot(&state, &path).await?))
+}
+
+/// Merge a plain-text replacement into the room as a Yjs update.
+///
+/// The room lock makes revision comparison and mutation atomic with respect to
+/// WebSocket peers and concurrent API writers. The resulting update is
+/// broadcast to every connected editor and flushed before the request returns.
+pub async fn replace_document(
+    Path(path): Path<String>,
+    State(state): State<Arc<AppState>>,
+    Json(request): Json<ReplaceDocument>,
+) -> Result<Json<DocumentSnapshot>, StatusCode> {
+    Ok(Json(
+        replace_document_text(
+            &state,
+            &path,
+            &request.text,
+            request.expected_revision.as_deref(),
+        )
+        .await?,
+    ))
+}
+
+async fn document_snapshot(state: &AppState, path: &str) -> Result<DocumentSnapshot, StatusCode> {
+    let room = load_room(state, path).await?;
+    let text = {
+        let doc = room.doc.lock().await;
+        doc_text(&doc)
+    };
+    Ok(DocumentSnapshot {
+        path: path.to_string(),
+        revision: sha256_hex(&text),
+        text,
+    })
+}
+
+async fn replace_document_text(
+    state: &AppState,
+    path: &str,
+    next_text: &str,
+    expected_revision: Option<&str>,
+) -> Result<DocumentSnapshot, StatusCode> {
+    let room = load_room(state, path).await?;
+    let (update, snapshot) = {
+        let doc = room.doc.lock().await;
+        let current = doc_text(&doc);
+        let current_revision = sha256_hex(&current);
+        if expected_revision.is_some_and(|expected| expected != current_revision) {
+            return Err(StatusCode::CONFLICT);
+        }
+        if current == next_text {
+            return Ok(DocumentSnapshot {
+                path: path.to_string(),
+                text: current,
+                revision: current_revision,
+            });
+        }
+
+        let before = doc.transact().state_vector();
+        apply_text_diff(&doc, &current, next_text);
+        let transaction = doc.transact();
+        let update = transaction.encode_state_as_update_v1(&before);
+        (
+            update,
+            DocumentSnapshot {
+                path: path.to_string(),
+                text: next_text.to_string(),
+                revision: sha256_hex(next_text),
+            },
+        )
+    };
+
+    room.mark_dirty();
+    let _ = room.tx.send(update);
+    persist_room(state, path, &room).await.map_err(|error| {
+        tracing::error!("document API failed to persist {path}: {error}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    Ok(snapshot)
 }
 
 async fn handle_socket(mut socket: WebSocket, path: String, state: Arc<AppState>) {
@@ -495,7 +606,7 @@ pub async fn diff(
 }
 
 #[cfg(test)]
-mod trash_tests {
+mod tests {
     use super::*;
 
     #[test]
@@ -510,5 +621,59 @@ mod trash_tests {
         let now = SystemTime::now();
         let modified = now - Duration::from_secs(31 * 24 * 3600);
         assert!(is_expired(modified, now, TRASH_TTL));
+    }
+
+    async fn test_state() -> Arc<AppState> {
+        let db = sqlx::sqlite::SqlitePoolOptions::new()
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+        sqlx::migrate!("./migrations").run(&db).await.unwrap();
+        let directory =
+            std::env::temp_dir().join(format!("notable-sync-test-{}", uuid::Uuid::new_v4()));
+        Arc::new(AppState {
+            db,
+            vault: crate::vault::Vault::new(directory).unwrap(),
+            rooms: dashmap::DashMap::new(),
+            core_plugins_dir: "/nonexistent".into(),
+            plugins_dir: "/nonexistent".into(),
+            plugin_registry_url: String::new(),
+            themes_dir: "/nonexistent".into(),
+            auth_password: None,
+        })
+    }
+
+    #[tokio::test]
+    async fn document_api_updates_room_file_and_connected_peers() {
+        let state = test_state().await;
+        state.vault.write("Plan.md", "first").unwrap();
+        let room = load_room(&state, "Plan.md").await.unwrap();
+        let mut updates = room.tx.subscribe();
+        let initial = document_snapshot(&state, "Plan.md").await.unwrap();
+
+        let changed =
+            replace_document_text(&state, "Plan.md", "first\nsecond", Some(&initial.revision))
+                .await
+                .unwrap();
+
+        assert_eq!(changed.text, "first\nsecond");
+        assert_eq!(state.vault.read("Plan.md").unwrap(), "first\nsecond");
+        assert!(!updates.recv().await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn document_api_rejects_stale_revisions_without_changing_text() {
+        let state = test_state().await;
+        state.vault.write("Plan.md", "current").unwrap();
+
+        let result =
+            replace_document_text(&state, "Plan.md", "stale write", Some("old-revision")).await;
+
+        assert_eq!(result.unwrap_err(), StatusCode::CONFLICT);
+        assert_eq!(
+            document_snapshot(&state, "Plan.md").await.unwrap().text,
+            "current"
+        );
+        assert_eq!(state.vault.read("Plan.md").unwrap(), "current");
     }
 }

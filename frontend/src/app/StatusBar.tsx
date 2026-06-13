@@ -31,7 +31,7 @@ export function StatusBar() {
   const dirty = useSyncStatus((s) => s.dirty);
 
   return (
-    <footer className="flex h-7 shrink-0 items-center gap-3 border-t border-border bg-surface px-3 text-xs text-muted">
+    <footer className="m-0 flex h-7 shrink-0 items-center gap-3 border-t border-border bg-surface px-3 py-0 text-xs text-muted">
       {status !== null && (
         <span className="flex items-center gap-1.5">
           <span

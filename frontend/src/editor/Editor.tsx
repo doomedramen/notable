@@ -34,6 +34,7 @@ import {
 } from "../core/icon-assignments";
 import { useStore } from "zustand";
 import { takePendingContent } from "../core/pending-content";
+import { pluginDocumentChange } from "../core/documents";
 
 /* Typographic markdown styling — headings scale, syntax markers fade.
    (Full live preview that hides markers lands as a core plugin in a
@@ -107,6 +108,28 @@ export function Editor({ notePath }: { notePath: string }) {
           syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
           EditorView.lineWrapping,
           placeholder("Start writing…"),
+          EditorView.updateListener.of((update) => {
+            if (update.docChanged) {
+              useNotesStore.getState().touch(notePath);
+              const source = update.transactions.some(
+                (transaction) =>
+                  transaction.annotation(pluginDocumentChange) === true,
+              )
+                ? "plugin"
+                : "editor";
+              emit("note:change", { path: notePath, source });
+            }
+            if (update.selectionSet) {
+              const selection = update.state.selection.main;
+              emit("editor:selection-change", {
+                path: notePath,
+                anchor: selection.anchor,
+                head: selection.head,
+                from: selection.from,
+                to: selection.to,
+              });
+            }
+          }),
           keymap.of([...yUndoManagerKeymap, ...defaultKeymap, indentWithTab]),
           yCollab(conn.text, null, { undoManager }),
           pluginCompartment.of([...editorExtensionStore.getState().extensions]),
@@ -125,6 +148,7 @@ export function Editor({ notePath }: { notePath: string }) {
 
     return () => {
       unsubscribe();
+      emit("editor:destroy", view);
       setActiveView(null);
       view.destroy();
       conn.destroy();

@@ -17,6 +17,9 @@
 import type { Extension } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 
+/** Highest plugin API contract implemented by this Notable build. */
+export const CURRENT_PLUGIN_API_VERSION = 3;
+
 export interface Disposable {
   dispose(): void;
 }
@@ -170,6 +173,106 @@ export interface NoteMeta {
   modified: number;
 }
 
+/** A cached view of the vault's note and folder tree. */
+export interface VaultListing {
+  notes: NoteMeta[];
+  /** Vault-relative folder paths. The vault root is represented by omission. */
+  folders: string[];
+}
+
+/**
+ * Preferred API v3 input for note creation.
+ *
+ * `path` gives the caller control of the complete vault-relative filename.
+ * Otherwise Notable picks a free `<folder>/<name>.md` path. Supplying initial
+ * content is safe for offline-created notes: it is queued with the create
+ * mutation and staged for the editor if the note is opened before reconnect.
+ */
+export interface CreateNoteOptions {
+  path?: string;
+  name?: string;
+  folder?: string;
+  content?: string;
+}
+
+/**
+ * A coherent document snapshot.
+ *
+ * Revisions are opaque values. Pass the revision back as
+ * `expectedRevision` to avoid overwriting changes made since the read.
+ */
+export interface DocumentSnapshot {
+  path: string;
+  text: string;
+  revision: string;
+}
+
+/** A CodeMirror-style UTF-16 text replacement over one document snapshot. */
+export interface DocumentTextEdit {
+  from: number;
+  to: number;
+  insert: string;
+}
+
+export interface DocumentWriteOptions {
+  /**
+   * Reject the write if the document no longer has this revision.
+   * Omitting it intentionally requests last-write-wins behavior.
+   */
+  expectedRevision?: string;
+}
+
+export interface SearchOptions {
+  /** Maximum results to return. Defaults to 20 and is capped at 100. */
+  limit?: number;
+}
+
+export interface SearchHit {
+  path: string;
+  name: string;
+  /** Plain-text excerpt containing \u0001/\u0002 match delimiters. */
+  snippet: string;
+}
+
+export interface Backlink {
+  sourcePath: string;
+  sourceName: string;
+  context: string;
+}
+
+export interface OutgoingLink {
+  /** Target exactly as written inside the wikilink. */
+  target: string;
+  /** Resolved vault path, or null when the target does not exist. */
+  path: string | null;
+}
+
+export interface TagCount {
+  tag: string;
+  count: number;
+}
+
+export interface TaggedNote {
+  path: string;
+  name: string;
+}
+
+export type PluginAPIErrorCode =
+  | "CONFLICT"
+  | "INVALID_ARGUMENT"
+  | "NOT_FOUND"
+  | "OFFLINE"
+  | "REQUEST_FAILED";
+
+/**
+ * Errors raised by asynchronous plugin APIs use this structural shape.
+ * Plugins should inspect `code`, rather than matching message text.
+ */
+export interface PluginAPIError extends Error {
+  code: PluginAPIErrorCode;
+  status?: number;
+}
+
 export interface Command {
   /** Globally unique, e.g. "word-count.toggle". */
   id: string;
@@ -207,8 +310,34 @@ export interface AppEvents {
   "note:open": (id: string) => void;
   "note:create": (meta: NoteMeta) => void;
   "note:delete": (id: string) => void;
+  "note:rename": (event: {
+    from: string;
+    to: string;
+    meta: NoteMeta;
+  }) => void;
+  /**
+   * The text changed in this browser. Editor changes include local edits and
+   * remote CRDT updates; plugin changes identify writes made through
+   * `api.documents`.
+   */
+  "note:change": (event: {
+    path: string;
+    source: "editor" | "plugin";
+  }) => void;
+  "folder:create": (path: string) => void;
+  "folder:delete": (path: string) => void;
+  "folder:rename": (event: { from: string; to: string }) => void;
+  "vault:refresh": (listing: VaultListing) => void;
   /** A new editor view was created (note opened / switched). */
   "editor:ready": (view: EditorView) => void;
+  "editor:destroy": (view: EditorView) => void;
+  "editor:selection-change": (event: {
+    path: string;
+    anchor: number;
+    head: number;
+    from: number;
+    to: number;
+  }) => void;
   "theme:change": (theme: "light" | "dark") => void;
 }
 
@@ -267,9 +396,58 @@ export interface NotableAPI {
 
   vault: {
     list(): Promise<NoteMeta[]>;
+    listFolders(): Promise<string[]>;
+    refresh(): Promise<VaultListing>;
+    stat(path: string): Promise<NoteMeta | null>;
+    exists(path: string): Promise<boolean>;
+    /** API v3 object form. */
+    create(options?: CreateNoteOptions): Promise<NoteMeta>;
+    /** Legacy API v1/v2 form retained for compatibility. */
     create(name?: string, folder?: string): Promise<NoteMeta>;
+    rename(from: string, to: string): Promise<NoteMeta>;
+    trash(path: string): Promise<void>;
+    /** Permanently delete a note. Prefer `trash` for user-facing actions. */
+    delete(path: string): Promise<void>;
+    createFolder(path: string): Promise<void>;
+    renameFolder(from: string, to: string): Promise<void>;
+    deleteFolder(path: string): Promise<void>;
     /** Path of the open note, or null. */
     activeNoteId(): string | null;
+  };
+
+  documents: {
+    /**
+     * Read the active editor buffer when possible, otherwise the latest
+     * server-side CRDT room. Reading an inactive uncached note requires the
+     * server and rejects with `OFFLINE` when it is unavailable.
+     */
+    read(path: string): Promise<DocumentSnapshot>;
+    /**
+     * Replace a document through the active editor or its server-side Yjs
+     * room. The returned snapshot reflects the accepted write.
+     */
+    replace(
+      path: string,
+      text: string,
+      options?: DocumentWriteOptions,
+    ): Promise<DocumentSnapshot>;
+    /**
+     * Apply non-overlapping edits against one coherent snapshot. Offsets use
+     * JavaScript/CodeMirror UTF-16 positions and edits must be sorted.
+     */
+    applyEdits(
+      path: string,
+      edits: DocumentTextEdit[],
+      options?: DocumentWriteOptions,
+    ): Promise<DocumentSnapshot>;
+  };
+
+  search: {
+    query(text: string, options?: SearchOptions): Promise<SearchHit[]>;
+    backlinks(path: string): Promise<Backlink[]>;
+    outgoingLinks(path: string): Promise<OutgoingLink[]>;
+    tags(): Promise<TagCount[]>;
+    notesWithTag(tag: string): Promise<TaggedNote[]>;
   };
 
   events: {

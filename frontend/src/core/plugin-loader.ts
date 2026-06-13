@@ -1,5 +1,10 @@
 import { createStore } from "zustand";
-import type { Disposable, NotablePlugin, PluginManifest } from "../plugin-api";
+import {
+  CURRENT_PLUGIN_API_VERSION,
+  type Disposable,
+  type NotablePlugin,
+  type PluginManifest,
+} from "../plugin-api";
 import { createPluginAPI } from "./api";
 import { notice } from "../components/ui/toast";
 import { selectTheme } from "./appearance";
@@ -103,7 +108,7 @@ export async function loadEnabledPlugins(): Promise<void> {
 
 export async function loadPlugin(manifest: PluginManifest): Promise<boolean> {
   if (loaded.has(manifest.id)) return true;
-  if ((manifest.apiVersion ?? 1) > 2) {
+  if ((manifest.apiVersion ?? 1) > CURRENT_PLUGIN_API_VERSION) {
     notice(`Plugin “${manifest.name}” requires a newer Notable version.`, {
       variant: "danger",
     });

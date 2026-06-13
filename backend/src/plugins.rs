@@ -29,7 +29,7 @@ const LEGACY_ENABLED_KEY: &str = "plugins.enabled";
 const MAX_PACKAGE_BYTES: usize = 20 * 1024 * 1024;
 const MAX_UNPACKED_BYTES: u64 = 100 * 1024 * 1024;
 const MAX_PACKAGE_FILES: usize = 256;
-const CURRENT_API_VERSION: u32 = 2;
+const CURRENT_API_VERSION: u32 = 3;
 
 type ApiError = (StatusCode, String);
 type ApiResult<T> = Result<T, ApiError>;

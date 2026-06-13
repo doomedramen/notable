@@ -12,6 +12,11 @@ import {
   removeCachedFolderTree,
   removeCachedIconAssignment,
 } from "../core/icon-assignments";
+import {
+  clearPendingContent,
+  peekPendingContent,
+  setPendingContent,
+} from "../core/pending-content";
 
 export interface NoteMeta {
   /** Vault-relative path — the note's identity. */
@@ -30,7 +35,7 @@ export interface VaultListing {
 }
 
 type Pending =
-  | { kind: "create"; path: string }
+  | { kind: "create"; path: string; content: string }
   | { kind: "delete"; path: string }
   | { kind: "rename"; from: string; to: string }
   | { kind: "mkdir"; path: string };
@@ -98,15 +103,67 @@ function buildMeta(path: string): NoteMeta {
   };
 }
 
+function validateSegments(path: string, allowTrash = false): void {
+  const parts = path.split("/");
+  if (
+    !path ||
+    path.includes("\\") ||
+    path.startsWith("/") ||
+    path.endsWith("/") ||
+    parts.some(
+      (part, index) =>
+        !part ||
+        part === "." ||
+        part === ".." ||
+        (part.startsWith(".") && !(allowTrash && index === 0 && part === ".trash")),
+    )
+  ) {
+    throw new Error(`Invalid vault path: ${path}`);
+  }
+}
+
+/** Validate the canonical slash-separated path shape used by the API. */
+export function validateNotePath(path: string): void {
+  validateSegments(path);
+  if (!path.endsWith(".md")) {
+    throw new Error(`Note paths must end in .md: ${path}`);
+  }
+}
+
+/** Validate a non-root folder path. */
+export function validateFolderPath(path: string): void {
+  validateSegments(path);
+}
+
+function validateNoteOrTrashPath(path: string): void {
+  validateSegments(path, true);
+  if (!path.endsWith(".md")) {
+    throw new Error(`Note paths must end in .md: ${path}`);
+  }
+}
+
+/** Keep client-side path selection identical to the Rust vault handler. */
+function sanitizeName(name: string): string {
+  const cleaned = name
+    .replace(/[\\/:*?"<>|#%]/g, " ")
+    .trim();
+  if (!cleaned || cleaned.startsWith(".")) {
+    throw new Error("Note name must contain a visible character.");
+  }
+  return cleaned;
+}
+
 /** Pick a free path for a new note against the cached listing. */
 async function freePath(name: string, folder: string): Promise<string> {
+  const safeName = sanitizeName(name);
+  if (folder) validateFolderPath(folder);
   const cached = (await kvGet<VaultListing>("vault")) ?? EMPTY;
   const taken = new Set(cached.notes.map((n) => n.path));
   const prefix = folder ? `${folder}/` : "";
-  let candidate = `${prefix}${name}.md`;
+  let candidate = `${prefix}${safeName}.md`;
   let n = 1;
   while (taken.has(candidate)) {
-    candidate = `${prefix}${name} ${n}.md`;
+    candidate = `${prefix}${safeName} ${n}.md`;
     n += 1;
   }
   return candidate;
@@ -115,22 +172,37 @@ async function freePath(name: string, folder: string): Promise<string> {
 export async function createNote(
   name = "Untitled",
   folder = "",
+  content = "",
+  requestedPath?: string,
 ): Promise<NoteMeta> {
-  const path = await freePath(name, folder);
+  const path = requestedPath ?? (await freePath(name, folder));
+  validateNotePath(path);
   const meta = buildMeta(path);
 
   // Optimistic local insert
   const cached = (await kvGet<VaultListing>("vault")) ?? EMPTY;
+  if (cached.notes.some((note) => note.path === path)) {
+    throw new Error(`A note already exists at ${path}`);
+  }
   await kvSet("vault", { ...cached, notes: [meta, ...cached.notes] });
 
   try {
-    await fetch("/api/notes", {
+    const response = await fetch("/api/notes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path }),
+      body: JSON.stringify({ path, content }),
     });
-  } catch {
-    await enqueue({ kind: "create", path });
+    if (!response.ok) {
+      await kvSet("vault", cached);
+      throw new Error(`Could not create note (${response.status}).`);
+    }
+  } catch (error) {
+    if (!(error instanceof TypeError)) throw error;
+    // The create mutation carries its initial text to the server. Staging the
+    // same text locally lets an offline user open the new note immediately;
+    // the editor consumes it once and persists it through its Y.Doc.
+    await enqueue({ kind: "create", path, content });
+    if (content) setPendingContent(path, content);
   }
   return meta;
 }
@@ -156,6 +228,8 @@ export async function deleteNote(path: string): Promise<void> {
     keyed to it; rename while offline with unsynced content is the one
     flow that can strand edits (rare; documented). */
 export async function renameNote(from: string, to: string): Promise<NoteMeta> {
+  validateNoteOrTrashPath(from);
+  validateNoteOrTrashPath(to);
   const meta = buildMeta(to);
   const cached = (await kvGet<VaultListing>("vault")) ?? EMPTY;
   await kvSet("vault", {
@@ -169,8 +243,17 @@ export async function renameNote(from: string, to: string): Promise<NoteMeta> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ new_path: to }),
     });
-    if (!res.ok) throw new Error();
-  } catch {
+    if (!res.ok) {
+      await kvSet("vault", cached);
+      moveCachedIconAssignment("note", to, from);
+      throw new Error(
+        res.status === 409
+          ? `A note already exists at ${to}`
+          : `Could not rename note (${res.status}).`,
+      );
+    }
+  } catch (error) {
+    if (!(error instanceof TypeError)) throw error;
     await enqueue({ kind: "rename", from, to });
   }
   return meta;
@@ -216,6 +299,7 @@ export async function deleteFromTrash(path: string): Promise<void> {
 }
 
 export async function createFolder(path: string): Promise<void> {
+  validateFolderPath(path);
   const cached = (await kvGet<VaultListing>("vault")) ?? EMPTY;
   if (!cached.folders.includes(path)) {
     await kvSet("vault", {
@@ -229,14 +313,19 @@ export async function createFolder(path: string): Promise<void> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path }),
     });
-    if (!res.ok) throw new Error();
-  } catch {
+    if (!res.ok) {
+      await kvSet("vault", cached);
+      throw new Error(`Could not create folder (${res.status}).`);
+    }
+  } catch (error) {
+    if (!(error instanceof TypeError)) throw error;
     await enqueue({ kind: "mkdir", path });
   }
 }
 
 /** Delete an empty folder. Throws if the server refuses (not empty). */
 export async function deleteFolder(path: string): Promise<void> {
+  validateFolderPath(path);
   const res = await fetch(`/api/folders/${encodePath(path)}`, {
     method: "DELETE",
   });
@@ -265,11 +354,27 @@ export async function flushQueue(): Promise<void> {
   for (const op of q) {
     try {
       if (op.kind === "create") {
-        await fetch("/api/notes", {
+        const created = await fetch("/api/notes", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ path: op.path }),
+          // Create an empty canonical file first. Initial text is either in an
+          // offline editor's persisted Y.Doc or applied through the CRDT-safe
+          // endpoint below; seeding both histories would duplicate content.
+          body: JSON.stringify({ path: op.path, content: "" }),
         });
+        if (!created.ok) throw new Error(`create failed (${created.status})`);
+
+        if (op.content && peekPendingContent(op.path) !== null) {
+          const written = await fetch(`/api/documents/${encodePath(op.path)}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: op.content }),
+          });
+          if (!written.ok) {
+            throw new Error(`initial content failed (${written.status})`);
+          }
+          clearPendingContent(op.path);
+        }
       } else if (op.kind === "delete") {
         await fetch(`/api/notes/${encodePath(op.path)}`, { method: "DELETE" });
       } else if (op.kind === "mkdir") {

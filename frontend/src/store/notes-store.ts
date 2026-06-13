@@ -20,7 +20,14 @@ interface NotesState {
   folders: string[];
   loaded: boolean;
   refresh: () => Promise<void>;
-  create: (name?: string, folder?: string) => Promise<NoteMeta>;
+  create: (
+    name?: string,
+    folder?: string,
+    content?: string,
+    path?: string,
+  ) => Promise<NoteMeta>;
+  /** Update cached modification metadata after an in-place text edit. */
+  touch: (path: string, modified?: number) => void;
   remove: (path: string) => Promise<void>;
   trash: (path: string) => Promise<void>;
   rename: (from: string, to: string) => Promise<NoteMeta>;
@@ -34,27 +41,37 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   folders: [],
   loaded: false,
   refresh: async () => {
-    const { notes, folders } = await listVault();
-    set({ notes, folders, loaded: true });
+    const listing = await listVault();
+    set({ ...listing, loaded: true });
+    emit("vault:refresh", listing);
   },
-  create: async (name = "Untitled", folder = "") => {
-    const meta = await createNote(name, folder);
+  create: async (name = "Untitled", folder = "", content = "", path) => {
+    const meta = await createNote(name, folder, content, path);
     set({ notes: [meta, ...get().notes] });
+    emit("note:create", meta);
     return meta;
   },
+  touch: (path, modified = Date.now()) => {
+    set({
+      notes: get().notes.map((note) =>
+        note.path === path ? { ...note, modified } : note,
+      ),
+    });
+  },
   remove: async (path) => {
-    set({ notes: get().notes.filter((n) => n.path !== path) });
     await deleteNote(path);
+    set({ notes: get().notes.filter((n) => n.path !== path) });
     emit("note:delete", path);
   },
   trash: async (path) => {
-    set({ notes: get().notes.filter((n) => n.path !== path) });
     await trashNote(path);
+    set({ notes: get().notes.filter((n) => n.path !== path) });
     emit("note:delete", path);
   },
   rename: async (from, to) => {
     const meta = await renameNote(from, to);
     set({ notes: get().notes.map((n) => (n.path === from ? meta : n)) });
+    emit("note:rename", { from, to, meta });
     return meta;
   },
   renameFolder: async (from, to) => {
@@ -86,6 +103,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
         ),
       });
     }
+    emit("folder:rename", { from, to });
   },
   mkdir: async (path) => {
     await createFolder(path);
@@ -93,6 +111,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     if (!folders.includes(path)) {
       set({ folders: [...folders, path].sort() });
     }
+    emit("folder:create", path);
   },
   rmdir: async (path) => {
     await deleteFolder(path);
@@ -101,6 +120,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
         (f) => f !== path && !f.startsWith(`${path}/`),
       ),
     });
+    emit("folder:delete", path);
   },
 }));
 
