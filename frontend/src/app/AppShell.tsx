@@ -52,7 +52,7 @@ function AppShellInner() {
     <ThemeProvider>
       <TooltipProvider delayDuration={400}>
         <div
-          className="flex h-dvh min-h-0 flex-col bg-background text-foreground"
+          className="flex h-screen min-h-0 flex-col bg-background text-foreground"
         >
           <div className="relative flex min-h-0 flex-1">
             <Sidebar />
