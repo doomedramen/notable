@@ -18,8 +18,11 @@ describe("plugin API handle", () => {
       rightPanels: [],
       settingsTabs: [],
       statusBarItems: [],
+      noteToolbarItems: [],
       noteContextMenuItems: [],
       folderContextMenuItems: [],
+      noteDecorators: [],
+      sidebarSortComparators: [],
       activeRightPanel: null,
     });
   });

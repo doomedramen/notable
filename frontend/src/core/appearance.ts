@@ -24,6 +24,8 @@ export const appearanceStore = createStore<AppearanceState>(() => ({
 const ID_PATTERN = /^[a-z][a-z0-9-]*$/;
 const CSS_VARIABLE_PATTERN = /^--[a-z][a-z0-9-]*$/;
 const COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
+/** A `font-family` value: comma-separated, quoted or bare family names. */
+const FONT_PATTERN = /^[a-zA-Z0-9\s,'"_-]{1,200}$/;
 
 export function registerTheme(
   manifest: PluginManifest,
@@ -143,6 +145,15 @@ function normalizeValue(
     return Math.min(control.max, Math.max(control.min, number));
   }
   if (control.type === "toggle") return Boolean(value);
+  if (control.type === "font") {
+    if (typeof value !== "string" || !FONT_PATTERN.test(value)) {
+      return control.default;
+    }
+    if (control.options && !control.options.some((option) => option.value === value)) {
+      return control.default;
+    }
+    return value;
+  }
   return control.options.some((option) => option.value === value)
     ? String(value)
     : control.default;
@@ -182,6 +193,24 @@ function validateTheme(theme: ThemeSpec): void {
       for (const option of control.options) {
         for (const variable of Object.keys(option.variables ?? {})) {
           validateCssVariable(variable);
+        }
+      }
+    }
+    if (control.type === "font") {
+      if (!FONT_PATTERN.test(control.default)) {
+        throw new Error(`invalid font default for "${control.id}"`);
+      }
+      if (control.options) {
+        if (
+          control.options.length === 0 ||
+          !control.options.some((option) => option.value === control.default)
+        ) {
+          throw new Error(`invalid font options for "${control.id}"`);
+        }
+        for (const option of control.options) {
+          if (!FONT_PATTERN.test(option.value)) {
+            throw new Error(`invalid font option for "${control.id}"`);
+          }
         }
       }
     }

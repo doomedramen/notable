@@ -35,6 +35,7 @@
     "tailwind-merge": "^3.3.0",
     "y-codemirror.next": "^0.3.5",
     "y-indexeddb": "^9.0.12",
+    "yaml": "^2.9.0",
     "yjs": "^13.6.20",
     "zustand": "^5.0.0"
   },

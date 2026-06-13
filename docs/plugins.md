@@ -77,13 +77,14 @@ The complete typed contract is in
 | `api.appearance` | Register configurable CSS themes |
 | `api.icons` | Register icon packs/themes, open the picker, and assign icons |
 | `api.editor` | Add CodeMirror extensions and access the active editor |
-| `api.workspace` | Add panels, settings tabs, and status bar items |
+| `api.workspace` | Add panels, settings tabs, status bar/toolbar items, and sidebar hooks |
 | `api.vault` | Manage notes/folders through the offline metadata queue |
 | `api.documents` | Read and edit note text through live CRDT documents |
 | `api.search` | Query full text, links, backlinks, and tags |
 | `api.events` | Subscribe to note, editor, and theme lifecycle events |
 | `api.settings` | Store per-plugin JSON settings |
 | `api.ui` | Show notices and confirmation dialogs |
+| `api.frontmatter` | Read and write a note's YAML frontmatter block |
 
 API v2 adds appearance contributions and optional icons on commands, panels,
 and settings tabs. Plugins may also add note/folder context-menu actions.
@@ -94,6 +95,10 @@ API v3 adds complete vault operations, revisioned CRDT-safe document access,
 typed search/graph queries, and richer vault/editor lifecycle events. See the
 [API v3 guide](plugin-api-v3.md) for behavior, examples, error handling, and
 offline guarantees.
+
+API v4 adds frontmatter access, a font theme control, multi-selection
+context-menu actions, a note toolbar contribution point, and sidebar
+decoration/sorting hooks. See the [API v4 guide](plugin-api-v4.md).
 
 ## Icon packs and themes
 
@@ -206,6 +211,7 @@ Add core plugins directly under `core-plugins/<id>`. They are part of the
 Notable release and should be reserved for features maintained with the app.
 Core plugins currently include:
 
+- `advanced-tables` - table cell navigation, formatting, and row/column editing
 - `backlinks` - incoming links for the open note
 - `live-preview` - rendered Markdown formatting while editing
 - `outline` - heading navigation in a right panel

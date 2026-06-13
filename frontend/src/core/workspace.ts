@@ -2,8 +2,12 @@ import { createStore } from "zustand";
 import type {
   ContextMenuItemSpec,
   Disposable,
+  NoteDecoration,
+  NoteMeta,
+  NoteToolbarItemSpec,
   PanelSpec,
   SettingsTabSpec,
+  SidebarSortComparator,
   StatusBarItemSpec,
 } from "../plugin-api";
 
@@ -16,8 +20,11 @@ interface WorkspaceState {
   rightPanels: readonly PanelSpec[];
   settingsTabs: readonly SettingsTabSpec[];
   statusBarItems: readonly StatusBarItemSpec[];
+  noteToolbarItems: readonly NoteToolbarItemSpec[];
   noteContextMenuItems: readonly ContextMenuItemSpec[];
   folderContextMenuItems: readonly ContextMenuItemSpec[];
+  noteDecorators: readonly ((note: NoteMeta) => NoteDecoration | null)[];
+  sidebarSortComparators: readonly SidebarSortComparator[];
   /** Currently visible right panel (null = hidden). */
   activeRightPanel: string | null;
 }
@@ -27,8 +34,11 @@ export const workspaceStore = createStore<WorkspaceState>(() => ({
   rightPanels: [],
   settingsTabs: [],
   statusBarItems: [],
+  noteToolbarItems: [],
   noteContextMenuItems: [],
   folderContextMenuItems: [],
+  noteDecorators: [],
+  sidebarSortComparators: [],
   activeRightPanel: null,
 }));
 
@@ -38,6 +48,7 @@ function registerIn<T extends { id: string }>(
     | "rightPanels"
     | "settingsTabs"
     | "statusBarItems"
+    | "noteToolbarItems"
     | "noteContextMenuItems"
     | "folderContextMenuItems",
   item: T,
@@ -70,10 +81,42 @@ export const registerSettingsTab = (t: SettingsTabSpec) =>
   registerIn("settingsTabs", t);
 export const registerStatusBarItem = (i: StatusBarItemSpec) =>
   registerIn("statusBarItems", i);
+export const registerNoteToolbarItem = (i: NoteToolbarItemSpec) =>
+  registerIn("noteToolbarItems", i);
 export const registerNoteContextMenu = (i: ContextMenuItemSpec) =>
   registerIn("noteContextMenuItems", i);
 export const registerFolderContextMenu = (i: ContextMenuItemSpec) =>
   registerIn("folderContextMenuItems", i);
+
+export function registerNoteDecoration(
+  decorate: (note: NoteMeta) => NoteDecoration | null,
+): Disposable {
+  workspaceStore.setState((s) => ({
+    noteDecorators: [...s.noteDecorators, decorate],
+  }));
+  return {
+    dispose: () => {
+      workspaceStore.setState((s) => ({
+        noteDecorators: s.noteDecorators.filter((d) => d !== decorate),
+      }));
+    },
+  };
+}
+
+export function registerSidebarSort(compare: SidebarSortComparator): Disposable {
+  workspaceStore.setState((s) => ({
+    sidebarSortComparators: [...s.sidebarSortComparators, compare],
+  }));
+  return {
+    dispose: () => {
+      workspaceStore.setState((s) => ({
+        sidebarSortComparators: s.sidebarSortComparators.filter(
+          (c) => c !== compare,
+        ),
+      }));
+    },
+  };
+}
 
 export function toggleRightPanel(id: string): void {
   workspaceStore.setState((s) => ({

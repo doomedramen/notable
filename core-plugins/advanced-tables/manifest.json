@@ -1,0 +1,9 @@
+{
+  "id": "advanced-tables",
+  "name": "Advanced tables",
+  "version": "1.0.0",
+  "description": "Tab/Enter cell navigation, auto-alignment, and row/column editing for Markdown tables.",
+  "entry": "main.js",
+  "defaultEnabled": true,
+  "categories": ["editing", "tables"]
+}

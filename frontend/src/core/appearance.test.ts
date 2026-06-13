@@ -54,6 +54,70 @@ describe("appearance registry", () => {
     expect(useUI.getState().customTheme).toBeNull();
   });
 
+  it("applies and validates font controls", () => {
+    registerTheme(
+      { id: "type", name: "Type", version: "1.0.0" },
+      {
+        id: "set",
+        name: "Set",
+        stylesheet: "theme.css",
+        controls: [
+          {
+            id: "family",
+            label: "Font",
+            type: "font",
+            cssVariable: "--font-family",
+            default: "Inter, sans-serif",
+            options: [
+              { label: "Inter", value: "Inter, sans-serif" },
+              { label: "Mono", value: "'Fira Code', monospace" },
+            ],
+          },
+        ],
+      },
+      "/api/plugins/type/theme.css",
+    );
+
+    selectTheme("type:set");
+    expect(useUI.getState().customThemeVariables["--font-family"]).toBe(
+      "Inter, sans-serif",
+    );
+
+    setThemeControl("type:set", "family", "'Fira Code', monospace");
+    expect(useUI.getState().customThemeVariables["--font-family"]).toBe(
+      "'Fira Code', monospace",
+    );
+
+    // Not one of the curated options: falls back to the default.
+    setThemeControl("type:set", "family", "Comic Sans MS");
+    expect(useUI.getState().customThemeVariables["--font-family"]).toBe(
+      "Inter, sans-serif",
+    );
+  });
+
+  it("rejects unsafe font defaults", () => {
+    expect(() =>
+      registerTheme(
+        { id: "bad-font", name: "Bad font", version: "1.0.0" },
+        {
+          id: "bad",
+          name: "Bad",
+          stylesheet: "theme.css",
+          controls: [
+            {
+              id: "family",
+              label: "Font",
+              type: "font",
+              cssVariable: "--font-family",
+              default: "url(javascript:alert(1))",
+            },
+          ],
+        },
+        "/theme.css",
+      ),
+    ).toThrow(/invalid font default/);
+  });
+
   it("rejects unsafe CSS variable names", () => {
     expect(() =>
       registerTheme(

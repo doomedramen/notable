@@ -315,6 +315,47 @@ function ThemeControlField({
       </label>
     );
   }
+  if (control.type === "font") {
+    if (control.options) {
+      return (
+        <label className={labelClass}>
+          <span>{control.label}</span>
+          <select
+            value={String(value)}
+            onChange={(event) =>
+              setThemeControl(themeId, control.id, event.target.value)
+            }
+            className="h-8 rounded-sm border border-border bg-background px-2 text-sm"
+            style={{ fontFamily: String(value) }}
+          >
+            {control.options.map((option) => (
+              <option
+                key={option.value}
+                value={option.value}
+                style={{ fontFamily: option.value }}
+              >
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      );
+    }
+    return (
+      <label className={labelClass}>
+        <span>{control.label}</span>
+        <input
+          type="text"
+          value={String(value)}
+          onChange={(event) =>
+            setThemeControl(themeId, control.id, event.target.value)
+          }
+          style={{ fontFamily: String(value) }}
+          className="h-8 w-48 rounded-sm border border-border bg-background px-2 text-sm"
+        />
+      </label>
+    );
+  }
   if (control.type === "color") {
     return (
       <label className={labelClass}>

@@ -1,0 +1,511 @@
+// Core Notable plugin: GFM table editing.
+//
+//  - Tab / Shift-Tab move between cells, creating a new row when Tab is
+//    pressed in the last cell of the last row (Obsidian "Advanced Tables"
+//    behavior).
+//  - Enter moves to the same column on the next row, creating one if needed.
+//  - Every navigation re-aligns the table's columns, so tables stay tidy
+//    as you type.
+//  - Command palette actions cover row/column insertion, deletion,
+//    reordering, alignment, and sorting. Each is only active (`when`) while
+//    the cursor sits inside a table.
+//
+// All editing happens through `view.dispatch` on the active CodeMirror view,
+// matching the documented pattern for editor extensions.
+
+const TABLE_LINE = /^[ \t]*\|(.*)\|[ \t]*$/;
+const SEPARATOR_CELL = /^:?-{1,}:?$/;
+
+function splitCellsRaw(content) {
+  const cells = [];
+  let current = "";
+  for (let i = 0; i < content.length; i++) {
+    const ch = content[i];
+    if (ch === "\\" && content[i + 1] === "|") {
+      current += "\\|";
+      i++;
+      continue;
+    }
+    if (ch === "|") {
+      cells.push(current);
+      current = "";
+      continue;
+    }
+    current += ch;
+  }
+  cells.push(current);
+  return cells;
+}
+
+function cellAlignment(cell) {
+  const left = cell.startsWith(":");
+  const right = cell.endsWith(":");
+  if (left && right) return "center";
+  if (right) return "right";
+  if (left) return "left";
+  return "";
+}
+
+function padArray(arr, len, fill) {
+  const out = arr.slice(0, len);
+  while (out.length < len) out.push(fill);
+  return out;
+}
+
+function padCell(text, width, align) {
+  const pad = Math.max(0, width - text.length);
+  if (align === "right") return " ".repeat(pad) + text;
+  if (align === "center") {
+    const left = Math.floor(pad / 2);
+    return " ".repeat(left) + text + " ".repeat(pad - left);
+  }
+  return text + " ".repeat(pad);
+}
+
+function padStart(text, width, align) {
+  const pad = Math.max(0, width - text.length);
+  if (align === "right") return pad;
+  if (align === "center") return Math.floor(pad / 2);
+  return 0;
+}
+
+function cellInfoAt(lineText, col) {
+  const pipeStart = lineText.indexOf("|");
+  const pipeEnd = lineText.lastIndexOf("|");
+  const content = lineText.slice(pipeStart + 1, pipeEnd);
+  const rawCells = splitCellsRaw(content);
+
+  let pos = pipeStart + 1;
+  for (let i = 0; i < rawCells.length; i++) {
+    const raw = rawCells[i];
+    const start = pos;
+    const end = pos + raw.length;
+    const isLast = i === rawCells.length - 1;
+    if (col <= end || isLast) {
+      const leading = raw.match(/^\s*/)[0].length;
+      const trimmed = raw.trim();
+      const offsetInRaw = Math.max(0, Math.min(col, end) - start);
+      const offsetInCell = Math.max(
+        0,
+        Math.min(offsetInRaw - leading, trimmed.length),
+      );
+      return { cellIndex: i, offsetInCell };
+    }
+    pos = end + 1;
+  }
+  return { cellIndex: rawCells.length - 1, offsetInCell: 0 };
+}
+
+function colCountOf(model) {
+  return Math.max(
+    1,
+    model.header.length,
+    model.alignments.length,
+    ...model.body.map((row) => row.length),
+  );
+}
+
+function parseTable(state, pos) {
+  const doc = state.doc;
+  const cur = doc.lineAt(pos);
+  if (!TABLE_LINE.test(cur.text)) return null;
+
+  let startLine = cur.number;
+  while (
+    startLine > 1 &&
+    TABLE_LINE.test(doc.line(startLine - 1).text)
+  ) {
+    startLine--;
+  }
+  let endLine = cur.number;
+  while (
+    endLine < doc.lines &&
+    TABLE_LINE.test(doc.line(endLine + 1).text)
+  ) {
+    endLine++;
+  }
+  if (endLine - startLine < 1) return null;
+
+  const sepMatch = TABLE_LINE.exec(doc.line(startLine + 1).text);
+  const sepCells = splitCellsRaw(sepMatch[1]).map((c) => c.trim());
+  if (sepCells.length === 0 || !sepCells.every((c) => SEPARATOR_CELL.test(c))) {
+    return null;
+  }
+
+  const header = splitCellsRaw(
+    TABLE_LINE.exec(doc.line(startLine).text)[1],
+  ).map((c) => c.trim());
+  const body = [];
+  for (let n = startLine + 2; n <= endLine; n++) {
+    body.push(splitCellsRaw(TABLE_LINE.exec(doc.line(n).text)[1]).map((c) => c.trim()));
+  }
+  const alignments = sepCells.map(cellAlignment);
+
+  const lineOffset = cur.number - startLine;
+  const modelRow = lineOffset <= 1 ? 0 : lineOffset - 1;
+  const { cellIndex, offsetInCell } = cellInfoAt(cur.text, pos - cur.from);
+
+  return {
+    from: doc.line(startLine).from,
+    to: doc.line(endLine).to,
+    header,
+    body,
+    alignments,
+    cursor: {
+      modelRow,
+      col: cellIndex,
+      offsetInCell,
+      onSeparator: lineOffset === 1,
+    },
+  };
+}
+
+function renderRow(cells, widths, alignments) {
+  return `| ${cells.map((c, i) => padCell(c, widths[i], alignments[i] || "left")).join(" | ")} |`;
+}
+
+function renderSeparator(widths, alignments) {
+  const cells = widths.map((w, i) => {
+    const align = alignments[i] || "";
+    if (align === "center") return `:${"-".repeat(Math.max(1, w - 2))}:`;
+    if (align === "left") return `:${"-".repeat(Math.max(1, w - 1))}`;
+    if (align === "right") return `${"-".repeat(Math.max(1, w - 1))}:`;
+    return "-".repeat(w);
+  });
+  return `| ${cells.join(" | ")} |`;
+}
+
+function renderTable(model) {
+  const colCount = colCountOf(model);
+  const header = padArray(model.header, colCount, "");
+  const alignments = padArray(model.alignments, colCount, "");
+  const body = model.body.map((row) => padArray(row, colCount, ""));
+
+  const widths = [];
+  for (let c = 0; c < colCount; c++) {
+    let w = Math.max(3, header[c].length);
+    for (const row of body) w = Math.max(w, row[c].length);
+    widths.push(w);
+  }
+
+  const lines = [renderRow(header, widths, alignments), renderSeparator(widths, alignments)];
+  for (const row of body) lines.push(renderRow(row, widths, alignments));
+
+  return { lines, widths, colCount, header, alignments, body };
+}
+
+function padModel(model) {
+  const colCount = colCountOf(model);
+  model.header = padArray(model.header, colCount, "");
+  model.alignments = padArray(model.alignments, colCount, "");
+  model.body = model.body.map((row) => padArray(row, colCount, ""));
+}
+
+function applyTransform(view, transform) {
+  const table = parseTable(view.state, view.state.selection.main.head);
+  if (!table) return false;
+
+  const model = {
+    header: table.header.slice(),
+    body: table.body.map((row) => row.slice()),
+    alignments: table.alignments.slice(),
+  };
+  padModel(model);
+  const cursor = { ...table.cursor };
+
+  transform(model, cursor);
+
+  const rendered = renderTable(model);
+  const text = rendered.lines.join("\n");
+
+  const lineIndex = cursor.modelRow === 0 ? 0 : cursor.modelRow + 1;
+  const col = Math.min(Math.max(0, cursor.col), rendered.colCount - 1);
+  const cellText =
+    (cursor.modelRow === 0 ? rendered.header : rendered.body[cursor.modelRow - 1])[col] ?? "";
+  const align = rendered.alignments[col] || "left";
+
+  let charOffset = 2; // "| "
+  for (let c = 0; c < col; c++) charOffset += rendered.widths[c] + 3; // " | "
+  charOffset += padStart(cellText, rendered.widths[col], align);
+  charOffset += Math.min(Math.max(0, cursor.offsetInCell), cellText.length);
+
+  let pos = table.from;
+  for (let i = 0; i < lineIndex; i++) pos += rendered.lines[i].length + 1;
+  pos += charOffset;
+
+  view.dispatch({
+    changes: { from: table.from, to: table.to, insert: text },
+    selection: { anchor: pos },
+    scrollIntoView: true,
+  });
+  return true;
+}
+
+function tFormat() {}
+
+function tNextCell(model, cursor) {
+  const colCount = colCountOf(model);
+  cursor.col += 1;
+  if (cursor.col >= colCount) {
+    cursor.col = 0;
+    cursor.modelRow += 1;
+    if (cursor.modelRow - 1 >= model.body.length) {
+      model.body.push(new Array(colCount).fill(""));
+    }
+  }
+  cursor.offsetInCell = 0;
+}
+
+function tPrevCell(model, cursor) {
+  const colCount = colCountOf(model);
+  cursor.col -= 1;
+  if (cursor.col < 0) {
+    if (cursor.modelRow > 0) {
+      cursor.modelRow -= 1;
+      cursor.col = colCount - 1;
+    } else {
+      cursor.col = 0;
+    }
+  }
+  cursor.offsetInCell = Number.MAX_SAFE_INTEGER;
+}
+
+function tNextRow(model, cursor) {
+  const colCount = colCountOf(model);
+  cursor.modelRow += 1;
+  if (cursor.modelRow - 1 >= model.body.length) {
+    model.body.push(new Array(colCount).fill(""));
+  }
+  cursor.offsetInCell = 0;
+}
+
+function tInsertRowAbove(model, cursor) {
+  const colCount = colCountOf(model);
+  const bodyIdx = cursor.modelRow - 1;
+  model.body.splice(bodyIdx, 0, new Array(colCount).fill(""));
+  cursor.col = 0;
+  cursor.offsetInCell = 0;
+}
+
+function tInsertRowBelow(model, cursor) {
+  const colCount = colCountOf(model);
+  const bodyIdx = cursor.modelRow - 1;
+  model.body.splice(bodyIdx + 1, 0, new Array(colCount).fill(""));
+  cursor.modelRow += 1;
+  cursor.col = 0;
+  cursor.offsetInCell = 0;
+}
+
+function tDeleteRow(model, cursor) {
+  const bodyIdx = cursor.modelRow - 1;
+  model.body.splice(bodyIdx, 1);
+  if (model.body.length === 0) model.body.push(new Array(colCountOf(model)).fill(""));
+  cursor.modelRow = Math.min(cursor.modelRow, model.body.length);
+  cursor.offsetInCell = 0;
+}
+
+function tMoveRowUp(model, cursor) {
+  const bodyIdx = cursor.modelRow - 1;
+  if (bodyIdx <= 0) return;
+  [model.body[bodyIdx - 1], model.body[bodyIdx]] = [model.body[bodyIdx], model.body[bodyIdx - 1]];
+  cursor.modelRow -= 1;
+}
+
+function tMoveRowDown(model, cursor) {
+  const bodyIdx = cursor.modelRow - 1;
+  if (bodyIdx < 0 || bodyIdx >= model.body.length - 1) return;
+  [model.body[bodyIdx], model.body[bodyIdx + 1]] = [model.body[bodyIdx + 1], model.body[bodyIdx]];
+  cursor.modelRow += 1;
+}
+
+function tInsertColumnLeft(model, cursor) {
+  const idx = cursor.col;
+  model.header.splice(idx, 0, "");
+  model.alignments.splice(idx, 0, "");
+  for (const row of model.body) row.splice(idx, 0, "");
+  cursor.offsetInCell = 0;
+}
+
+function tInsertColumnRight(model, cursor) {
+  const idx = cursor.col + 1;
+  model.header.splice(idx, 0, "");
+  model.alignments.splice(idx, 0, "");
+  for (const row of model.body) row.splice(idx, 0, "");
+  cursor.col = idx;
+  cursor.offsetInCell = 0;
+}
+
+function tDeleteColumn(model, cursor) {
+  if (colCountOf(model) <= 1) return;
+  const idx = cursor.col;
+  model.header.splice(idx, 1);
+  model.alignments.splice(idx, 1);
+  for (const row of model.body) row.splice(idx, 1);
+  cursor.col = Math.min(idx, colCountOf(model) - 1);
+  cursor.offsetInCell = 0;
+}
+
+function swapColumns(model, a, b) {
+  [model.header[a], model.header[b]] = [model.header[b], model.header[a]];
+  [model.alignments[a], model.alignments[b]] = [model.alignments[b], model.alignments[a]];
+  for (const row of model.body) [row[a], row[b]] = [row[b], row[a]];
+}
+
+function tMoveColumnLeft(model, cursor) {
+  if (cursor.col <= 0) return;
+  swapColumns(model, cursor.col, cursor.col - 1);
+  cursor.col -= 1;
+}
+
+function tMoveColumnRight(model, cursor) {
+  const colCount = colCountOf(model);
+  if (cursor.col >= colCount - 1) return;
+  swapColumns(model, cursor.col, cursor.col + 1);
+  cursor.col += 1;
+}
+
+function tSetAlign(align) {
+  return (model, cursor) => {
+    model.alignments[cursor.col] = align;
+  };
+}
+
+function tSort(descending) {
+  return (model, cursor) => {
+    const col = cursor.col;
+    const allNumeric = model.body.every(
+      (row) => row[col] === "" || !Number.isNaN(parseFloat(row[col])),
+    );
+    model.body.sort((a, b) => {
+      const av = a[col] ?? "";
+      const bv = b[col] ?? "";
+      const cmp = allNumeric
+        ? (parseFloat(av) || 0) - (parseFloat(bv) || 0)
+        : av.localeCompare(bv, undefined, { numeric: true, sensitivity: "base" });
+      return descending ? -cmp : cmp;
+    });
+    cursor.modelRow = model.body.length > 0 ? 1 : 0;
+    cursor.offsetInCell = 0;
+  };
+}
+
+const COMMANDS = [
+  { id: "format", name: "Format table", transform: tFormat },
+  {
+    id: "insert-row-above",
+    name: "Insert table row above",
+    transform: tInsertRowAbove,
+    enabled: (t) => t.cursor.modelRow >= 1,
+  },
+  {
+    id: "insert-row-below",
+    name: "Insert table row below",
+    transform: tInsertRowBelow,
+  },
+  {
+    id: "delete-row",
+    name: "Delete table row",
+    transform: tDeleteRow,
+    enabled: (t) => t.cursor.modelRow >= 1,
+  },
+  {
+    id: "move-row-up",
+    name: "Move table row up",
+    transform: tMoveRowUp,
+    enabled: (t) => t.cursor.modelRow >= 2,
+  },
+  {
+    id: "move-row-down",
+    name: "Move table row down",
+    transform: tMoveRowDown,
+    enabled: (t) => t.cursor.modelRow >= 1 && t.cursor.modelRow < t.body.length,
+  },
+  { id: "insert-column-left", name: "Insert table column left", transform: tInsertColumnLeft },
+  { id: "insert-column-right", name: "Insert table column right", transform: tInsertColumnRight },
+  {
+    id: "delete-column",
+    name: "Delete table column",
+    transform: tDeleteColumn,
+    enabled: (t) => colCountOf(t) > 1,
+  },
+  {
+    id: "move-column-left",
+    name: "Move table column left",
+    transform: tMoveColumnLeft,
+    enabled: (t) => t.cursor.col > 0,
+  },
+  {
+    id: "move-column-right",
+    name: "Move table column right",
+    transform: tMoveColumnRight,
+    enabled: (t) => t.cursor.col < colCountOf(t) - 1,
+  },
+  { id: "align-column-left", name: "Align table column left", transform: tSetAlign("left") },
+  { id: "align-column-center", name: "Align table column center", transform: tSetAlign("center") },
+  { id: "align-column-right", name: "Align table column right", transform: tSetAlign("right") },
+  {
+    id: "sort-ascending",
+    name: "Sort table by column (ascending)",
+    transform: tSort(false),
+    enabled: (t) => t.body.length > 1,
+  },
+  {
+    id: "sort-descending",
+    name: "Sort table by column (descending)",
+    transform: tSort(true),
+    enabled: (t) => t.body.length > 1,
+  },
+];
+
+export default {
+  onload(api) {
+    const { state, view } = api.modules.codemirror;
+    const { Prec } = state;
+    const { keymap } = view;
+
+    const activeTable = () => {
+      const editor = api.editor.activeView();
+      if (!editor) return null;
+      return parseTable(editor.state, editor.state.selection.main.head);
+    };
+
+    api.editor.registerExtension(
+      Prec.highest(
+        keymap.of([
+          {
+            key: "Tab",
+            run: (editor) => applyTransform(editor, tNextCell),
+          },
+          {
+            key: "Shift-Tab",
+            run: (editor) => applyTransform(editor, tPrevCell),
+          },
+          {
+            key: "Enter",
+            run: (editor) => {
+              const table = parseTable(editor.state, editor.state.selection.main.head);
+              if (!table || table.cursor.onSeparator) return false;
+              return applyTransform(editor, tNextRow);
+            },
+          },
+        ]),
+      ),
+    );
+
+    for (const spec of COMMANDS) {
+      api.commands.register({
+        id: `advanced-tables.${spec.id}`,
+        name: spec.name,
+        when: () => {
+          const table = activeTable();
+          if (!table) return false;
+          return spec.enabled ? spec.enabled(table) : true;
+        },
+        run: () => {
+          const editor = api.editor.activeView();
+          if (editor) applyTransform(editor, spec.transform);
+        },
+      });
+    }
+  },
+};

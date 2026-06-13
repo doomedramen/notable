@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
   type FormEvent,
+  type MouseEvent,
 } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { useStore } from "zustand";
@@ -15,6 +16,7 @@ import { workspaceStore } from "../core/workspace";
 import { openNote } from "../core/navigation";
 import { MountHost } from "../components/MountHost";
 import type { NoteMeta } from "../store/notes";
+import type { IconSource } from "../plugin-api";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Tooltip } from "../components/ui/tooltip";
@@ -161,7 +163,12 @@ function MobileSwipeBackdrop() {
       const previousX = previousXRef.current ?? startX;
       const willOpen =
         activatedRef.current && currentX >= previousX;
-      setOpacity(willOpen ? 1 : 0, true);
+      // When opening, snap straight to fully dim instead of animating —
+      // the drawer-open effect above immediately animates this layer back
+      // to 0 to cross-fade into the package's overlay. On a fast swipe
+      // both transitions would otherwise queue back-to-back and the
+      // backdrop visibly flickers (animates up, then instantly reverses).
+      setOpacity(willOpen ? 1 : 0, !willOpen);
       resetGesture();
     };
 
@@ -208,7 +215,14 @@ export function Sidebar() {
   const [renaming, setRenaming] = useState<NoteMeta | null>(null);
   const [renamingFolder, setRenamingFolder] = useState<string | null>(null);
   const [newFolderOpen, setNewFolderOpen] = useState(false);
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  const [selectionAnchor, setSelectionAnchor] = useState<string | null>(null);
   const isMobile = useIsMobile();
+
+  const sidebarSortComparators = useStore(
+    workspaceStore,
+    (state) => state.sidebarSortComparators,
+  );
 
   // Group notes by folder; include empty folders from the listing.
   const groups = useMemo(() => {
@@ -222,8 +236,64 @@ export function Sidebar() {
     const root = map.get("") ?? [];
     map.delete("");
     const rest = [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
+    const compare = sidebarSortComparators[sidebarSortComparators.length - 1];
+    if (compare) {
+      root.sort(compare);
+      for (const [, folderNotes] of rest) folderNotes.sort(compare);
+    }
     return { root, rest };
-  }, [notes, folders]);
+  }, [notes, folders, sidebarSortComparators]);
+
+  // Display order of note paths, used for shift-click range selection.
+  const noteOrder = useMemo(
+    () => [
+      ...groups.root.map((n) => n.path),
+      ...groups.rest.flatMap(([, folderNotes]) => folderNotes.map((n) => n.path)),
+    ],
+    [groups],
+  );
+
+  const handleNoteClick = (note: NoteMeta, event: MouseEvent) => {
+    if (event.metaKey || event.ctrlKey) {
+      event.preventDefault();
+      setSelected((prev) => {
+        const next = new Set(prev);
+        if (next.has(note.path)) next.delete(note.path);
+        else next.add(note.path);
+        return next;
+      });
+      setSelectionAnchor(note.path);
+      return;
+    }
+    if (event.shiftKey && selectionAnchor) {
+      event.preventDefault();
+      const from = noteOrder.indexOf(selectionAnchor);
+      const to = noteOrder.indexOf(note.path);
+      if (from === -1 || to === -1) {
+        setSelected(new Set([note.path]));
+      } else {
+        const [start, end] = from < to ? [from, to] : [to, from];
+        setSelected(new Set(noteOrder.slice(start, end + 1)));
+      }
+      return;
+    }
+    setSelected(new Set());
+    setSelectionAnchor(note.path);
+    openNote(note.path);
+  };
+
+  /** Selected paths for context-menu callbacks, with `path` always first. */
+  const selectionFor = (path: string): string[] =>
+    selected.has(path)
+      ? [path, ...[...selected].filter((p) => p !== path)]
+      : [path];
+
+  const ensureSelected = (path: string) => {
+    if (!selected.has(path)) {
+      setSelected(new Set([path]));
+      setSelectionAnchor(path);
+    }
+  };
 
   useEffect(() => {
     void syncNotesList();
@@ -242,6 +312,15 @@ export function Sidebar() {
       clearInterval(interval);
     };
   }, []);
+
+  useEffect(() => {
+    if (selected.size === 0) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSelected(new Set());
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selected.size]);
 
   const handleCreate = async (folder = "") => {
     const meta = await create("Untitled", folder);
@@ -320,7 +399,10 @@ export function Sidebar() {
                   key={note.path}
                   note={note}
                   active={note.path === activePath}
-                  onOpen={() => openNote(note.path)}
+                  selected={selected.has(note.path)}
+                  selectedPaths={selectionFor(note.path)}
+                  onClick={(event) => handleNoteClick(note, event)}
+                  onContextMenu={() => ensureSelected(note.path)}
                   onRename={() => setRenaming(note)}
                   onDelete={() => setConfirmDelete(note)}
                 />
@@ -332,6 +414,10 @@ export function Sidebar() {
                 folder={folder}
                 notes={folderNotes}
                 activePath={activePath}
+                selected={selected}
+                selectionFor={selectionFor}
+                onNoteClick={handleNoteClick}
+                onNoteContextMenu={ensureSelected}
                 onCreateNote={() => void handleCreate(folder)}
                 onRename={setRenaming}
                 onDelete={setConfirmDelete}
@@ -414,6 +500,10 @@ function FolderGroup({
   folder,
   notes,
   activePath,
+  selected,
+  selectionFor,
+  onNoteClick,
+  onNoteContextMenu,
   onCreateNote,
   onRename,
   onDelete,
@@ -423,6 +513,10 @@ function FolderGroup({
   folder: string;
   notes: NoteMeta[];
   activePath: string | null;
+  selected: ReadonlySet<string>;
+  selectionFor: (path: string) => string[];
+  onNoteClick: (note: NoteMeta, event: MouseEvent) => void;
+  onNoteContextMenu: (path: string) => void;
   onCreateNote: () => void;
   onRename: (n: NoteMeta) => void;
   onDelete: (n: NoteMeta) => void;
@@ -437,7 +531,7 @@ function FolderGroup({
   useStore(iconAssignmentStore, (state) => state.assignments);
   const icon = getIconAssignment({ kind: "folder", path: folder }) ?? "folder";
   const contributed = menuItems.filter(
-    (item) => !item.when || item.when(folder),
+    (item) => !item.when || item.when(folder, [folder]),
   );
 
   return (
@@ -468,7 +562,7 @@ function FolderGroup({
           {contributed.map((item) => (
             <ContextMenuItem
               key={item.id}
-              onSelect={() => item.run(folder)}
+              onSelect={() => item.run(folder, [folder])}
             >
               {item.icon && <AppIcon icon={item.icon} size={14} />}
               {item.label}
@@ -487,7 +581,10 @@ function FolderGroup({
               key={note.path}
               note={note}
               active={note.path === activePath}
-              onOpen={() => openNote(note.path)}
+              selected={selected.has(note.path)}
+              selectedPaths={selectionFor(note.path)}
+              onClick={(event) => onNoteClick(note, event)}
+              onContextMenu={() => onNoteContextMenu(note.path)}
               onRename={() => onRename(note)}
               onDelete={() => onDelete(note)}
               hideFolder
@@ -556,14 +653,20 @@ function NewFolderDialog({
 function NoteRow({
   note,
   active,
-  onOpen,
+  selected = false,
+  selectedPaths,
+  onClick,
+  onContextMenu,
   onRename,
   onDelete,
   hideFolder = false,
 }: {
   note: NoteMeta;
   active: boolean;
-  onOpen: () => void;
+  selected?: boolean;
+  selectedPaths?: string[];
+  onClick: (event: MouseEvent) => void;
+  onContextMenu?: () => void;
   onRename: () => void;
   onDelete: () => void;
   hideFolder?: boolean;
@@ -572,22 +675,39 @@ function NoteRow({
     workspaceStore,
     (state) => state.noteContextMenuItems,
   );
+  const decorators = useStore(
+    workspaceStore,
+    (state) => state.noteDecorators,
+  );
   useStore(iconAssignmentStore, (state) => state.assignments);
-  const icon = getIconAssignment({ kind: "note", path: note.path }) ?? "note";
+  let badge: string | undefined;
+  let iconOverride: IconSource | undefined;
+  for (const decorate of decorators) {
+    const result = decorate(note);
+    if (!result) continue;
+    if (result.badge !== undefined) badge = result.badge;
+    if (result.icon !== undefined) iconOverride = result.icon;
+  }
+  const icon =
+    iconOverride ?? getIconAssignment({ kind: "note", path: note.path }) ?? "note";
+  const paths = selectedPaths ?? [note.path];
   const contributed = menuItems.filter(
-    (item) => !item.when || item.when(note.path),
+    (item) => !item.when || item.when(note.path, paths),
   );
   return (
     <li>
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <button
-            onClick={onOpen}
+            onClick={onClick}
+            onContextMenu={onContextMenu}
             className={cn(
               "flex w-full items-center gap-1.5 rounded-sm px-2 py-2 text-left text-sm transition-colors duration-100 md:py-1.5",
               active
                 ? "bg-accent-soft text-foreground"
-                : "text-muted hover:bg-surface-hover hover:text-foreground",
+                : selected
+                  ? "bg-surface-hover text-foreground"
+                  : "text-muted hover:bg-surface-hover hover:text-foreground",
             )}
           >
             <AppIcon
@@ -600,6 +720,11 @@ function NoteRow({
               )}
             />
             <span className="truncate">{note.name}</span>
+            {badge && (
+              <span className="shrink-0 rounded-sm bg-surface-hover px-1 text-xs text-faint">
+                {badge}
+              </span>
+            )}
             {!hideFolder && note.folder && (
               <span className="ml-auto truncate text-xs text-faint">
                 {note.folder}
@@ -612,7 +737,7 @@ function NoteRow({
           {contributed.map((item) => (
             <ContextMenuItem
               key={item.id}
-              onSelect={() => item.run(note.path)}
+              onSelect={() => item.run(note.path, paths)}
             >
               {item.icon && <AppIcon icon={item.icon} size={14} />}
               {item.label}

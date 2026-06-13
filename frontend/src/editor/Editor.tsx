@@ -28,6 +28,8 @@ import { useNotesStore } from "../store/notes-store";
 import { openNote } from "../core/navigation";
 import { notice } from "../components/ui/toast";
 import { AppIcon } from "../components/AppIcon";
+import { MountHost } from "../components/MountHost";
+import { workspaceStore } from "../core/workspace";
 import {
   getIconAssignment,
   iconAssignmentStore,
@@ -253,6 +255,24 @@ function EditableTitle({ notePath }: { notePath: string }) {
       >
         {name}
       </h1>
+      <NoteToolbar notePath={notePath} />
+    </div>
+  );
+}
+
+/** Plugin-registered controls shown alongside the note title. */
+function NoteToolbar({ notePath }: { notePath: string }) {
+  const items = useStore(workspaceStore, (s) => s.noteToolbarItems);
+  if (items.length === 0) return null;
+  return (
+    <div className="flex shrink-0 items-center gap-1">
+      {items.map((item) => (
+        <MountHost
+          key={item.id}
+          mount={(el) => item.mount(el, notePath)}
+          className="flex items-center"
+        />
+      ))}
     </div>
   );
 }

@@ -18,7 +18,7 @@ import type { Extension } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 
 /** Highest plugin API contract implemented by this Notable build. */
-export const CURRENT_PLUGIN_API_VERSION = 3;
+export const CURRENT_PLUGIN_API_VERSION = 4;
 
 export interface Disposable {
   dispose(): void;
@@ -133,6 +133,15 @@ export type ThemeControl =
         value: string;
         variables?: Record<string, string>;
       }[];
+    }
+  | {
+      id: string;
+      label: string;
+      type: "font";
+      cssVariable: string;
+      default: string;
+      /** Curated choices. Omit to allow any font-family string. */
+      options?: { label: string; value: string }[];
     };
 
 export interface ThemeSpec {
@@ -158,8 +167,12 @@ export interface ContextMenuItemSpec {
   id: string;
   label: string;
   icon?: IconSource;
-  when?: (path: string) => boolean;
-  run(path: string): void;
+  /**
+   * `path` is the right-clicked item. `paths` is the full multi-selection
+   * (including `path`), or `[path]` when only one item is selected.
+   */
+  when?: (path: string, paths: string[]) => boolean;
+  run(path: string, paths: string[]): void;
 }
 
 export interface NoteMeta {
@@ -306,6 +319,24 @@ export interface StatusBarItemSpec {
   mount(el: HTMLElement): () => void;
 }
 
+/** A button or control shown alongside the open note's title. */
+export interface NoteToolbarItemSpec {
+  id: string;
+  /** Mount imperative UI into `el` for the open note at `path`. */
+  mount(el: HTMLElement, path: string): () => void;
+}
+
+/** A small annotation rendered on a sidebar note row. */
+export interface NoteDecoration {
+  /** Short text shown after the note's name, e.g. a count or date. */
+  badge?: string;
+  /** Replaces the note's default file icon. */
+  icon?: IconSource;
+}
+
+/** Orders two notes for the sidebar list, like `Array.prototype.sort`. */
+export type SidebarSortComparator = (a: NoteMeta, b: NoteMeta) => number;
+
 export interface AppEvents {
   "note:open": (id: string) => void;
   "note:create": (meta: NoteMeta) => void;
@@ -385,8 +416,18 @@ export interface NotableAPI {
     registerRightPanel(panel: PanelSpec): Disposable;
     registerSettingsTab(tab: SettingsTabSpec): Disposable;
     registerStatusBarItem(item: StatusBarItemSpec): Disposable;
+    registerNoteToolbarItem(item: NoteToolbarItemSpec): Disposable;
     registerNoteContextMenu(item: ContextMenuItemSpec): Disposable;
     registerFolderContextMenu(item: ContextMenuItemSpec): Disposable;
+    /** Annotate sidebar note rows with a badge and/or replacement icon. */
+    registerNoteDecoration(
+      decorate: (note: NoteMeta) => NoteDecoration | null,
+    ): Disposable;
+    /**
+     * Override the sidebar's note ordering within each folder. The most
+     * recently registered comparator wins.
+     */
+    registerSidebarSort(compare: SidebarSortComparator): Disposable;
     openNote(path: string): void;
     /** Navigate to the note-list view for a tag (`/tag/<tag>`). */
     openTag(tag: string): void;
@@ -458,6 +499,24 @@ export interface NotableAPI {
   settings: {
     load<T>(): Promise<T | null>;
     save<T>(data: T): Promise<void>;
+  };
+
+  /**
+   * Read and write a note's YAML frontmatter block without disturbing its
+   * body. Goes through `api.documents`, so writes are Yjs/CRDT-safe.
+   */
+  frontmatter: {
+    /** Parsed frontmatter, or `{}` if the note has none. */
+    read(path: string): Promise<Record<string, unknown>>;
+    /**
+     * Replace the note's frontmatter with `data`, preserving the body.
+     * Pass `{}` to remove the frontmatter block entirely.
+     */
+    write(
+      path: string,
+      data: Record<string, unknown>,
+      options?: DocumentWriteOptions,
+    ): Promise<DocumentSnapshot>;
   };
 
   ui: {

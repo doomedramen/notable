@@ -10,12 +10,14 @@ import type {
   Command,
   Disposable,
   NotableAPI,
+  NoteToolbarItemSpec,
   PanelSpec,
   PluginManifest,
   SettingsTabSpec,
   StatusBarItemSpec,
 } from "../plugin-api";
 import * as documents from "./documents";
+import * as frontmatter from "./frontmatter";
 import * as search from "./search";
 import { registerTheme } from "./appearance";
 import {
@@ -117,10 +119,16 @@ export function createPluginAPI(
         track(workspace.registerSettingsTab(t)),
       registerStatusBarItem: (i: StatusBarItemSpec) =>
         track(workspace.registerStatusBarItem(i)),
+      registerNoteToolbarItem: (i: NoteToolbarItemSpec) =>
+        track(workspace.registerNoteToolbarItem(i)),
       registerNoteContextMenu: (i) =>
         track(workspace.registerNoteContextMenu(i)),
       registerFolderContextMenu: (i) =>
         track(workspace.registerFolderContextMenu(i)),
+      registerNoteDecoration: (decorate) =>
+        track(workspace.registerNoteDecoration(decorate)),
+      registerSidebarSort: (compare) =>
+        track(workspace.registerSidebarSort(compare)),
       openNote,
       openTag,
       toggleRightPanel: workspace.toggleRightPanel,
@@ -174,6 +182,10 @@ export function createPluginAPI(
       notice: (message, durationMs) =>
         notice(message, { duration: durationMs }),
       confirm,
+    },
+    frontmatter: {
+      read: frontmatter.read,
+      write: frontmatter.write,
     },
     modules,
   };
