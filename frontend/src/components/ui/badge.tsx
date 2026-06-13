@@ -1,5 +1,5 @@
 import type { HTMLAttributes } from "react";
-import { cn } from "../../lib/cn";
+import { cn } from "@/lib/cn";
 
 /** Small pill for inline metadata (plugin source, status, etc.). */
 export function Badge({ className, ...props }: HTMLAttributes<HTMLSpanElement>) {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type MouseEvent } from "react";
-import { openNote } from "../../../core/navigation";
-import type { NoteMeta } from "../../../store/notes";
+import { openNote } from "@/core/navigation";
+import type { NoteMeta } from "@/store/notes";
 
 /**
  * Multi-select state for the sidebar note list: a `Set` of selected paths

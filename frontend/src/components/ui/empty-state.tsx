@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import type { IconSource } from "../../plugin-api";
-import { cn } from "../../lib/cn";
-import { AppIcon } from "../AppIcon";
+import type { IconSource } from "@/plugin-api";
+import { cn } from "@/lib/cn";
+import { AppIcon } from "@/components/AppIcon";
 
 /** Centered icon + message for empty lists (sidebar, trash, tags, palette). */
 export function EmptyState({

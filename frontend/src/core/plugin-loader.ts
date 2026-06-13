@@ -4,12 +4,12 @@ import {
   type Disposable,
   type NotablePlugin,
   type PluginManifest,
-} from "../plugin-api";
+} from "@/plugin-api";
 import { createPluginAPI } from "./api";
-import { notice } from "../components/ui/toast";
+import { notice } from "@/components/ui/toast";
 import { selectTheme } from "./appearance";
 import { selectIconTheme } from "./icons";
-import { useUI } from "../store/ui";
+import { useUI } from "@/store/ui";
 
 /* Loads runtime plugins from the server. A broken plugin must degrade to
    a toast + disabled state, never a white screen. */

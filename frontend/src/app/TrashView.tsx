@@ -4,16 +4,16 @@ import {
   listTrash,
   restoreFromTrash,
   type TrashedNote,
-} from "../store/notes";
-import { syncNotesList } from "../store/notes-store";
-import { useNotesStore } from "../store/notes-store";
-import { confirm } from "../components/ui/confirm";
-import { notice } from "../components/ui/toast";
-import { on } from "../core/events";
-import { EmptyState } from "../components/ui/empty-state";
-import { PageContainer, PageHeader } from "../components/ui/page-header";
-import { AppIcon } from "../components/AppIcon";
-import { Skeleton } from "../components/ui/skeleton";
+} from "@/store/notes";
+import { syncNotesList } from "@/store/notes-store";
+import { useNotesStore } from "@/store/notes-store";
+import { confirm } from "@/components/ui/confirm";
+import { notice } from "@/components/ui/toast";
+import { on } from "@/core/events";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageContainer, PageHeader } from "@/components/ui/page-header";
+import { AppIcon } from "@/components/AppIcon";
+import { Skeleton } from "@/components/ui/skeleton";
 
 /** Lists notes sitting in `.trash/`, with restore / delete-forever (route: /trash). */
 export function TrashView() {

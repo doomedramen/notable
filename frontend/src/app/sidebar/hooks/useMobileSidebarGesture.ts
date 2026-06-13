@@ -7,7 +7,7 @@ import {
   type PointerEventHandler,
   type RefObject,
 } from "react";
-import { cancelFeedback, triggerFeedback } from "../../../core/feedback";
+import { cancelFeedback, triggerFeedback } from "@/core/feedback";
 
 const EDGE_WIDTH = 40;
 const ACTIVATION_DELTA = 20;

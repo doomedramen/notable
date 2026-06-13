@@ -4,8 +4,8 @@ import type {
   PluginManifest,
   ThemeControl,
   ThemeSpec,
-} from "../plugin-api";
-import { useUI } from "../store/ui";
+} from "@/plugin-api";
+import { useUI } from "@/store/ui";
 
 export interface RegisteredTheme extends ThemeSpec {
   id: string;

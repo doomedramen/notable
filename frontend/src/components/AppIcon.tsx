@@ -26,10 +26,10 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useStore } from "zustand";
-import type { AppIconSlot, IconSource } from "../plugin-api";
-import { iconsStore, resolveIcon } from "../core/icons";
-import { useUI } from "../store/ui";
-import { cn } from "../lib/cn";
+import type { AppIconSlot, IconSource } from "@/plugin-api";
+import { iconsStore, resolveIcon } from "@/core/icons";
+import { useUI } from "@/store/ui";
+import { cn } from "@/lib/cn";
 
 const fallbacks: Record<AppIconSlot, LucideIcon> = {
   add: Plus,

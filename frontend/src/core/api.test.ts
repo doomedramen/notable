@@ -3,7 +3,7 @@ import { createPluginAPI } from "./api";
 import { commandStore } from "./commands";
 import { workspaceStore } from "./workspace";
 import { emit } from "./events";
-import type { Disposable } from "../plugin-api";
+import type { Disposable } from "@/plugin-api";
 
 /* The cleanup invariant: EVERYTHING a plugin registers through its API
    handle must be released by disposing the tracked disposables — this is

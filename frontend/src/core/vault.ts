@@ -2,12 +2,12 @@ import type {
   CreateNoteOptions,
   NoteMeta,
   VaultListing,
-} from "../plugin-api";
-import { useNotesStore } from "../store/notes-store";
+} from "@/plugin-api";
+import { useNotesStore } from "@/store/notes-store";
 import {
   validateFolderPath,
   validateNotePath,
-} from "../store/notes";
+} from "@/store/notes";
 import { activeNoteId } from "./navigation";
 import { pluginAPIError, requestError } from "./plugin-api-error";
 

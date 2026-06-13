@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router";
-import { openNote } from "../core/navigation";
-import { EmptyState } from "../components/ui/empty-state";
-import { PageContainer, PageHeader } from "../components/ui/page-header";
-import { Skeleton } from "../components/ui/skeleton";
+import { openNote } from "@/core/navigation";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageContainer, PageHeader } from "@/components/ui/page-header";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface TaggedNote {
   path: string;

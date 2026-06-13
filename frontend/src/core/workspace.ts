@@ -11,7 +11,7 @@ import type {
   StatusBarItemSpec,
   StatusBarItemRegistration,
   StatusBarItemUpdate,
-} from "../plugin-api";
+} from "@/plugin-api";
 
 /* Registries for UI surfaces plugins can contribute to. All mount-based
    (mount(el) => cleanup) so plugins are framework-agnostic; the shell

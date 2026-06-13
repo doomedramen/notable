@@ -7,7 +7,7 @@ import {
   DialogFooter,
   DialogTitle,
 } from "./dialog";
-import { triggerFeedback } from "../../core/feedback";
+import { triggerFeedback } from "@/core/feedback";
 
 /* Promise-based confirm dialog, callable from outside React
    (plugin API's ui.confirm). One pending confirm at a time. */

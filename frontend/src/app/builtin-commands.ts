@@ -1,5 +1,5 @@
-import { registerCommand } from "../core/commands";
-import { useUI } from "../store/ui";
+import { registerCommand } from "@/core/commands";
+import { useUI } from "@/store/ui";
 
 /* Core commands, registered through the same registry plugins use. */
 

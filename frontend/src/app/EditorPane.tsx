@@ -1,5 +1,5 @@
 import { useParams } from "react-router";
-import { Editor } from "../editor/Editor";
+import { Editor } from "@/editor/Editor";
 
 export function EditorPane() {
   // Splat param: the vault-relative path ("Projects/Plan.md").

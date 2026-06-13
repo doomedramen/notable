@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router";
-import { useNotesStore } from "../store/notes-store";
-import { encodePath } from "../store/notes";
-import { setPendingContent } from "../core/pending-content";
+import { useNotesStore } from "@/store/notes-store";
+import { encodePath } from "@/store/notes";
+import { setPendingContent } from "@/core/pending-content";
 
 const MAX_TITLE_LENGTH = 80;
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { createStore, useStore } from "zustand";
 import { Dialog, DialogContent, DialogTitle } from "./dialog";
-import type { Disposable, ModalSpec } from "../../plugin-api";
+import type { Disposable, ModalSpec } from "@/plugin-api";
 
 /* Host-rendered modal dialog for plugin-mounted content
    (plugin API's ui.openModal). One open modal at a time. */

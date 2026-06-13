@@ -5,8 +5,8 @@ import type {
   SearchOptions,
   TagCount,
   TaggedNote,
-} from "../plugin-api";
-import { encodePath } from "../store/notes";
+} from "@/plugin-api";
+import { encodePath } from "@/store/notes";
 import {
   pluginAPIError,
   requestError,

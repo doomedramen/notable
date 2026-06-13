@@ -2,23 +2,23 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import { useStore } from "zustand";
 import { Command as Cmdk } from "cmdk";
 import fuzzysort from "fuzzysort";
-import { commandStore, runCommand } from "../core/commands";
-import { openNote } from "../core/navigation";
-import { useNotesStore } from "../store/notes-store";
-import { useUI } from "../store/ui";
-import { normalizeKey } from "../core/hotkeys";
-import { Skeleton } from "../components/ui/skeleton";
-import { AppIcon } from "../components/AppIcon";
+import { commandStore, runCommand } from "@/core/commands";
+import { openNote } from "@/core/navigation";
+import { useNotesStore } from "@/store/notes-store";
+import { useUI } from "@/store/ui";
+import { normalizeKey } from "@/core/hotkeys";
+import { Skeleton } from "@/components/ui/skeleton";
+import { AppIcon } from "@/components/AppIcon";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogTitle,
-} from "../components/ui/dialog";
+} from "@/components/ui/dialog";
 import {
   getIconAssignment,
   iconAssignmentStore,
-} from "../core/icon-assignments";
+} from "@/core/icon-assignments";
 
 const IS_MAC =
   typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);

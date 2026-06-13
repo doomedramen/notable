@@ -1,23 +1,23 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useStore } from "zustand";
-import { useSyncStatus } from "../store/sync-status";
-import { workspaceStore } from "../core/workspace";
-import { MountHost } from "../components/MountHost";
+import { useSyncStatus } from "@/store/sync-status";
+import { workspaceStore } from "@/core/workspace";
+import { MountHost } from "@/components/MountHost";
 import type {
   StatusBarItemSpec,
   StatusBarTextItemSpec,
-} from "../plugin-api";
-import { useUI, type ThemePref } from "../store/ui";
+} from "@/plugin-api";
+import { useUI, type ThemePref } from "@/store/ui";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "../components/ui/dropdown-menu";
-import { Button } from "../components/ui/button";
-import { Tooltip } from "../components/ui/tooltip";
-import { cn } from "../lib/cn";
-import { AppIcon } from "../components/AppIcon";
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { Tooltip } from "@/components/ui/tooltip";
+import { cn } from "@/lib/cn";
+import { AppIcon } from "@/components/AppIcon";
 
 const statusConfig = {
   synced: {

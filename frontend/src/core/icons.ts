@@ -9,8 +9,8 @@ import type {
   IconSource,
   IconThemeSpec,
   PluginManifest,
-} from "../plugin-api";
-import { useUI } from "../store/ui";
+} from "@/plugin-api";
+import { useUI } from "@/store/ui";
 
 export interface RegisteredIconPack extends Omit<IconPackSpec, "id"> {
   id: string;

@@ -15,7 +15,7 @@ import type {
   PluginManifest,
   SettingsTabSpec,
   StatusBarItemSpec,
-} from "../plugin-api";
+} from "@/plugin-api";
 import * as documents from "./documents";
 import * as frontmatter from "./frontmatter";
 import * as search from "./search";
@@ -36,9 +36,9 @@ import * as editor from "./editor";
 import * as workspace from "./workspace";
 import * as vault from "./vault";
 import { openNote, openTag } from "./navigation";
-import { notice } from "../components/ui/toast";
-import { confirm } from "../components/ui/confirm";
-import { openModal } from "../components/ui/modal";
+import { notice } from "@/components/ui/toast";
+import { confirm } from "@/components/ui/confirm";
+import { openModal } from "@/components/ui/modal";
 
 /* Host module instances shared with plugins. Plugins must mark these
    external in their builds — a duplicated @codemirror/state instance

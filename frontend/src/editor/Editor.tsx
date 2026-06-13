@@ -20,27 +20,27 @@ import { GFM } from "@lezer/markdown";
 import { tags } from "@lezer/highlight";
 import * as Y from "yjs";
 import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
-import { NoteConnection } from "../sync/provider";
-import { useSyncStatus } from "../store/sync-status";
+import { NoteConnection } from "@/sync/provider";
+import { useSyncStatus } from "@/store/sync-status";
 import {
   consumeEditorFocusRestore,
   editorExtensionStore,
   setActiveView,
-} from "../core/editor";
-import { emit } from "../core/events";
-import { useNotesStore } from "../store/notes-store";
-import { openNote } from "../core/navigation";
-import { notice } from "../components/ui/toast";
-import { AppIcon } from "../components/AppIcon";
-import { MountHost } from "../components/MountHost";
-import { workspaceStore } from "../core/workspace";
+} from "@/core/editor";
+import { emit } from "@/core/events";
+import { useNotesStore } from "@/store/notes-store";
+import { openNote } from "@/core/navigation";
+import { notice } from "@/components/ui/toast";
+import { AppIcon } from "@/components/AppIcon";
+import { MountHost } from "@/components/MountHost";
+import { workspaceStore } from "@/core/workspace";
 import {
   getIconAssignment,
   iconAssignmentStore,
-} from "../core/icon-assignments";
+} from "@/core/icon-assignments";
 import { useStore } from "zustand";
-import { takePendingContent } from "../core/pending-content";
-import { pluginDocumentChange } from "../core/documents";
+import { takePendingContent } from "@/core/pending-content";
+import { pluginDocumentChange } from "@/core/documents";
 
 /* Typographic markdown styling — headings scale, syntax markers fade.
    (Full live preview that hides markers lands as a core plugin in a

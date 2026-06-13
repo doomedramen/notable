@@ -1,4 +1,4 @@
-import type { AppEvents, Disposable } from "../plugin-api";
+import type { AppEvents, Disposable } from "@/plugin-api";
 
 /* Tiny typed event bus. Framework-agnostic — plugins and core both use it. */
 

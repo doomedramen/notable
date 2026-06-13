@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
-import { useNotesStore } from "../store/notes-store";
-import { openNote } from "../core/navigation";
+import { useNotesStore } from "@/store/notes-store";
+import { openNote } from "@/core/navigation";
 
 /** Target of the installed app's "New note" shortcut: creates a note and
     redirects straight into it. */

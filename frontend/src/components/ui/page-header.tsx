@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import type { IconSource } from "../../plugin-api";
-import { AppIcon } from "../AppIcon";
+import type { IconSource } from "@/plugin-api";
+import { AppIcon } from "@/components/AppIcon";
 
 /** Top-level view container (TagView, TrashView, …): centered column with
     consistent padding so every full-page view aligns the same way. */

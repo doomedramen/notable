@@ -1,16 +1,16 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { useNotesStore } from "../../../store/notes-store";
-import { openNote } from "../../../core/navigation";
-import { Button } from "../../../components/ui/button";
-import { Input } from "../../../components/ui/input";
-import { notice } from "../../../components/ui/toast";
+import { useNotesStore } from "@/store/notes-store";
+import { openNote } from "@/core/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { notice } from "@/components/ui/toast";
 import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogTitle,
-} from "../../../components/ui/dialog";
-import type { NoteMeta } from "../../../store/notes";
+} from "@/components/ui/dialog";
+import type { NoteMeta } from "@/store/notes";
 
 export function RenameNoteDialog({
   note,

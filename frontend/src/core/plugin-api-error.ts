@@ -1,7 +1,7 @@
 import type {
   PluginAPIError,
   PluginAPIErrorCode,
-} from "../plugin-api";
+} from "@/plugin-api";
 
 /**
  * Create the stable error shape exposed by asynchronous plugin APIs.

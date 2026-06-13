@@ -1,5 +1,5 @@
 import { createStore } from "zustand";
-import type { IconRef, IconTarget } from "../plugin-api";
+import type { IconRef, IconTarget } from "@/plugin-api";
 
 interface IconAssignment extends IconTarget {
   icon: IconRef;

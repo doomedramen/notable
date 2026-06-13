@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { useStore } from "zustand";
-import { iconsStore, finishIconPick } from "../core/icons";
-import { useUI } from "../store/ui";
-import type { IconRef } from "../plugin-api";
+import { iconsStore, finishIconPick } from "@/core/icons";
+import { useUI } from "@/store/ui";
+import type { IconRef } from "@/plugin-api";
 import {
   Dialog,
   DialogContent,

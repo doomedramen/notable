@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useUI } from "../store/ui";
+import { useUI } from "@/store/ui";
 
 const mocks = vi.hoisted(() => ({
   trigger: vi.fn((_pattern: string) => Promise.resolve()),

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { IconRef } from "../plugin-api";
+import type { IconRef } from "@/plugin-api";
 
 export type ThemePref = "system" | "light" | "dark";
 

@@ -8,50 +8,50 @@ import {
 } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { useStore } from "zustand";
-import { useNotesStore, syncNotesList } from "../store/notes-store";
-import { useUI } from "../store/ui";
-import { workspaceStore } from "../core/workspace";
-import { openNote } from "../core/navigation";
-import type { NoteMeta } from "../store/notes";
-import type { IconSource } from "../plugin-api";
-import { Button } from "../components/ui/button";
-import { Tooltip } from "../components/ui/tooltip";
-import { EmptyState } from "../components/ui/empty-state";
-import { Skeleton } from "../components/ui/skeleton";
-import { notice } from "../components/ui/toast";
-import { confirm } from "../components/ui/confirm";
+import { useNotesStore, syncNotesList } from "@/store/notes-store";
+import { useUI } from "@/store/ui";
+import { workspaceStore } from "@/core/workspace";
+import { openNote } from "@/core/navigation";
+import type { NoteMeta } from "@/store/notes";
+import type { IconSource } from "@/plugin-api";
+import { Button } from "@/components/ui/button";
+import { Tooltip } from "@/components/ui/tooltip";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
+import { notice } from "@/components/ui/toast";
+import { confirm } from "@/components/ui/confirm";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuTrigger,
-} from "../components/ui/context-menu";
+} from "@/components/ui/context-menu";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "../components/ui/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
 import {
   Sheet,
   SheetContent,
   SheetOverlay,
   SheetPortal,
-} from "../components/ui/sheet";
-import { cn } from "../lib/cn";
-import { AppIcon } from "../components/AppIcon";
+} from "@/components/ui/sheet";
+import { cn } from "@/lib/cn";
+import { AppIcon } from "@/components/AppIcon";
 import { useMobileSidebarGesture } from "./sidebar/hooks/useMobileSidebarGesture";
 import { useSidebarSelection } from "./sidebar/hooks/useSidebarSelection";
 import {
   useNoteDragAndDrop,
-  type NoteDragHandlers,
+  type ItemDragHandlers,
   type FolderDropHandlers,
 } from "./sidebar/hooks/useNoteDragAndDrop";
 import {
   getIconAssignment,
   iconAssignmentStore,
-} from "../core/icon-assignments";
+} from "@/core/icon-assignments";
 import { SidebarPanels } from "./sidebar/SidebarPanels";
 import { NewFolderDialog } from "./sidebar/dialogs/NewFolderDialog";
 import { RenameNoteDialog } from "./sidebar/dialogs/RenameNoteDialog";
@@ -83,6 +83,7 @@ export function Sidebar() {
   const trash = useNotesStore((s) => s.trash);
   const restore = useNotesStore((s) => s.restore);
   const rename = useNotesStore((s) => s.rename);
+  const renameFolder = useNotesStore((s) => s.renameFolder);
   const rmdir = useNotesStore((s) => s.rmdir);
   const createNote = useNotesStore((s) => s.create);
   const open = useUI((s) => s.sidebarOpen);
@@ -154,12 +155,18 @@ export function Sidebar() {
   const { selected, selectionFor, handleNoteClick, ensureSelected, clearSelection } =
     useSidebarSelection(noteOrder);
 
-  const { draggedPath, dragOverFolder, getNoteDragHandlers, getFolderDropHandlers } =
-    useNoteDragAndDrop({
-      navRef,
-      onMoveNote: (path, folder) => void moveNote(path, folder),
-      noteDragActiveRef,
-    });
+  const {
+    draggedPath,
+    dragOverFolder,
+    getNoteDragHandlers,
+    getFolderDragHandlers,
+    getFolderDropHandlers,
+  } = useNoteDragAndDrop({
+    navRef,
+    onMoveNote: (path, folder) => void moveNote(path, folder),
+    onMoveFolder: (path, folder) => void moveFolder(path, folder),
+    noteDragActiveRef,
+  });
 
   useEffect(() => {
     void syncNotesList();
@@ -240,6 +247,33 @@ export function Sidebar() {
       });
     } catch {
       notice("Could not move the note. Is that name already taken?", {
+        variant: "danger",
+      });
+    }
+  };
+
+  const moveFolder = async (path: string, folder: string) => {
+    const leaf = path.split("/").pop()!;
+    const target = folder ? `${folder}/${leaf}` : leaf;
+    if (target === path) return;
+    const movingActive = activePath === path || activePath?.startsWith(`${path}/`);
+    try {
+      await renameFolder(path, target);
+      if (movingActive && activePath) {
+        openNote(`${target}${activePath.slice(path.length)}`);
+      }
+      notice(`Moved “${leaf}” to ${folder || "Root"}.`, {
+        duration: 6000,
+        action: {
+          label: "Undo",
+          run: async () => {
+            await renameFolder(target, path);
+            if (movingActive && activePath) openNote(activePath);
+          },
+        },
+      });
+    } catch {
+      notice("Could not move the folder. Is that name already taken?", {
         variant: "danger",
       });
     }
@@ -361,6 +395,7 @@ export function Sidebar() {
                 draggedPath={draggedPath}
                 dragOverFolder={dragOverFolder}
                 getNoteDragHandlers={getNoteDragHandlers}
+                getFolderDragHandlers={getFolderDragHandlers}
                 getFolderDropHandlers={getFolderDropHandlers}
               />
             ))}
@@ -458,6 +493,7 @@ function FolderGroup({
   draggedPath,
   dragOverFolder,
   getNoteDragHandlers,
+  getFolderDragHandlers,
   getFolderDropHandlers,
 }: {
   folder: string;
@@ -474,7 +510,8 @@ function FolderGroup({
   onDeleteFolder: () => void;
   draggedPath: string | null;
   dragOverFolder: string | null;
-  getNoteDragHandlers: (path: string) => NoteDragHandlers;
+  getNoteDragHandlers: (path: string) => ItemDragHandlers;
+  getFolderDragHandlers: (path: string) => ItemDragHandlers;
   getFolderDropHandlers: (folder: string) => FolderDropHandlers;
 }) {
   const collapsed = useUI((state) => state.collapsedFolders.includes(folder));
@@ -504,6 +541,7 @@ function FolderGroup({
                 toggleCollapsed(folder);
               }
             }}
+            {...getFolderDragHandlers(folder)}
             {...getFolderDropHandlers(folder)}
             className={cn(
               "flex w-full items-center gap-1.5 rounded-sm px-2 py-2 text-left text-sm text-muted hover:bg-surface-hover hover:text-foreground md:py-1.5",
@@ -594,7 +632,7 @@ function NoteRow({
   onContextMenu?: () => void;
   onRename: () => void;
   onDelete: () => void;
-  dragHandlers: NoteDragHandlers;
+  dragHandlers: ItemDragHandlers;
   hideFolder?: boolean;
 }) {
   const menuItems = useStore(

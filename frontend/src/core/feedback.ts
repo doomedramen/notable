@@ -1,5 +1,5 @@
 import { WebHaptics, type HapticInput } from "web-haptics";
-import { useUI } from "../store/ui";
+import { useUI } from "@/store/ui";
 
 export type FeedbackKind =
   | "selection"

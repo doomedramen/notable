@@ -6,7 +6,7 @@ import {
   resolveIcon,
   selectIconTheme,
 } from "./icons";
-import { useUI } from "../store/ui";
+import { useUI } from "@/store/ui";
 
 describe("icon registry", () => {
   beforeEach(() => {

@@ -28,7 +28,7 @@
 import * as Y from "yjs";
 import { IndexeddbPersistence } from "y-indexeddb";
 import { dirtyContent, markDirty, markClean, isDirty } from "./dirty";
-import { encodePath } from "../store/notes";
+import { encodePath } from "@/store/notes";
 
 const BACKOFF_MS = [1000, 2000, 5000, 10000, 30000];
 

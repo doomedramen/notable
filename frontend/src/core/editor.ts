@@ -1,7 +1,7 @@
 import { createStore } from "zustand";
 import type { Extension } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
-import type { Disposable } from "../plugin-api";
+import type { Disposable } from "@/plugin-api";
 
 /* Plugin-contributed CodeMirror extensions. Editor.tsx wraps the array
    in a Compartment and reconfigures live when this store changes, so

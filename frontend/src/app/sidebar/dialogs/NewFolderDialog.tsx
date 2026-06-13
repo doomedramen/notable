@@ -1,15 +1,15 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { useNotesStore } from "../../../store/notes-store";
-import { Button } from "../../../components/ui/button";
-import { Input } from "../../../components/ui/input";
-import { notice } from "../../../components/ui/toast";
+import { useNotesStore } from "@/store/notes-store";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { notice } from "@/components/ui/toast";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogTitle,
-} from "../../../components/ui/dialog";
+} from "@/components/ui/dialog";
 
 export function NewFolderDialog({
   open,

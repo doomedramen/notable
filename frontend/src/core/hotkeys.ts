@@ -1,4 +1,4 @@
-import type { Disposable } from "../plugin-api";
+import type { Disposable } from "@/plugin-api";
 import { commandStore, runCommand } from "./commands";
 
 /* One global keydown listener resolves key chords against:

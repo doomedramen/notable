@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useStore } from "zustand";
-import { workspaceStore } from "../../core/workspace";
-import { MountHost } from "../../components/MountHost";
-import { AppIcon } from "../../components/AppIcon";
-import { cn } from "../../lib/cn";
+import { workspaceStore } from "@/core/workspace";
+import { MountHost } from "@/components/MountHost";
+import { AppIcon } from "@/components/AppIcon";
+import { cn } from "@/lib/cn";
 
 /** Plugin-registered sidebar panels, collapsible below the note list. */
 export function SidebarPanels() {

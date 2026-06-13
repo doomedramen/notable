@@ -1,6 +1,6 @@
 import { emit } from "./events";
-import { encodePath } from "../store/notes";
-import { useUI } from "../store/ui";
+import { encodePath } from "@/store/notes";
+import { useUI } from "@/store/ui";
 import { preserveEditorFocusForNavigation } from "./editor";
 
 /* Bridges router-owned navigation into framework-agnostic core code.

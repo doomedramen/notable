@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
-import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 const UNAUTHORIZED_EVENT = "notable:unauthorized";
 

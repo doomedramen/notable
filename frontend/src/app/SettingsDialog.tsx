@@ -10,12 +10,12 @@ import {
   DialogContent,
   DialogDescription,
   DialogTitle,
-} from "../components/ui/dialog";
-import { Switch } from "../components/ui/switch";
-import { Button } from "../components/ui/button";
-import { MountHost } from "../components/MountHost";
-import { useUI, type ThemePref } from "../store/ui";
-import { workspaceStore } from "../core/workspace";
+} from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
+import { MountHost } from "@/components/MountHost";
+import { useUI, type ThemePref } from "@/store/ui";
+import { workspaceStore } from "@/core/workspace";
 import {
   fetchPluginStore,
   installCommunityPlugin,
@@ -23,23 +23,23 @@ import {
   pluginStore,
   setPluginEnabled,
   uninstallCommunityPlugin,
-} from "../core/plugin-loader";
-import { cn } from "../lib/cn";
-import { notice } from "../components/ui/toast";
-import { confirm } from "../components/ui/confirm";
-import { Badge } from "../components/ui/badge";
-import { EmptyState } from "../components/ui/empty-state";
-import { AppIcon } from "../components/AppIcon";
-import type { AppIconSlot, IconSource, ThemeControl } from "../plugin-api";
+} from "@/core/plugin-loader";
+import { cn } from "@/lib/cn";
+import { notice } from "@/components/ui/toast";
+import { confirm } from "@/components/ui/confirm";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { AppIcon } from "@/components/AppIcon";
+import type { AppIconSlot, IconSource, ThemeControl } from "@/plugin-api";
 import {
   appearanceStore,
   selectLocalTheme,
   selectTheme,
   setThemeControl,
   themeControlValue,
-} from "../core/appearance";
-import { iconsStore, selectIconTheme } from "../core/icons";
-import { triggerFeedback } from "../core/feedback";
+} from "@/core/appearance";
+import { iconsStore, selectIconTheme } from "@/core/icons";
+import { triggerFeedback } from "@/core/feedback";
 
 const SHEET_DISMISS_THRESHOLD = 110;
 

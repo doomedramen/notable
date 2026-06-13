@@ -1,5 +1,5 @@
 import { useRegisterSW } from "virtual:pwa-register/react";
-import { Button } from "../components/ui/button";
+import { Button } from "@/components/ui/button";
 
 /* autoUpdate installs new service-worker versions in the background, but
    an already-open tab keeps running the old app shell against a possibly

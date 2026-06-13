@@ -5,7 +5,7 @@ import {
   selectTheme,
   setThemeControl,
 } from "./appearance";
-import { useUI } from "../store/ui";
+import { useUI } from "@/store/ui";
 
 describe("appearance registry", () => {
   beforeEach(() => {

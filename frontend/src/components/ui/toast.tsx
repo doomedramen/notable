@@ -1,5 +1,5 @@
 import { createStore, useStore } from "zustand";
-import { AppIcon } from "../AppIcon";
+import { AppIcon } from "@/components/AppIcon";
 
 /* Toasts live in a vanilla store so non-React code (sync layer, plugin
    API's ui.notice) can raise them. */

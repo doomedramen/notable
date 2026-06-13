@@ -1,5 +1,5 @@
 import type { ButtonHTMLAttributes, Ref } from "react";
-import { cn } from "../../lib/cn";
+import { cn } from "@/lib/cn";
 
 // lucide-react icon size convention used across the app:
 //  - 14px: menu items, inline text, status indicators

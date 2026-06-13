@@ -1,5 +1,5 @@
 import YAML from "yaml";
-import type { DocumentSnapshot, DocumentWriteOptions } from "../plugin-api";
+import type { DocumentSnapshot, DocumentWriteOptions } from "@/plugin-api";
 import * as documents from "./documents";
 
 const FRONTMATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;

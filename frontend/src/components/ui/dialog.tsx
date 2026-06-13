@@ -1,7 +1,7 @@
 import { Dialog as DialogPrimitive } from "radix-ui";
 import type { ComponentProps, ReactNode } from "react";
-import { cn } from "../../lib/cn";
-import { AppIcon } from "../AppIcon";
+import { cn } from "@/lib/cn";
+import { AppIcon } from "@/components/AppIcon";
 
 export const Dialog = DialogPrimitive.Root;
 export const DialogTrigger = DialogPrimitive.Trigger;

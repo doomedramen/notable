@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { emit } from "../core/events";
+import { emit } from "@/core/events";
 import {
   createFolder,
   createNote,

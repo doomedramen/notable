@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import { resolveTheme, useUI } from "../store/ui";
-import { emit } from "../core/events";
+import { resolveTheme, useUI } from "@/store/ui";
+import { emit } from "@/core/events";
 
 /** Applies the resolved theme to <html data-theme> and keeps it in sync
     with the OS preference when set to "system". The pre-paint script in

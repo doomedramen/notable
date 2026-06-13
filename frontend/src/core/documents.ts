@@ -2,7 +2,7 @@ import type {
   DocumentSnapshot,
   DocumentTextEdit,
   DocumentWriteOptions,
-} from "../plugin-api";
+} from "@/plugin-api";
 import { Annotation } from "@codemirror/state";
 import { activeView } from "./editor";
 import { emit } from "./events";
@@ -12,8 +12,8 @@ import {
   requestError,
   responseError,
 } from "./plugin-api-error";
-import { encodePath } from "../store/notes";
-import { useNotesStore } from "../store/notes-store";
+import { encodePath } from "@/store/notes";
+import { useNotesStore } from "@/store/notes-store";
 
 /** Marks active-editor transactions initiated through `api.documents`. */
 export const pluginDocumentChange = Annotation.define<boolean>();

@@ -1,6 +1,6 @@
 import { createStore } from "zustand";
-import type { Command, Disposable } from "../plugin-api";
-import { useUI } from "../store/ui";
+import type { Command, Disposable } from "@/plugin-api";
+import { useUI } from "@/store/ui";
 
 /* Command registry. Lives outside React (vanilla store) so plugins can
    register commands before/without any component mounting; the palette

@@ -11,12 +11,12 @@ import {
   moveCachedIconAssignment,
   removeCachedFolderTree,
   removeCachedIconAssignment,
-} from "../core/icon-assignments";
+} from "@/core/icon-assignments";
 import {
   clearPendingContent,
   peekPendingContent,
   setPendingContent,
-} from "../core/pending-content";
+} from "@/core/pending-content";
 
 export interface NoteMeta {
   /** Vault-relative path — the note's identity. */
