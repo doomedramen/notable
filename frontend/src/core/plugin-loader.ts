@@ -2,6 +2,9 @@ import { createStore } from "zustand";
 import type { Disposable, NotablePlugin, PluginManifest } from "../plugin-api";
 import { createPluginAPI } from "./api";
 import { notice } from "../components/ui/toast";
+import { selectTheme } from "./appearance";
+import { selectIconTheme } from "./icons";
+import { useUI } from "../store/ui";
 
 /* Loads runtime plugins from the server. A broken plugin must degrade to
    a toast + disabled state, never a white screen. */
@@ -182,6 +185,12 @@ export async function setPluginEnabled(
 
 export async function installCommunityPlugin(id: string): Promise<void> {
   const wasRunning = loaded.has(id);
+  const selectedTheme = useUI.getState().customTheme;
+  const selectedIconTheme = useUI.getState().appIconTheme;
+  const restoreTheme =
+    selectedTheme?.startsWith(`${id}:`) === true ? selectedTheme : null;
+  const restoreIconTheme =
+    selectedIconTheme?.startsWith(`${id}:`) === true ? selectedIconTheme : null;
   const res = await fetch(`/api/plugins/${encodeURIComponent(id)}`, {
     method: "POST",
   });
@@ -190,7 +199,11 @@ export async function installCommunityPlugin(id: string): Promise<void> {
   if (wasRunning) await unloadPlugin(id);
   const [available] = await Promise.all([fetchPlugins(), fetchPluginStore()]);
   const installed = available.find((plugin) => plugin.id === id);
-  if (installed?.enabled) await loadPlugin(installed);
+  if (installed?.enabled) {
+    await loadPlugin(installed);
+    if (restoreTheme) selectTheme(restoreTheme);
+    if (restoreIconTheme) selectIconTheme(restoreIconTheme);
+  }
 }
 
 export async function uninstallCommunityPlugin(id: string): Promise<void> {
