@@ -505,3 +505,33 @@ test("soft-delete moves a note to .trash/, and it can be restored or purged", as
     expect(fs.existsSync(path.join(VAULT, ".trash", notePath))).toBe(false);
   }).toPass({ timeout: 5_000 });
 });
+
+test("custom theme picker injects a stylesheet link and updates colors", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByLabel("Settings").click();
+  await expect(page.getByRole("dialog")).toContainText("Custom theme");
+
+  const before = await page.evaluate(() =>
+    getComputedStyle(document.documentElement).getPropertyValue("--background").trim(),
+  );
+
+  await page.getByRole("dialog").getByRole("button", { name: "Nord" }).click();
+  await expect(page.locator("#notable-custom-theme")).toHaveAttribute(
+    "href",
+    "/api/themes/nord.css",
+  );
+  await expect(async () => {
+    const after = await page.evaluate(() =>
+      getComputedStyle(document.documentElement)
+        .getPropertyValue("--background")
+        .trim(),
+    );
+    expect(after).not.toBe(before);
+  }).toPass({ timeout: 5_000 });
+
+  // "None" removes the injected stylesheet again.
+  await page.getByRole("dialog").getByRole("button", { name: "None" }).click();
+  await expect(page.locator("#notable-custom-theme")).toHaveCount(0);
+});

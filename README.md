@@ -16,6 +16,8 @@ a command palette, and runtime plugins on top.
 - **Plugins.** Built-in core plugins plus checksum-verified community
   plugins from a separately published registry — see
   [docs/plugins.md](docs/plugins.md).
+- **Themes.** Drop CSS files into a themes directory to restyle the app —
+  see [docs/themes.md](docs/themes.md).
 
 ## Run it (Docker)
 
@@ -109,7 +111,33 @@ notable-server --vault-dir ~/Notes --bind 0.0.0.0:9000
 | `--plugins-dir` / `PLUGINS_DIR` | `./plugins` | Installed community plugins |
 | `--plugin-registry-url` / `PLUGIN_REGISTRY_URL` | Notable community registry | Registry JSON URL |
 | `--themes-dir` / `THEMES_DIR` | `./themes` | Custom CSS themes |
+| `--auth-password` / `AUTH_PASSWORD` | _(unset, auth off)_ | Shared password protecting `/api/*` |
 | `--bind` / `BIND` | `127.0.0.1:8080` | Listen address |
+
+### Optional password protection
+
+By default Notable has no login — anyone who can reach the port can read
+and edit your vault. Setting `--auth-password` (or `AUTH_PASSWORD`) requires
+a password before any `/api/*` request (including the sync WebSocket)
+succeeds; the static app shell still loads so the login screen can render.
+
+This is **LAN-protection for a single-user app, not multi-user auth**: there
+is one shared password and one session cookie, valid for 30 days. Still put
+a real authenticating proxy or VPN in front if exposing Notable to the
+internet.
+
+```yaml
+services:
+  notable:
+    image: ghcr.io/doomedramen/notable:latest
+    environment:
+      - AUTH_PASSWORD=change-me
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
+```
 
 ## Project map
 
@@ -119,6 +147,8 @@ backend/
   src/vault.rs       The vault: list/create/read/rename/delete .md files
   src/sync.rs        WebSocket rooms, file write-behind, watcher, doc cache
   src/plugins.rs     Plugin manifests + serving, enable/disable
+  src/themes.rs      Custom theme listing + CSS serving
+  src/auth.rs        Optional single-password session auth
   src/settings.rs    Generic settings KV
 frontend/
   src/plugin-api/    The typed plugin API contract
@@ -133,11 +163,6 @@ docs/plugins.md      Plugin author guide
 
 ## Known gaps (roadmap)
 
-- **Auth** — planned: optional shared-password mode. Until then, don't
-  expose the port publicly (bind to localhost / LAN, or front with an
-  authenticating proxy).
-- **Full-text search, wikilinks, backlinks, tags** — in progress.
-- **Live preview** (Obsidian-style rendered markdown) — in progress.
 - **Awareness/cursors** — y-protocols awareness channel for live
   multi-user cursors.
 

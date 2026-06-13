@@ -6,6 +6,12 @@ export type ThemePref = "system" | "light" | "dark";
 interface UIState {
   theme: ThemePref;
   setTheme: (t: ThemePref) => void;
+  /** Selected custom theme id (filename without `.css`), or null for none. */
+  customTheme: string | null;
+  setCustomTheme: (id: string | null) => void;
+  /** Editor content font size in px. */
+  editorFontSize: number;
+  setEditorFontSize: (size: number) => void;
   sidebarOpen: boolean;
   toggleSidebar: () => void;
   paletteOpen: boolean;
@@ -25,6 +31,10 @@ export const useUI = create<UIState>()(
     (set) => ({
       theme: "system",
       setTheme: (theme) => set({ theme }),
+      customTheme: null,
+      setCustomTheme: (customTheme) => set({ customTheme }),
+      editorFontSize: 15.5,
+      setEditorFontSize: (editorFontSize) => set({ editorFontSize }),
       sidebarOpen: startOpen,
       toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
       paletteOpen: false,
@@ -35,7 +45,12 @@ export const useUI = create<UIState>()(
     // Key is read by the pre-paint script in index.html — keep in sync.
     {
       name: "notable-ui",
-      partialize: (s) => ({ theme: s.theme, sidebarOpen: s.sidebarOpen }),
+      partialize: (s) => ({
+        theme: s.theme,
+        customTheme: s.customTheme,
+        editorFontSize: s.editorFontSize,
+        sidebarOpen: s.sidebarOpen,
+      }),
     },
   ),
 );

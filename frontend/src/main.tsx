@@ -4,6 +4,7 @@ import { createBrowserRouter, RouterProvider } from "react-router";
 import "@fontsource-variable/inter";
 import "./styles/globals.css";
 import { AppShell, EmptyState } from "./app/AppShell";
+import { AuthGate, installAuthInterceptor } from "./app/AuthGate";
 import { EditorPane } from "./app/EditorPane";
 import { TagView } from "./app/TagView";
 import { TrashView } from "./app/TrashView";
@@ -17,6 +18,8 @@ import { loadEnabledPlugins } from "./core/plugin-loader";
 // our origin's storage (IndexedDB) as persistent. Chrome/Firefox honor
 // this broadly; Safari support is partial — which is why we ALSO track
 // unsynced changes and prompt iOS users to install (see InstallPrompt).
+installAuthInterceptor();
+
 if (navigator.storage?.persist) {
   navigator.storage.persist().then((granted) => {
     console.info(`persistent storage: ${granted ? "granted" : "not granted"}`);
@@ -49,6 +52,8 @@ const router = createBrowserRouter([
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <RouterProvider router={router} />
+    <AuthGate>
+      <RouterProvider router={router} />
+    </AuthGate>
   </React.StrictMode>,
 );

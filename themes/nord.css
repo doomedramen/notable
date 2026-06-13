@@ -1,0 +1,40 @@
+/* Nord — a custom theme example for Notable.
+   Drop .css files like this one into the themes directory
+   (--themes-dir / THEMES_DIR) and pick them under
+   Settings -> Appearance -> Custom theme. */
+
+:root {
+  --background: #eceff4;
+  --surface: #e5e9f0;
+  --surface-hover: #d8dee9;
+  --surface-active: #c9d2e0;
+  --border: #d8dee9;
+  --border-strong: #c4ccda;
+  --foreground: #2e3440;
+  --muted: #4c566a;
+  --faint: #8b97ad;
+  --accent: #5e81ac;
+  --accent-foreground: #eceff4;
+  --accent-soft: rgba(94, 129, 172, 0.14);
+  --danger: #bf616a;
+  --success: #a3be8c;
+  --warning: #d08770;
+}
+
+[data-theme="dark"] {
+  --background: #2e3440;
+  --surface: #3b4252;
+  --surface-hover: #434c5e;
+  --surface-active: #4c566a;
+  --border: #434c5e;
+  --border-strong: #4c566a;
+  --foreground: #eceff4;
+  --muted: #d8dee9;
+  --faint: #81a1c1;
+  --accent: #88c0d0;
+  --accent-foreground: #2e3440;
+  --accent-soft: rgba(136, 192, 208, 0.16);
+  --danger: #bf616a;
+  --success: #a3be8c;
+  --warning: #ebcb8b;
+}

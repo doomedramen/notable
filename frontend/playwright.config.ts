@@ -26,7 +26,7 @@ export default defineConfig({
   ],
   webServer: {
     command:
-      "rm -rf /tmp/notable-e2e-vault /tmp/notable-e2e.db* && cd ../backend && cargo run -- --headless --bind 127.0.0.1:8090 --vault-dir /tmp/notable-e2e-vault --database-url sqlite:///tmp/notable-e2e.db --plugins-dir ../plugins --core-plugins-dir ../core-plugins",
+      "rm -rf /tmp/notable-e2e-vault /tmp/notable-e2e.db* && cd ../backend && cargo run -- --headless --bind 127.0.0.1:8090 --vault-dir /tmp/notable-e2e-vault --database-url sqlite:///tmp/notable-e2e.db --plugins-dir ../plugins --core-plugins-dir ../core-plugins --themes-dir ../themes",
     url: "http://127.0.0.1:8090",
     reuseExistingServer: false,
     timeout: 180_000,

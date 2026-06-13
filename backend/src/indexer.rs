@@ -490,6 +490,7 @@ mod tests {
             plugins_dir: "/nonexistent".into(),
             plugin_registry_url: String::new(),
             themes_dir: "/nonexistent".into(),
+            auth_password: None,
         })
     }
 

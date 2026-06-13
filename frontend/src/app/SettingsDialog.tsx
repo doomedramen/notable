@@ -87,6 +87,18 @@ export function SettingsDialog() {
 function AppearanceTab() {
   const theme = useUI((s) => s.theme);
   const setTheme = useUI((s) => s.setTheme);
+  const customTheme = useUI((s) => s.customTheme);
+  const setCustomTheme = useUI((s) => s.setCustomTheme);
+  const editorFontSize = useUI((s) => s.editorFontSize);
+  const setEditorFontSize = useUI((s) => s.setEditorFontSize);
+  const [themes, setThemes] = useState<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    fetch("/api/themes")
+      .then((res) => (res.ok ? res.json() : []))
+      .then(setThemes)
+      .catch(() => setThemes([]));
+  }, []);
 
   const options: { value: ThemePref; label: string; icon: typeof Sun }[] = [
     { value: "light", label: "Light", icon: Sun },
@@ -112,6 +124,65 @@ function AppearanceTab() {
           </Button>
         ))}
       </div>
+
+      <h3 className="mt-5 text-[13px] font-semibold">Editor font size</h3>
+      <p className="mt-1 text-[13px] text-muted">
+        Size of the note text in the editor.
+      </p>
+      <div className="mt-3 flex items-center gap-3">
+        <Button
+          size="icon"
+          variant="secondary"
+          aria-label="Decrease font size"
+          disabled={editorFontSize <= 12}
+          onClick={() => setEditorFontSize(Math.max(12, editorFontSize - 0.5))}
+        >
+          A-
+        </Button>
+        <span className="w-10 text-center text-[13px] text-muted">
+          {editorFontSize}px
+        </span>
+        <Button
+          size="icon"
+          variant="secondary"
+          aria-label="Increase font size"
+          disabled={editorFontSize >= 22}
+          onClick={() => setEditorFontSize(Math.min(22, editorFontSize + 0.5))}
+        >
+          A+
+        </Button>
+        {editorFontSize !== 15.5 && (
+          <Button variant="ghost" size="sm" onClick={() => setEditorFontSize(15.5)}>
+            Reset
+          </Button>
+        )}
+      </div>
+
+      {themes.length > 0 && (
+        <>
+          <h3 className="mt-5 text-[13px] font-semibold">Custom theme</h3>
+          <p className="mt-1 text-[13px] text-muted">
+            CSS files from the themes directory, overriding the colors above.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button
+              variant={customTheme === null ? "primary" : "secondary"}
+              onClick={() => setCustomTheme(null)}
+            >
+              None
+            </Button>
+            {themes.map((t) => (
+              <Button
+                key={t.id}
+                variant={customTheme === t.id ? "primary" : "secondary"}
+                onClick={() => setCustomTheme(t.id)}
+              >
+                {t.name}
+              </Button>
+            ))}
+          </div>
+        </>
+      )}
     </section>
   );
 }

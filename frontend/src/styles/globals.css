@@ -124,7 +124,7 @@ body {
   max-width: 46rem;
   margin-inline: auto;
   padding: 1rem 1.5rem 40dvh;
-  font-size: 15.5px;
+  font-size: var(--editor-font-size, 15.5px);
   caret-color: var(--accent);
 }
 .cm-editor .cm-line {

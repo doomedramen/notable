@@ -1,7 +1,9 @@
+mod auth;
 mod indexer;
 mod plugins;
 mod settings;
 mod sync;
+mod themes;
 mod vault;
 
 use axum::{
@@ -53,6 +55,11 @@ struct Args {
     /// Directory of user themes (*.css files overriding design tokens)
     #[arg(long, env = "THEMES_DIR", default_value = "./themes")]
     themes_dir: std::path::PathBuf,
+
+    /// Shared password protecting /api/* (off by default). LAN-protection,
+    /// not multi-user auth: one password, one session cookie.
+    #[arg(long, env = "AUTH_PASSWORD")]
+    auth_password: Option<String>,
 }
 
 /// Frontend build output, embedded into the binary at compile time.
@@ -70,6 +77,7 @@ pub struct AppState {
     pub plugins_dir: std::path::PathBuf,
     pub plugin_registry_url: String,
     pub themes_dir: std::path::PathBuf,
+    pub auth_password: Option<String>,
 }
 
 #[tokio::main]
@@ -91,6 +99,7 @@ async fn main() -> anyhow::Result<()> {
         plugins_dir: args.plugins_dir,
         plugin_registry_url: args.plugin_registry_url,
         themes_dir: args.themes_dir,
+        auth_password: args.auth_password,
     });
 
     // Write-behind flusher + cold-room eviction.
@@ -100,7 +109,7 @@ async fn main() -> anyhow::Result<()> {
     // Catch up the search index with files changed while we were down.
     tokio::spawn(indexer::reindex_vault(state.clone()));
 
-    let app = Router::new()
+    let api = Router::new()
         // Vault: note files & lifecycle (note id = vault-relative path)
         .route("/api/notes", get(vault::list).post(vault::create))
         .route(
@@ -128,8 +137,18 @@ async fn main() -> anyhow::Result<()> {
         )
         .route("/api/plugins/{id}/enabled", put(plugins::set_enabled))
         .route("/api/plugins/{id}/{*file}", get(plugins::serve_file))
+        // Custom themes: list/serve *.css overriding design tokens
+        .route("/api/themes", get(themes::list))
+        .route("/api/themes/{file}", get(themes::serve_file))
         // Generic settings KV (also used for per-plugin settings)
         .route("/api/settings/{key}", get(settings::get).put(settings::put))
+        .route_layer(axum::middleware::from_fn_with_state(state.clone(), auth::guard));
+
+    let app = Router::new()
+        .merge(api)
+        // Login/logout are exempt from the auth guard above.
+        .route("/api/login", post(auth::login))
+        .route("/api/logout", post(auth::logout))
         .with_state(state)
         .fallback(static_handler)
         .layer(tower_http::trace::TraceLayer::new_for_http())
