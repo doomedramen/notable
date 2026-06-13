@@ -18,7 +18,7 @@ import type { Extension } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 
 /** Highest plugin API contract implemented by this Notable build. */
-export const CURRENT_PLUGIN_API_VERSION = 5;
+export const CURRENT_PLUGIN_API_VERSION = 6;
 
 export interface Disposable {
   dispose(): void;
@@ -317,6 +317,13 @@ export interface PanelSpec {
   mount(el: HTMLElement): () => void;
 }
 
+export interface ModalSpec {
+  title?: string;
+  className?: string;
+  /** Mount imperative UI into `el`; return a cleanup function. */
+  mount(el: HTMLElement): () => void;
+}
+
 export interface SettingsTabSpec {
   id: string;
   title: string;
@@ -563,6 +570,12 @@ export interface NotableAPI {
   ui: {
     notice(message: string, durationOrOptions?: number | NoticeOptions): void;
     confirm(message: string): Promise<boolean>;
+    /**
+     * Open a host-rendered modal dialog containing plugin-mounted content.
+     * Returns a `Disposable` that closes the modal programmatically; it is
+     * also closed if the user dismisses it.
+     */
+    openModal(modal: ModalSpec): Disposable;
   };
 
   /** Host module instances — consume these instead of bundling your own. */

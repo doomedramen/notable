@@ -39,12 +39,6 @@ interface UIState {
   setPaletteOpen: (open: boolean) => void;
   settingsOpen: boolean;
   setSettingsOpen: (open: boolean) => void;
-  quickNoteOpen: boolean;
-  quickNoteFolder: string | null;
-  openQuickNote: (folder?: string) => void;
-  closeQuickNote: () => void;
-  lastQuickNoteFolder: string;
-  setLastQuickNoteFolder: (folder: string) => void;
   collapsedFolders: string[];
   toggleFolderCollapsed: (folder: string) => void;
   recentNotePaths: string[];
@@ -95,18 +89,6 @@ export const useUI = create<UIState>()(
       setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
       settingsOpen: false,
       setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
-      quickNoteOpen: false,
-      quickNoteFolder: null,
-      openQuickNote: (quickNoteFolder) =>
-        set({
-          quickNoteOpen: true,
-          quickNoteFolder: quickNoteFolder ?? null,
-        }),
-      closeQuickNote: () =>
-        set({ quickNoteOpen: false, quickNoteFolder: null }),
-      lastQuickNoteFolder: "",
-      setLastQuickNoteFolder: (lastQuickNoteFolder) =>
-        set({ lastQuickNoteFolder }),
       collapsedFolders: [],
       toggleFolderCollapsed: (folder) =>
         set((state) => ({
@@ -145,7 +127,6 @@ export const useUI = create<UIState>()(
         editorFontSize: s.editorFontSize,
         hapticsEnabled: s.hapticsEnabled,
         sidebarOpen: s.sidebarOpen,
-        lastQuickNoteFolder: s.lastQuickNoteFolder,
         collapsedFolders: s.collapsedFolders,
         recentNotePaths: s.recentNotePaths,
         recentCommandIds: s.recentCommandIds,

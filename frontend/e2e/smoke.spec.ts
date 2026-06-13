@@ -10,10 +10,9 @@ const DATABASE = "/tmp/notable-e2e.db";
 async function createNote(page: Page): Promise<string> {
   await page.getByLabel("New…").click();
   await page.getByRole("menuitem", { name: "New note" }).click();
-  await expect(page.getByRole("dialog", { name: "Quick Note" })).toBeVisible();
-  await page.getByRole("button", { name: "Save note" }).click();
-  await page.getByRole("button", { name: "Open", exact: true }).click();
   await expect(page).toHaveURL(/\/note\//);
+  await expect(page.getByRole("dialog", { name: "Rename note" })).toBeVisible();
+  await page.getByRole("button", { name: "Cancel" }).click();
   return decodeURIComponent(
     new URL(page.url()).pathname.replace(/^\/note\//, ""),
   );
@@ -241,8 +240,8 @@ test("delete an empty folder, but not a non-empty one", async ({ page }) => {
     .getByRole("button", { name: fullFolder, exact: true })
     .click({ button: "right" });
   await page.getByRole("menuitem", { name: "New note here" }).click();
-  await page.getByRole("button", { name: "Save note" }).click();
-  await page.getByRole("button", { name: "Open", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Rename note" })).toBeVisible();
+  await page.getByRole("button", { name: "Cancel" }).click();
   await expect(page).toHaveURL(new RegExp(`${encodeURIComponent(fullFolder)}/`));
 
   // Deleting the non-empty folder is refused.
@@ -284,9 +283,8 @@ test("create a folder and a note inside it", async ({ page }) => {
     .getByRole("button", { name: "Projects", exact: true })
     .click({ button: "right" });
   await page.getByRole("menuitem", { name: "New note here" }).click();
-  await expect(page.getByLabel("Folder")).toHaveValue("Projects");
-  await page.getByRole("button", { name: "Save note" }).click();
-  await page.getByRole("button", { name: "Open", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Rename note" })).toBeVisible();
+  await page.getByRole("button", { name: "Cancel" }).click();
   await expect(page).toHaveURL(/\/note\/Projects\//);
 });
 
@@ -446,13 +444,11 @@ test("notes drag onto folders and can be moved back with Undo", async ({
   );
 });
 
-test("installed-app new-note shortcut opens focused Quick Note", async ({
+test("installed-app new-note shortcut creates and opens a note", async ({
   page,
 }) => {
   await page.goto("/new");
-  await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByRole("dialog", { name: "Quick Note" })).toBeVisible();
-  await expect(page.getByLabel("Quick note content")).toBeFocused();
+  await expect(page).toHaveURL(/\/note\//);
 });
 
 test("full-text search finds notes by content in the palette", async ({

@@ -38,6 +38,7 @@ import * as vault from "./vault";
 import { openNote, openTag } from "./navigation";
 import { notice } from "../components/ui/toast";
 import { confirm } from "../components/ui/confirm";
+import { openModal } from "../components/ui/modal";
 
 /* Host module instances shared with plugins. Plugins must mark these
    external in their builds — a duplicated @codemirror/state instance
@@ -181,6 +182,7 @@ export function createPluginAPI(
     ui: {
       notice,
       confirm,
+      openModal,
     },
     frontmatter: {
       read: frontmatter.read,

@@ -29,28 +29,6 @@ async function hapticCount(page: Page): Promise<number> {
   );
 }
 
-async function clearHaptics(page: Page) {
-  await page.evaluate(() => {
-    (window as Window & { __hapticCalls?: unknown[] }).__hapticCalls = [];
-  });
-}
-
-async function touchClick(locator: ReturnType<Page["getByLabel"]>) {
-  await locator.dispatchEvent("pointerdown", {
-    pointerId: 1,
-    pointerType: "touch",
-    isPrimary: true,
-    buttons: 1,
-  });
-  await locator.dispatchEvent("pointerup", {
-    pointerId: 1,
-    pointerType: "touch",
-    isPrimary: true,
-    buttons: 0,
-  });
-  await locator.dispatchEvent("click");
-}
-
 /* Mobile-first behavior: the sidebar is an off-canvas drawer, the top
    bar provides drawer + palette access, and navigation closes the
    drawer to reveal the editor. Runs under the "mobile" project
@@ -74,12 +52,11 @@ test("sidebar is a drawer: closed on load, opens, closes on navigation", async (
   // Creating a note navigates to it — drawer must close to reveal it.
   await page.getByLabel("New…").click();
   await page.getByRole("menuitem", { name: "New note" }).click();
-  await expect(page.getByRole("dialog", { name: "Quick Note" })).toBeVisible();
-  const title = `Mobile draft ${Date.now()}`;
-  await page.getByLabel("Quick note title").fill(title);
-  await page.getByRole("button", { name: "Save note" }).click();
-  await page.getByRole("button", { name: title, exact: true }).click();
   await expect(page).toHaveURL(/\/note\//);
+  await expect(page.getByRole("dialog", { name: "Rename note" })).toBeVisible();
+  const title = `Mobile draft ${Date.now()}`;
+  await page.getByLabel("New name").fill(title);
+  await page.getByRole("button", { name: "Rename" }).click();
   await expect(sidebar).not.toBeInViewport();
   await expect(page.locator(".cm-content")).toBeVisible();
 
@@ -109,50 +86,6 @@ test("footer sits flush with the viewport bottom", async ({ page }) => {
   await expect(footer).toHaveCSS("padding-bottom", "0px");
 });
 
-test("mobile Quick Note button is a 48px touch target", async ({ page }) => {
-  await page.goto("/");
-  const floating = page.locator('button.fixed[aria-label="Quick note"]');
-  const box = (await floating.boundingBox())!;
-  expect(box.width).toBe(48);
-  expect(box.height).toBe(48);
-});
-
-test("touch Quick Note capture emits impact then success feedback", async ({
-  page,
-}) => {
-  await mockHaptics(page);
-  await page.goto("/");
-
-  await touchClick(page.getByLabel("Quick note"));
-  await expect(page.getByRole("dialog", { name: "Quick Note" })).toBeVisible();
-  expect(await hapticCount(page)).toBe(1);
-
-  await page.getByLabel("Quick note content").fill("Tactile capture");
-  await touchClick(page.getByRole("button", { name: "Save note" }));
-  await expect(page.getByText("Note captured.")).toBeVisible();
-  expect(await hapticCount(page)).toBe(2);
-});
-
-test("touch Quick Note save errors emit one error pattern", async ({ page }) => {
-  await mockHaptics(page);
-  await page.route("**/api/notes", async (route) => {
-    if (route.request().method() === "POST") {
-      await route.fulfill({ status: 500, body: "failed" });
-    } else {
-      await route.continue();
-    }
-  });
-  await page.goto("/");
-  await touchClick(page.getByLabel("Quick note"));
-  await page.getByLabel("Quick note content").fill("Will fail");
-  await clearHaptics(page);
-
-  await touchClick(page.getByRole("button", { name: "Save note" }));
-
-  await expect(page.getByText("Could not save the note.")).toBeVisible();
-  expect(await hapticCount(page)).toBe(1);
-});
-
 test("haptic preference persists and suppresses touch feedback", async ({
   page,
 }) => {
@@ -173,10 +106,6 @@ test("haptic preference persists and suppresses touch feedback", async ({
   ).not.toBeChecked();
   await page.keyboard.press("Escape");
   await page.keyboard.press("Escape");
-  await clearHaptics(page);
-
-  await touchClick(page.getByLabel("Quick note"));
-  expect(await hapticCount(page)).toBe(0);
 });
 
 test("plugin status moves into a menu only when it runs out of room", async ({
@@ -389,30 +318,6 @@ test("settings sheet can be dismissed with a downward drag", async ({
   await page.mouse.up();
 
   await expect(dialog).not.toBeVisible();
-});
-
-test("Quick Note sheet drag dismisses with one threshold pulse", async ({
-  page,
-}) => {
-  await mockHaptics(page);
-  await page.goto("/");
-  await touchClick(page.getByLabel("Quick note"));
-  await clearHaptics(page);
-
-  const handle = (await page.getByTestId("quick-note-sheet-handle").boundingBox())!;
-  const client = await startTouchDrag(
-    page,
-    handle.x + handle.width / 2,
-    handle.y + handle.height / 2,
-    handle.x + handle.width / 2,
-    handle.y + 160,
-  );
-  await expect.poll(() => hapticCount(page)).toBe(1);
-  await page.waitForTimeout(100);
-  expect(await hapticCount(page)).toBe(1);
-  await endTouchDrag(client);
-
-  await expect(page.getByRole("dialog", { name: "Quick Note" })).not.toBeVisible();
 });
 
 test("settings gestures do not move the open sidebar", async ({ page }) => {

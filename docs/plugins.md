@@ -121,6 +121,9 @@ API v5 adds host-rendered responsive status items and structured notices with
 variants, duration, and actions. The original `notice(message, durationMs)`
 form remains supported. See the [API v5 guide](plugin-api-v5.md).
 
+API v6 adds `api.ui.openModal()`, a host-rendered modal dialog for
+plugin-mounted content. See the [API v6 guide](plugin-api-v6.md).
+
 ## Icon packs and themes
 
 An icon pack supplies trusted SVG child markup or text glyphs:

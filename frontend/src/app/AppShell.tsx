@@ -10,6 +10,7 @@ import { InstallPrompt } from "../InstallPrompt";
 import { UpdatePrompt } from "./UpdatePrompt";
 import { Toaster } from "../components/ui/toast";
 import { ConfirmHost } from "../components/ui/confirm";
+import { ModalHost } from "../components/ui/modal";
 import { TooltipProvider } from "../components/ui/tooltip";
 import { MountHost } from "../components/MountHost";
 import { Button } from "../components/ui/button";
@@ -19,7 +20,6 @@ import { useUI } from "../store/ui";
 import { AppIcon } from "../components/AppIcon";
 import { IconPicker } from "../components/IconPicker";
 import { useNotesStore } from "../store/notes-store";
-import { MobileQuickNoteButton, QuickNote } from "./QuickNote";
 
 export function AppShell() {
   return <AppShellInner />;
@@ -60,10 +60,9 @@ function AppShellInner() {
           <StatusBar />
         </div>
         <CommandPalette />
-        <QuickNote />
-        <MobileQuickNoteButton />
         <SettingsDialog />
         <ConfirmHost />
+        <ModalHost />
         <InstallPrompt />
         <UpdatePrompt />
         <Toaster />
@@ -166,10 +165,15 @@ export function EmptyState() {
           <Button
             variant="primary"
             className="w-full sm:w-auto"
-            onClick={() => useUI.getState().openQuickNote()}
+            onClick={() =>
+              void useNotesStore
+                .getState()
+                .create("Untitled", "", "")
+                .then((meta) => openNote(meta.path))
+            }
           >
             <AppIcon icon="add" size={15} />
-            Quick note
+            New note
           </Button>
           <Button
             className="w-full sm:w-auto"

@@ -17,14 +17,6 @@ export function registerBuiltinCommands(): void {
   });
 
   registerCommand({
-    id: "notes.new",
-    name: "Quick Note",
-    hotkey: "Mod-Alt-n",
-    icon: "add",
-    run: () => useUI.getState().openQuickNote(),
-  });
-
-  registerCommand({
     id: "sidebar.toggle",
     name: "Toggle sidebar",
     hotkey: "Mod-\\",

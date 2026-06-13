@@ -87,13 +87,13 @@ export function Sidebar() {
   const restore = useNotesStore((s) => s.restore);
   const rename = useNotesStore((s) => s.rename);
   const rmdir = useNotesStore((s) => s.rmdir);
+  const createNote = useNotesStore((s) => s.create);
   const open = useUI((s) => s.sidebarOpen);
   const toggle = useUI((s) => s.toggleSidebar);
   const mobileOpen = useUI((s) => s.mobileSidebarOpen);
   const setMobileOpen = useUI((s) => s.setMobileSidebarOpen);
   const settingsOpen = useUI((s) => s.settingsOpen);
   const paletteOpen = useUI((s) => s.paletteOpen);
-  const quickNoteOpen = useUI((s) => s.quickNoteOpen);
   const params = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -116,7 +116,7 @@ export function Sidebar() {
     startY: number;
   } | null>(null);
   const isMobile = useIsMobile();
-  const modalOpen = settingsOpen || paletteOpen || quickNoteOpen;
+  const modalOpen = settingsOpen || paletteOpen;
   const {
     contentStyle,
     overlayStyle,
@@ -233,7 +233,11 @@ export function Sidebar() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [selected.size]);
 
-  const handleCreate = (folder = "") => useUI.getState().openQuickNote(folder);
+  const handleCreate = async (folder = "") => {
+    const meta = await createNote("Untitled", folder, "");
+    openNote(meta.path);
+    setRenaming(meta);
+  };
 
   const handleTrash = async (paths: string[]) => {
     const targets = paths
@@ -483,7 +487,7 @@ export function Sidebar() {
                 selectionFor={selectionFor}
                 onNoteClick={handleNoteClick}
                 onNoteContextMenu={ensureSelected}
-                onCreateNote={() => handleCreate(folder)}
+                onCreateNote={() => void handleCreate(folder)}
                 onRename={setRenaming}
                 onDelete={(note) =>
                   void handleTrash(selectionFor(note.path))

@@ -1,0 +1,9 @@
+{
+  "id": "quick-note",
+  "name": "Quick note",
+  "version": "1.0.0",
+  "description": "Capture a note from anywhere with Mod-Alt-N.",
+  "entry": "main.js",
+  "defaultEnabled": true,
+  "apiVersion": 6
+}
