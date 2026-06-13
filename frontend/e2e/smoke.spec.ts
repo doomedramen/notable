@@ -380,11 +380,12 @@ test("switching notes restores editor focus and scroll position", async ({
   const editor = page.locator(".cm-content");
   await editor.click();
   const scroller = page.locator(".cm-scroller");
-  await scroller.evaluate((element) => {
-    element.scrollTop = 320;
-  });
+  await scroller.hover();
+  await page.mouse.wheel(0, 520);
+  await expect
+    .poll(() => scroller.evaluate((element) => element.scrollTop))
+    .toBeGreaterThan(100);
   const remembered = await scroller.evaluate((element) => element.scrollTop);
-  expect(remembered).toBeGreaterThan(100);
 
   await page
     .locator("nav")

@@ -58,6 +58,7 @@ import {
   iconAssignmentStore,
 } from "../core/icon-assignments";
 import { triggerFeedback } from "../core/feedback";
+import { preserveEditorFocusForNavigation } from "../core/editor";
 
 const MOBILE_DRAWER_WIDTH = 288;
 
@@ -309,6 +310,7 @@ export function Sidebar() {
 
   const touchDragHandlers = (path: string) => ({
     onPointerDown: (event: PointerEvent<HTMLButtonElement>) => {
+      preserveEditorFocusForNavigation();
       if (event.pointerType !== "touch") return;
       const drag = {
         path,

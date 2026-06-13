@@ -27,7 +27,7 @@ export function InstallPrompt() {
   return (
     <div
       role="note"
-      className="fixed bottom-10 left-1/2 z-50 flex w-[min(26rem,calc(100vw-2rem))] -translate-x-1/2 items-start gap-2 rounded-md bg-background p-3 text-sm leading-relaxed shadow-[var(--shadow-dialog)]"
+      className="fixed top-[calc(3.5rem+env(safe-area-inset-top))] left-1/2 z-50 flex w-[min(26rem,calc(100vw-2rem))] -translate-x-1/2 items-start gap-2 rounded-md border border-border bg-background/95 p-3 text-sm leading-relaxed shadow-[var(--shadow-dialog)] backdrop-blur-xl md:top-auto md:bottom-10"
     >
       <p className="m-0 flex-1">
         <strong className="text-accent">Protect your offline notes:</strong>{" "}

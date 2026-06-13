@@ -22,7 +22,11 @@ import * as Y from "yjs";
 import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
 import { NoteConnection } from "../sync/provider";
 import { useSyncStatus } from "../store/sync-status";
-import { editorExtensionStore, setActiveView } from "../core/editor";
+import {
+  consumeEditorFocusRestore,
+  editorExtensionStore,
+  setActiveView,
+} from "../core/editor";
 import { emit } from "../core/events";
 import { useNotesStore } from "../store/notes-store";
 import { openNote } from "../core/navigation";
@@ -70,7 +74,6 @@ interface EditorMemory {
 }
 
 const editorMemory = new Map<string, EditorMemory>();
-let restoreEditorFocusUntil = 0;
 
 export function Editor({ notePath }: { notePath: string }) {
   const host = useRef<HTMLDivElement>(null);
@@ -102,10 +105,7 @@ export function Editor({ notePath }: { notePath: string }) {
     const docLength = conn.text.length;
     const anchor = Math.min(memory?.anchor ?? 0, docLength);
     const head = Math.min(memory?.head ?? anchor, docLength);
-    const shouldRestoreFocus = Date.now() <= restoreEditorFocusUntil;
-    restoreEditorFocusUntil = 0;
-    let focusWasActive = false;
-    let blurTimer: number | null = null;
+    const shouldRestoreFocus = consumeEditorFocusRestore();
 
     const view = new EditorView({
       parent: host.current,
@@ -129,20 +129,7 @@ export function Editor({ notePath }: { notePath: string }) {
           EditorView.lineWrapping,
           placeholder("Start writing…"),
           EditorView.updateListener.of((update) => {
-            if (update.focusChanged) {
-              if (view.hasFocus) {
-                if (blurTimer !== null) window.clearTimeout(blurTimer);
-                blurTimer = null;
-                focusWasActive = true;
-              } else {
-                blurTimer = window.setTimeout(() => {
-                  focusWasActive = false;
-                  blurTimer = null;
-                }, 180);
-              }
-            }
             if (update.docChanged) {
-              if (view.hasFocus) focusWasActive = true;
               useNotesStore.getState().touch(notePath);
               const source = update.transactions.some(
                 (transaction) =>
@@ -153,7 +140,6 @@ export function Editor({ notePath }: { notePath: string }) {
               emit("note:change", { path: notePath, source });
             }
             if (update.selectionSet) {
-              if (view.hasFocus) focusWasActive = true;
               const selection = update.state.selection.main;
               emit("editor:selection-change", {
                 path: notePath,
@@ -170,10 +156,22 @@ export function Editor({ notePath }: { notePath: string }) {
         ],
       }),
     });
+    let latestScrollTop = memory?.scrollTop ?? 0;
+    const rememberScroll = () => {
+      latestScrollTop = view.scrollDOM.scrollTop;
+    };
+    view.scrollDOM.addEventListener("scroll", rememberScroll, {
+      passive: true,
+    });
     if (memory || shouldRestoreFocus) {
       requestAnimationFrame(() => {
-        if (memory) view.scrollDOM.scrollTop = memory.scrollTop;
         if (shouldRestoreFocus) view.focus();
+        if (memory) {
+          requestAnimationFrame(() => {
+            view.scrollDOM.scrollTop = memory.scrollTop;
+            latestScrollTop = memory.scrollTop;
+          });
+        }
       });
     }
 
@@ -187,14 +185,13 @@ export function Editor({ notePath }: { notePath: string }) {
     emit("editor:ready", view);
 
     return () => {
-      if (blurTimer !== null) window.clearTimeout(blurTimer);
-      restoreEditorFocusUntil = focusWasActive ? Date.now() + 500 : 0;
       const selection = view.state.selection.main;
       editorMemory.set(notePath, {
         anchor: selection.anchor,
         head: selection.head,
-        scrollTop: view.scrollDOM.scrollTop,
+        scrollTop: latestScrollTop,
       });
+      view.scrollDOM.removeEventListener("scroll", rememberScroll);
       unsubscribe();
       emit("editor:destroy", view);
       setActiveView(null);
@@ -209,7 +206,7 @@ export function Editor({ notePath }: { notePath: string }) {
       <div className="mx-auto w-full max-w-[var(--editor-measure)] shrink-0 px-4 pt-5 md:px-6 md:pt-9">
         <EditableTitle notePath={notePath} />
       </div>
-      <div ref={host} className="min-h-0 flex-1 overflow-auto overscroll-contain" />
+      <div ref={host} className="min-h-0 flex-1 overflow-hidden" />
     </div>
   );
 }

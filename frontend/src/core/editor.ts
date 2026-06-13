@@ -29,6 +29,7 @@ export function registerEditorExtension(ext: Extension): Disposable {
 }
 
 let active: EditorView | null = null;
+let restoreFocusUntil = 0;
 
 export function setActiveView(view: EditorView | null): void {
   active = view;
@@ -36,4 +37,16 @@ export function setActiveView(view: EditorView | null): void {
 
 export function activeView(): EditorView | null {
   return active;
+}
+
+/** Capture editor focus before pointer navigation moves it to app chrome. */
+export function preserveEditorFocusForNavigation(): void {
+  if (active?.hasFocus) restoreFocusUntil = Date.now() + 750;
+}
+
+/** Consume a recent focus handoff when the next note editor mounts. */
+export function consumeEditorFocusRestore(): boolean {
+  const restore = Date.now() <= restoreFocusUntil;
+  restoreFocusUntil = 0;
+  return restore;
 }
