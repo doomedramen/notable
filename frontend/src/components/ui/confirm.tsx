@@ -7,6 +7,7 @@ import {
   DialogFooter,
   DialogTitle,
 } from "./dialog";
+import { triggerFeedback } from "../../core/feedback";
 
 /* Promise-based confirm dialog, callable from outside React
    (plugin API's ui.confirm). One pending confirm at a time. */
@@ -43,7 +44,14 @@ export function ConfirmHost() {
         <DialogDescription>{pending?.message}</DialogDescription>
         <DialogFooter>
           <Button onClick={() => answer(false)}>Cancel</Button>
-          <Button variant="primary" onClick={() => answer(true)} autoFocus>
+          <Button
+            variant="dangerSolid"
+            onPointerDown={(event) => {
+              if (event.pointerType === "touch") triggerFeedback("warning");
+            }}
+            onClick={() => answer(true)}
+            autoFocus
+          >
             Confirm
           </Button>
         </DialogFooter>

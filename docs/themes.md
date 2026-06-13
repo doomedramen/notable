@@ -40,9 +40,21 @@ omit falls back to the built-in token.
 }
 ```
 
-See `frontend/src/styles/tokens.css` for the full list of variables
-(surfaces, borders, accent, danger/success/warning, radii, shadows, fonts) and
-`themes/nord.css` in this repo for a complete example.
+See `frontend/src/styles/tokens.css` for the full list of variables and
+`themes/nord.css` in this repo for a complete example. In addition to colors
+and fonts, themes can tune:
+
+- `--space-1` through `--space-6` for the shared spacing rhythm.
+- `--editor-measure` and `--sidebar-width` for the primary layout proportions.
+- `--radius`, `--radius-sm`, and `--radius-lg` for control and surface shape.
+- `--motion-feedback`, `--motion-transition`, and `--motion-structural` for
+  pressed states, view changes, and larger panel transitions.
+- `--ease-standard` and `--ease-emphasized` for transition character.
+- `--shadow-popover`, `--shadow-dialog`, `--shadow-float`,
+  `--shadow-float-hover`, and `--shadow-float-pressed` for surface elevation.
+
+Keep motion values short and restrained. Notable disables animation when the
+user requests reduced motion, regardless of the active theme.
 
 ## Theme plugins
 

@@ -26,6 +26,9 @@
   --space-5: 20px;
   --space-6: 24px;
 
+  --editor-measure: 43rem;
+  --sidebar-width: 15rem;
+
   --radius: 10px;
   --radius-sm: 7px;
   --radius-lg: 14px;
@@ -39,6 +42,8 @@
   --shadow-popover: 0 8px 24px rgba(65, 52, 38, 0.1), 0 0 0 1px var(--border);
   --shadow-dialog: 0 24px 64px rgba(65, 52, 38, 0.18), 0 0 0 1px var(--border);
   --shadow-float: 0 10px 28px rgba(54, 47, 111, 0.28);
+  --shadow-float-hover: 0 14px 34px rgba(54, 47, 111, 0.34);
+  --shadow-float-pressed: 0 6px 18px rgba(54, 47, 111, 0.24);
 
   --font-sans: "Inter Variable", "Inter", -apple-system, BlinkMacSystemFont,
     "Segoe UI", sans-serif;
@@ -66,4 +71,6 @@
   --shadow-popover: 0 4px 16px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--border-strong);
   --shadow-dialog: 0 16px 48px rgba(0, 0, 0, 0.55), 0 0 0 1px var(--border-strong);
   --shadow-float: 0 10px 30px rgba(0, 0, 0, 0.42);
+  --shadow-float-hover: 0 14px 38px rgba(0, 0, 0, 0.5);
+  --shadow-float-pressed: 0 6px 20px rgba(0, 0, 0, 0.36);
 }

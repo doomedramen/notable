@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { Outlet, useMatch, useNavigate } from "react-router";
 import { useStore } from "zustand";
 import { Sidebar } from "./Sidebar";
@@ -36,6 +36,7 @@ function AppShellInner() {
   useEffect(() => setNavigator(navigate), [navigate]);
   useEffect(() => {
     setActiveNoteId(activePath);
+    if (activePath) useUI.getState().recordRecentNote(activePath);
     // Mobile: navigating to a note closes the drawer to reveal it.
     if (activePath && drawerOpen) {
       setDrawerOpen(false);
@@ -109,7 +110,7 @@ function RightPanel() {
   if (!panel) return null;
 
   return (
-    <aside className="fixed inset-y-0 right-0 z-40 flex w-80 max-w-[85vw] flex-col border-l border-border bg-surface pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] md:static md:z-auto md:w-72 md:pt-0 md:pb-0">
+    <aside className="ui-right-panel fixed inset-y-0 right-0 z-40 flex w-80 max-w-[85vw] flex-col border-l border-border bg-surface/95 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:static md:z-auto md:w-72 md:bg-surface md:pt-0 md:pb-0 md:backdrop-blur-none">
       <div className="flex h-9 shrink-0 items-center gap-2 border-b border-border px-3">
         {panel.icon && <AppIcon icon={panel.icon} size={14} className="text-faint" />}
         <span className="flex-1 text-sm font-medium">{panel.title}</span>
@@ -134,10 +135,21 @@ function RightPanel() {
 export function EmptyState() {
   const notes = useNotesStore((state) => state.notes);
   const loaded = useNotesStore((state) => state.loaded);
+  const recentNotePaths = useUI((state) => state.recentNotePaths);
   const hasNotes = loaded && notes.length > 0;
+  const recentNotes = useMemo(() => {
+    const byPath = new Map(notes.map((note) => [note.path, note]));
+    const explicit = recentNotePaths
+      .map((path) => byPath.get(path))
+      .filter((note): note is (typeof notes)[number] => note !== undefined);
+    const fallback = [...notes]
+      .filter((note) => !recentNotePaths.includes(note.path))
+      .sort((a, b) => b.modified - a.modified);
+    return [...explicit, ...fallback].slice(0, 4);
+  }, [notes, recentNotePaths]);
 
   return (
-    <div className="flex flex-1 items-center justify-center overflow-y-auto px-5 py-10">
+    <div className="ui-view flex flex-1 items-center justify-center overflow-y-auto px-5 py-10">
       <section className="w-full max-w-md text-center">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-accent-soft text-accent">
           <AppIcon icon="note" size={23} strokeWidth={1.7} />
@@ -168,21 +180,30 @@ export function EmptyState() {
           </Button>
         </div>
 
-        {hasNotes && (
-          <div className="mt-8 border-t border-border pt-4 text-left">
-            <p className="px-2 text-xs font-medium text-faint">Quick access</p>
+        {hasNotes && recentNotes.length > 0 && (
+          <div className="mt-9 border-t border-border pt-4 text-left">
+            <p className="px-2 text-xs font-medium tracking-wide text-faint">
+              Recently opened
+            </p>
             <div className="mt-1 space-y-0.5">
-              {notes.slice(0, 3).map((note) => (
+              {recentNotes.map((note, index) => (
                 <button
                   key={note.path}
                   type="button"
                   onClick={() => openNote(note.path)}
-                  className="flex w-full items-center gap-2 rounded-sm px-2.5 py-2 text-left text-sm text-muted transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
+                  className="group flex w-full items-center gap-2 rounded-md px-2.5 py-2.5 text-left text-sm text-muted transition-[color,background-color,transform] hover:bg-surface-hover hover:text-foreground"
                 >
-                  <AppIcon icon="note" size={14} className="shrink-0 text-faint" />
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-surface text-faint transition-colors group-hover:bg-background group-hover:text-accent">
+                    <AppIcon icon="note" size={14} />
+                  </span>
                   <span className="truncate">{note.name}</span>
+                  {index === 0 && (
+                    <span className="ml-auto shrink-0 text-xs text-faint">
+                      Continue
+                    </span>
+                  )}
                   {note.folder && (
-                    <span className="ml-auto max-w-[40%] truncate text-xs text-faint">
+                    <span className={index === 0 ? "max-w-[32%] truncate text-xs text-faint" : "ml-auto max-w-[40%] truncate text-xs text-faint"}>
                       {note.folder}
                     </span>
                   )}

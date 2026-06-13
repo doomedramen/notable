@@ -57,6 +57,7 @@ import {
   getIconAssignment,
   iconAssignmentStore,
 } from "../core/icon-assignments";
+import { triggerFeedback } from "../core/feedback";
 
 const MOBILE_DRAWER_WIDTH = 288;
 
@@ -318,6 +319,7 @@ export function Sidebar() {
         timer: window.setTimeout(() => {
           drag.active = true;
           setDraggedPath(path);
+          triggerFeedback("impact");
         }, 280),
       };
       touchDragRef.current = drag;
@@ -533,7 +535,7 @@ export function Sidebar() {
       )}
       {/* Desktop: static panel, only rendered while expanded. */}
       {open && (
-        <aside className="hidden shrink-0 flex-col border-r border-border bg-surface md:flex md:w-60">
+        <aside className="hidden w-[var(--sidebar-width)] shrink-0 flex-col border-r border-border bg-surface md:flex">
           {!isMobile && sidebarBody}
         </aside>
       )}
@@ -703,27 +705,34 @@ function FolderGroup({
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
-      {!collapsed && (
-        <ul className="ml-3 border-l border-border pl-1">
-          {notes.map((note) => (
-            <NoteRow
-              key={note.path}
-              note={note}
-              active={note.path === activePath}
-              selected={selected.has(note.path)}
-              selectedPaths={selectionFor(note.path)}
-              onClick={(event) => onNoteClick(note, event)}
-              onContextMenu={() => onNoteContextMenu(note.path)}
-              onRename={() => onRename(note)}
-              onDelete={() => onDelete(note)}
-              onDragStart={() => onDragStart(note.path)}
-              onDragEnd={onDragEnd}
-              touchDragHandlers={touchDragHandlers(note.path)}
-              hideFolder
-            />
-          ))}
-        </ul>
-      )}
+      <div
+        className="ui-folder-reveal"
+        data-collapsed={collapsed}
+        aria-hidden={collapsed}
+        inert={collapsed}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <ul className="ml-3 border-l border-border pl-1">
+            {notes.map((note) => (
+              <NoteRow
+                key={note.path}
+                note={note}
+                active={note.path === activePath}
+                selected={selected.has(note.path)}
+                selectedPaths={selectionFor(note.path)}
+                onClick={(event) => onNoteClick(note, event)}
+                onContextMenu={() => onNoteContextMenu(note.path)}
+                onRename={() => onRename(note)}
+                onDelete={() => onDelete(note)}
+                onDragStart={() => onDragStart(note.path)}
+                onDragEnd={onDragEnd}
+                touchDragHandlers={touchDragHandlers(note.path)}
+                hideFolder
+              />
+            ))}
+          </ul>
+        </div>
+      </div>
     </section>
   );
 }
@@ -881,9 +890,9 @@ function NoteRow({
             }}
             {...touchDragHandlers}
             className={cn(
-              "flex w-full items-center gap-1.5 rounded-sm px-2 py-2 text-left text-sm transition-colors duration-100 md:py-1.5",
+              "flex w-full items-center gap-1.5 rounded-sm px-2 py-2 text-left text-sm transition-[color,background-color,box-shadow,transform] md:py-1.5",
               active
-                ? "bg-accent-soft text-foreground"
+                ? "bg-accent-soft text-foreground shadow-[inset_2px_0_0_var(--accent)]"
                 : selected
                   ? "bg-surface-hover text-foreground"
                   : "text-muted hover:bg-surface-hover hover:text-foreground",

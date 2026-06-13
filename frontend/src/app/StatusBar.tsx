@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useStore } from "zustand";
 import { useSyncStatus } from "../store/sync-status";
 import { workspaceStore } from "../core/workspace";
@@ -65,8 +65,21 @@ function SyncIndicator({
   status: keyof typeof statusConfig | null;
   dirty: number;
 }) {
+  const [showRoutineStatus, setShowRoutineStatus] = useState(true);
+  useEffect(() => {
+    if (status !== "synced" || dirty > 0) {
+      setShowRoutineStatus(true);
+      return;
+    }
+    setShowRoutineStatus(true);
+    const timeout = window.setTimeout(() => setShowRoutineStatus(false), 2800);
+    return () => window.clearTimeout(timeout);
+  }, [status, dirty]);
+
   if (status === null && dirty === 0) return null;
   const config = status === null ? null : statusConfig[status];
+  const receded =
+    status === "synced" && dirty === 0 && !showRoutineStatus;
   const detail = [
     config?.detail,
     dirty > 0
@@ -78,7 +91,16 @@ function SyncIndicator({
 
   return (
     <Tooltip label={detail}>
-      <span className="flex min-w-0 shrink items-center gap-1.5 whitespace-nowrap">
+      <span
+        data-testid="sync-indicator"
+        data-receded={receded}
+        className={cn(
+          "flex min-w-0 shrink items-center gap-1.5 overflow-hidden whitespace-nowrap transition-[opacity,max-width] duration-300",
+          receded
+            ? "pointer-events-none max-w-0 opacity-0"
+            : "max-w-40 opacity-100",
+        )}
+      >
         <span
           className={cn(
             "h-1.5 w-1.5 shrink-0 rounded-full",

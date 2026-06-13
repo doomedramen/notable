@@ -64,10 +64,20 @@ export function Toaster() {
       {toasts.map((t) => (
         <div
           key={t.id}
-          role="status"
-          className="ui-popover flex items-start gap-2 rounded-md bg-background px-3 py-2.5 text-sm shadow-[var(--shadow-popover)]"
+          role={t.variant === "danger" ? "alert" : "status"}
+          className="ui-popover flex items-start gap-2 rounded-md border border-border bg-background/95 px-3 py-2.5 text-sm shadow-[var(--shadow-popover)] backdrop-blur-xl"
           data-state="open"
         >
+          <span
+            className={
+              t.variant === "danger"
+                ? "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-danger/10 text-danger"
+                : "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent"
+            }
+            aria-hidden
+          >
+            <AppIcon icon={t.variant === "danger" ? "close" : "check"} size={10} />
+          </span>
           <span
             className={
               t.variant === "danger" ? "flex-1 text-danger" : "flex-1 text-foreground"

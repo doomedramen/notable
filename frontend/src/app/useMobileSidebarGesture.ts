@@ -7,6 +7,7 @@ import {
   type PointerEventHandler,
   type RefObject,
 } from "react";
+import { cancelFeedback, triggerFeedback } from "../core/feedback";
 
 const EDGE_WIDTH = 40;
 const ACTIVATION_DELTA = 20;
@@ -28,6 +29,7 @@ interface Gesture {
   previousTime: number;
   currentX: number;
   currentTime: number;
+  feedbackTriggered: boolean;
 }
 
 interface VisualState {
@@ -176,6 +178,7 @@ export function useMobileSidebarGesture({
         previousTime: event.timeStamp,
         currentX: touch.clientX,
         currentTime: event.timeStamp,
+        feedbackTriggered: false,
       };
     };
 
@@ -212,6 +215,13 @@ export function useMobileSidebarGesture({
       gesture.currentX = touch.clientX;
       gesture.currentTime = event.timeStamp;
       gesture.progress = clamp(deltaX / width);
+      if (
+        gesture.progress >= COMMIT_PROGRESS &&
+        !gesture.feedbackTriggered
+      ) {
+        gesture.feedbackTriggered = true;
+        triggerFeedback("selection");
+      }
       applyProgress(gesture.progress);
     };
 
@@ -237,6 +247,7 @@ export function useMobileSidebarGesture({
         !cancelled &&
         (gesture.progress >= COMMIT_PROGRESS ||
           velocity >= COMMIT_VELOCITY);
+      if (cancelled) cancelFeedback();
       finishVisual(commit ? 1 : 0, !commit);
     };
 
@@ -306,6 +317,7 @@ export function useMobileSidebarGesture({
       previousTime: event.timeStamp,
       currentX: event.clientX,
       currentTime: event.timeStamp,
+      feedbackTriggered: false,
     };
   };
 
@@ -346,6 +358,13 @@ export function useMobileSidebarGesture({
     gesture.currentX = event.clientX;
     gesture.currentTime = event.timeStamp;
     gesture.progress = clamp(1 + deltaX / width);
+    if (
+      gesture.progress <= 1 - COMMIT_PROGRESS &&
+      !gesture.feedbackTriggered
+    ) {
+      gesture.feedbackTriggered = true;
+      triggerFeedback("selection");
+    }
     applyProgress(gesture.progress);
   };
 
@@ -376,6 +395,7 @@ export function useMobileSidebarGesture({
       !cancelled &&
       (gesture.progress <= 1 - COMMIT_PROGRESS ||
         velocity <= -COMMIT_VELOCITY);
+    if (cancelled) cancelFeedback();
     finishVisual(commit ? 0 : 1, commit);
   };
 

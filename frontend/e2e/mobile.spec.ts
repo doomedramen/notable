@@ -7,6 +7,34 @@ import {
 
 const MOBILE_DRAWER_WIDTH = 288;
 
+async function mockHaptics(page: Page) {
+  await page.addInitScript(() => {
+    const target = window as Window & { __hapticCalls?: unknown[] };
+    target.__hapticCalls = [];
+    Object.defineProperty(navigator, "vibrate", {
+      configurable: true,
+      value: (pattern: unknown) => {
+        target.__hapticCalls?.push(pattern);
+        return true;
+      },
+    });
+  });
+}
+
+async function hapticCount(page: Page): Promise<number> {
+  return page.evaluate(
+    () =>
+      ((window as Window & { __hapticCalls?: unknown[] }).__hapticCalls ?? [])
+        .length,
+  );
+}
+
+async function clearHaptics(page: Page) {
+  await page.evaluate(() => {
+    (window as Window & { __hapticCalls?: unknown[] }).__hapticCalls = [];
+  });
+}
+
 /* Mobile-first behavior: the sidebar is an off-canvas drawer, the top
    bar provides drawer + palette access, and navigation closes the
    drawer to reveal the editor. Runs under the "mobile" project
@@ -69,6 +97,67 @@ test("mobile Quick Note button is a 48px touch target", async ({ page }) => {
   const box = (await floating.boundingBox())!;
   expect(box.width).toBe(48);
   expect(box.height).toBe(48);
+});
+
+test("touch Quick Note capture emits impact then success feedback", async ({
+  page,
+}) => {
+  await mockHaptics(page);
+  await page.goto("/");
+
+  await page.getByLabel("Quick note").tap();
+  await expect(page.getByRole("dialog", { name: "Quick Note" })).toBeVisible();
+  expect(await hapticCount(page)).toBe(1);
+
+  await page.getByLabel("Quick note content").fill("Tactile capture");
+  await page.getByRole("button", { name: "Save note" }).tap();
+  await expect(page.getByText("Note captured.")).toBeVisible();
+  expect(await hapticCount(page)).toBe(2);
+});
+
+test("touch Quick Note save errors emit one error pattern", async ({ page }) => {
+  await mockHaptics(page);
+  await page.route("**/api/notes", async (route) => {
+    if (route.request().method() === "POST") {
+      await route.fulfill({ status: 500, body: "failed" });
+    } else {
+      await route.continue();
+    }
+  });
+  await page.goto("/");
+  await page.getByLabel("Quick note").tap();
+  await page.getByLabel("Quick note content").fill("Will fail");
+  await clearHaptics(page);
+
+  await page.getByRole("button", { name: "Save note" }).tap();
+
+  await expect(page.getByText("Could not save the note.")).toBeVisible();
+  expect(await hapticCount(page)).toBe(1);
+});
+
+test("haptic preference persists and suppresses touch feedback", async ({
+  page,
+}) => {
+  await mockHaptics(page);
+  await page.goto("/");
+  await page.getByLabel("Open sidebar").click();
+  await page.getByLabel("Settings").click();
+  const toggle = page.getByRole("switch", { name: "Haptic feedback" });
+  await expect(toggle).toBeChecked();
+  await toggle.tap();
+  await expect(toggle).not.toBeChecked();
+
+  await page.reload();
+  await page.getByLabel("Open sidebar").click();
+  await page.getByLabel("Settings").click();
+  await expect(
+    page.getByRole("switch", { name: "Haptic feedback" }),
+  ).not.toBeChecked();
+  await page.keyboard.press("Escape");
+  await clearHaptics(page);
+
+  await page.getByLabel("Quick note").tap();
+  expect(await hapticCount(page)).toBe(0);
 });
 
 test("plugin status moves into a menu only when it runs out of room", async ({
@@ -181,15 +270,25 @@ test("edge swipe opens the drawer, swipe left closes it", async ({ page }) => {
   await expect(sidebar).not.toBeInViewport();
 });
 
+test("drawer commitment threshold emits feedback once", async ({ page }) => {
+  await mockHaptics(page);
+  await page.goto("/");
+
+  await swipe(page, 5, 180);
+
+  await expect(page.getByRole("dialog", { name: "Sidebar" })).toBeInViewport();
+  expect(await hapticCount(page)).toBe(1);
+});
+
 test("swiping the drawer open does not trigger header tooltips", async ({
   page,
 }) => {
   await page.goto("/");
   const sidebar = page.getByRole("dialog", { name: "Sidebar" });
 
-  // Finish the touch drag where the Settings button lands. Drawer content
-  // moving under the gesture must not be interpreted as a desktop hover.
-  await swipe(page, 5, 200, 50);
+  // Drawer content moving under a touch gesture must not be interpreted as
+  // a desktop hover. Stay below iOS's top-edge browser gesture region.
+  await swipe(page, 5, 200, 100);
 
   await expect(sidebar).toBeInViewport();
   await page.waitForTimeout(450);
@@ -270,6 +369,27 @@ test("settings sheet can be dismissed with a downward drag", async ({
   await expect(dialog).not.toBeVisible();
 });
 
+test("Quick Note sheet drag dismisses with one threshold pulse", async ({
+  page,
+}) => {
+  await mockHaptics(page);
+  await page.goto("/");
+  await page.getByLabel("Quick note").tap();
+  await clearHaptics(page);
+
+  const handle = (await page.getByTestId("quick-note-sheet-handle").boundingBox())!;
+  await touchDrag(
+    page,
+    handle.x + handle.width / 2,
+    handle.y + handle.height / 2,
+    handle.x + handle.width / 2,
+    handle.y + 160,
+  );
+
+  await expect(page.getByRole("dialog", { name: "Quick Note" })).not.toBeVisible();
+  expect(await hapticCount(page)).toBe(1);
+});
+
 test("settings gestures do not move the open sidebar", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("Open sidebar").click();
@@ -301,7 +421,9 @@ test("settings gestures do not move the open sidebar", async ({ page }) => {
 
   await settings.getByRole("button", { name: "Close" }).click();
   await expect(settings).not.toBeVisible();
-  expect((await sidebar.boundingBox())!.x).toBeCloseTo(0, 0);
+  await expect
+    .poll(async () => (await sidebar.boundingBox())?.x)
+    .toBeCloseTo(0, 0);
 
   await swipe(page, 250, 50);
   await expect(sidebar).not.toBeInViewport();

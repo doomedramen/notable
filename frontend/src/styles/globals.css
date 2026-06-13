@@ -200,6 +200,67 @@ body .select-text {
   }
 }
 
+.ui-right-panel {
+  animation: ui-panel-right-in var(--motion-structural) var(--ease-emphasized);
+}
+
+@keyframes ui-panel-right-in {
+  from {
+    opacity: 0;
+    translate: 12px 0;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+.ui-folder-reveal {
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition:
+    grid-template-rows var(--motion-structural) var(--ease-emphasized),
+    opacity var(--motion-transition) ease-out;
+}
+
+.ui-folder-reveal[data-collapsed="true"] {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ui-spinner {
+  width: 0.9rem;
+  height: 0.9rem;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 999px;
+  animation: ui-spin 650ms linear infinite;
+}
+
+@keyframes ui-spin {
+  to { rotate: 360deg; }
+}
+
+@media (max-width: 767px) {
+  @keyframes ui-bottom-sheet-in {
+    from {
+      opacity: 0.85;
+      translate: 0 24px;
+    }
+    to {
+      opacity: 1;
+      translate: 0 0;
+    }
+  }
+
+  .ui-dialog.quick-note-dialog[data-state="open"],
+  .ui-dialog.settings-sheet[data-state="open"] {
+    animation: ui-bottom-sheet-in var(--motion-structural) var(--ease-emphasized);
+  }
+}
+
 .ui-view {
   animation: ui-view-in var(--motion-transition) var(--ease-standard);
 }
@@ -218,7 +279,8 @@ body .select-text {
   .ui-dialog,
   .ui-sheet-overlay,
   .ui-sheet-content,
-  .ui-view {
+  .ui-view,
+  .ui-right-panel {
     animation: none !important;
   }
 }
@@ -243,14 +305,16 @@ body .select-text {
 }
 .cm-editor .cm-scroller {
   font-family: var(--font-sans);
-  line-height: 1.65;
+  line-height: 1.7;
+  scroll-behavior: smooth;
 }
 .cm-editor .cm-content {
   /* Readable centered column, Obsidian-style. */
-  max-width: 46rem;
+  max-width: var(--editor-measure);
   margin-inline: auto;
-  padding: 1rem 1rem 40dvh;
+  padding: 1.1rem 1rem 40dvh;
   font-size: var(--editor-font-size, 14px);
+  letter-spacing: -0.006em;
   caret-color: var(--accent);
 }
 @media (min-width: 768px) {

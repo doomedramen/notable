@@ -24,6 +24,20 @@ async function typeInEditor(page: Page, text: string) {
   await page.keyboard.type(text);
 }
 
+async function mockHaptics(page: Page) {
+  await page.addInitScript(() => {
+    const target = window as Window & { __hapticCalls?: unknown[] };
+    target.__hapticCalls = [];
+    Object.defineProperty(navigator, "vibrate", {
+      configurable: true,
+      value: (pattern: unknown) => {
+        target.__hapticCalls?.push(pattern);
+        return true;
+      },
+    });
+  });
+}
+
 test("create a note, type, persists across reload — and is a real file", async ({
   page,
 }) => {
@@ -322,6 +336,66 @@ test("quick note captures content while offline", async ({ page, context }) => {
 
   await expect(page.locator(".cm-content")).toContainText("Offline quick capture");
   await context.setOffline(false);
+});
+
+test("desktop pointer and keyboard capture do not emit haptics", async ({
+  page,
+}) => {
+  await mockHaptics(page);
+  await page.goto("/");
+  await page.keyboard.press("ControlOrMeta+Alt+n");
+  await page.getByLabel("Quick note content").fill("Keyboard capture");
+  await page.getByRole("button", { name: "Save note" }).click();
+  await expect(page.getByText("Note captured.")).toBeVisible();
+
+  expect(
+    await page.evaluate(
+      () =>
+        ((window as Window & { __hapticCalls?: unknown[] }).__hapticCalls ?? [])
+          .length,
+    ),
+  ).toBe(0);
+});
+
+test("switching notes restores editor focus and scroll position", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const firstPath = await createNote(page);
+  const firstName = firstPath.split("/").pop()!.replace(/\.md$/, "");
+  await typeInEditor(
+    page,
+    Array.from({ length: 80 }, (_, index) => `line ${index}`).join("\n"),
+  );
+
+  await page.keyboard.press("ControlOrMeta+Alt+n");
+  await page.getByLabel("Quick note title").fill("Second note");
+  await page.getByRole("button", { name: "Save note" }).click();
+  await page.getByRole("button", { name: "Open", exact: true }).click();
+
+  const firstRow = page
+    .locator("nav")
+    .getByRole("button", { name: firstName, exact: true });
+  await firstRow.click();
+  const editor = page.locator(".cm-content");
+  await editor.click();
+  const scroller = page.locator(".cm-scroller");
+  await scroller.evaluate((element) => {
+    element.scrollTop = 320;
+  });
+  const remembered = await scroller.evaluate((element) => element.scrollTop);
+  expect(remembered).toBeGreaterThan(100);
+
+  await page
+    .locator("nav")
+    .getByRole("button", { name: "Second note", exact: true })
+    .click();
+  await firstRow.click();
+
+  await expect(editor).toBeFocused();
+  await expect
+    .poll(() => scroller.evaluate((element) => element.scrollTop))
+    .toBeCloseTo(remembered, -1);
 });
 
 test("sidebar note rows support keyboard navigation and trash", async ({

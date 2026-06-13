@@ -70,6 +70,7 @@ interface EditorMemory {
 }
 
 const editorMemory = new Map<string, EditorMemory>();
+let restoreEditorFocusUntil = 0;
 
 export function Editor({ notePath }: { notePath: string }) {
   const host = useRef<HTMLDivElement>(null);
@@ -101,6 +102,10 @@ export function Editor({ notePath }: { notePath: string }) {
     const docLength = conn.text.length;
     const anchor = Math.min(memory?.anchor ?? 0, docLength);
     const head = Math.min(memory?.head ?? anchor, docLength);
+    const shouldRestoreFocus = Date.now() <= restoreEditorFocusUntil;
+    restoreEditorFocusUntil = 0;
+    let focusWasActive = false;
+    let blurTimer: number | null = null;
 
     const view = new EditorView({
       parent: host.current,
@@ -124,7 +129,20 @@ export function Editor({ notePath }: { notePath: string }) {
           EditorView.lineWrapping,
           placeholder("Start writing…"),
           EditorView.updateListener.of((update) => {
+            if (update.focusChanged) {
+              if (view.hasFocus) {
+                if (blurTimer !== null) window.clearTimeout(blurTimer);
+                blurTimer = null;
+                focusWasActive = true;
+              } else {
+                blurTimer = window.setTimeout(() => {
+                  focusWasActive = false;
+                  blurTimer = null;
+                }, 180);
+              }
+            }
             if (update.docChanged) {
+              if (view.hasFocus) focusWasActive = true;
               useNotesStore.getState().touch(notePath);
               const source = update.transactions.some(
                 (transaction) =>
@@ -135,6 +153,7 @@ export function Editor({ notePath }: { notePath: string }) {
               emit("note:change", { path: notePath, source });
             }
             if (update.selectionSet) {
+              if (view.hasFocus) focusWasActive = true;
               const selection = update.state.selection.main;
               emit("editor:selection-change", {
                 path: notePath,
@@ -151,9 +170,10 @@ export function Editor({ notePath }: { notePath: string }) {
         ],
       }),
     });
-    if (memory) {
+    if (memory || shouldRestoreFocus) {
       requestAnimationFrame(() => {
-        view.scrollDOM.scrollTop = memory.scrollTop;
+        if (memory) view.scrollDOM.scrollTop = memory.scrollTop;
+        if (shouldRestoreFocus) view.focus();
       });
     }
 
@@ -167,6 +187,8 @@ export function Editor({ notePath }: { notePath: string }) {
     emit("editor:ready", view);
 
     return () => {
+      if (blurTimer !== null) window.clearTimeout(blurTimer);
+      restoreEditorFocusUntil = focusWasActive ? Date.now() + 500 : 0;
       const selection = view.state.selection.main;
       editorMemory.set(notePath, {
         anchor: selection.anchor,
@@ -184,7 +206,7 @@ export function Editor({ notePath }: { notePath: string }) {
 
   return (
     <div className="ui-view flex min-h-0 flex-1 flex-col">
-      <div className="mx-auto w-full max-w-[46rem] shrink-0 px-4 pt-4 md:px-6 md:pt-8">
+      <div className="mx-auto w-full max-w-[var(--editor-measure)] shrink-0 px-4 pt-5 md:px-6 md:pt-9">
         <EditableTitle notePath={notePath} />
       </div>
       <div ref={host} className="min-h-0 flex-1 overflow-auto overscroll-contain" />
@@ -259,7 +281,7 @@ function EditableTitle({ notePath }: { notePath: string }) {
             setEditing(false);
           }
         }}
-        className="w-full rounded-sm bg-transparent text-2xl font-bold tracking-tight outline-none ring-2 ring-accent"
+        className="w-full rounded-sm bg-transparent text-2xl font-semibold tracking-[-0.025em] outline-none ring-2 ring-accent"
         aria-label="Note title"
       />
     );
@@ -284,7 +306,7 @@ function EditableTitle({ notePath }: { notePath: string }) {
             setEditing(true);
           }
         }}
-        className="-mx-1 min-w-0 flex-1 cursor-text truncate rounded-sm px-1 text-2xl font-bold tracking-tight hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        className="-mx-1 min-w-0 flex-1 cursor-text truncate rounded-sm px-1 text-2xl font-semibold tracking-[-0.025em] hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         title="Click to rename"
       >
         {name}
