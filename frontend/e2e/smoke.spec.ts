@@ -18,6 +18,15 @@ async function createNote(page: Page): Promise<string> {
   );
 }
 
+/** Quick Note ships disabled by default; enable it via Settings → Plugins. */
+async function enableQuickNote(page: Page) {
+  await page.getByLabel("Settings").click();
+  await page.getByRole("dialog").getByRole("button", { name: "Plugins" }).click();
+  await expect(page.getByRole("dialog")).toContainText("Quick note");
+  await page.getByLabel("Enable Quick note").click();
+  await page.keyboard.press("Escape");
+}
+
 async function typeInEditor(page: Page, text: string) {
   await page.locator(".cm-content").click();
   await page.keyboard.type(text);
@@ -292,6 +301,7 @@ test("quick note captures in place, remembers its folder, and supports Undo", as
   page,
 }) => {
   await page.goto("/");
+  await enableQuickNote(page);
 
   await page.getByLabel("New…").click();
   await page.getByRole("menuitem", { name: "New folder" }).click();
@@ -325,6 +335,7 @@ test("quick note captures in place, remembers its folder, and supports Undo", as
 
 test("quick note captures content while offline", async ({ page, context }) => {
   await page.goto("/");
+  await enableQuickNote(page);
   await context.setOffline(true);
 
   await page.keyboard.press("ControlOrMeta+Alt+n");
@@ -341,6 +352,7 @@ test("desktop pointer and keyboard capture do not emit haptics", async ({
 }) => {
   await mockHaptics(page);
   await page.goto("/");
+  await enableQuickNote(page);
   await page.keyboard.press("ControlOrMeta+Alt+n");
   await page.getByLabel("Quick note content").fill("Keyboard capture");
   await page.getByRole("button", { name: "Save note" }).click();
@@ -359,6 +371,7 @@ test("switching notes restores editor focus and scroll position", async ({
   page,
 }) => {
   await page.goto("/");
+  await enableQuickNote(page);
   const firstPath = await createNote(page);
   const firstName = firstPath.split("/").pop()!.replace(/\.md$/, "");
   await typeInEditor(

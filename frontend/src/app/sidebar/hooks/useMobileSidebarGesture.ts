@@ -7,7 +7,7 @@ import {
   type PointerEventHandler,
   type RefObject,
 } from "react";
-import { cancelFeedback, triggerFeedback } from "../core/feedback";
+import { cancelFeedback, triggerFeedback } from "../../../core/feedback";
 
 const EDGE_WIDTH = 40;
 const ACTIVATION_DELTA = 20;
@@ -44,6 +44,12 @@ interface MobileSidebarGestureOptions {
   disabled: boolean;
   width: number;
   contentRef: RefObject<HTMLDivElement | null>;
+  /**
+   * When `current` is true, a note row's long-press drag is active.
+   * Edge-swipe-open and drawer-close gestures bail out (or abort a still-pending
+   * candidate) so the two touch gesture systems don't fight over the same pointer.
+   */
+  suppressedRef?: RefObject<boolean>;
 }
 
 const clamp = (value: number) => Math.min(1, Math.max(0, value));
@@ -66,6 +72,7 @@ export function useMobileSidebarGesture({
   disabled,
   width,
   contentRef,
+  suppressedRef,
 }: MobileSidebarGestureOptions) {
   const [visual, setVisual] = useState<VisualState>({
     active: false,
@@ -159,6 +166,7 @@ export function useMobileSidebarGesture({
         window.innerWidth >= 768 ||
         openRef.current ||
         disabledRef.current ||
+        suppressedRef?.current ||
         event.changedTouches.length === 0 ||
         hasOpenDialog()
       ) {
@@ -185,6 +193,10 @@ export function useMobileSidebarGesture({
     const onTouchMove = (event: TouchEvent) => {
       const gesture = gestureRef.current;
       if (!gesture || gesture.kind !== "opening") return;
+      if (suppressedRef?.current && gesture.axis === "pending") {
+        gestureRef.current = null;
+        return;
+      }
       const touch = findTouch(event.changedTouches, gesture.id);
       if (!touch) return;
       const deltaX = touch.clientX - gesture.startX;
@@ -301,6 +313,7 @@ export function useMobileSidebarGesture({
       window.innerWidth >= 768 ||
       !openRef.current ||
       disabledRef.current ||
+      suppressedRef?.current ||
       !event.isPrimary
     ) {
       return;
@@ -328,6 +341,10 @@ export function useMobileSidebarGesture({
       gesture.kind !== "closing" ||
       gesture.id !== event.pointerId
     ) {
+      return;
+    }
+    if (suppressedRef?.current && gesture.axis === "pending") {
+      gestureRef.current = null;
       return;
     }
     const deltaX = event.clientX - gesture.startX;

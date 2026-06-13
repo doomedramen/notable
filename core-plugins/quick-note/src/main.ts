@@ -46,7 +46,7 @@ async function openQuickNote(
 ) {
   const [folders, settings] = await Promise.all([
     api.vault.listFolders(),
-    api.settings.load<Settings>(),
+    api.settings.load<Settings>().catch(() => null),
   ]);
   const lastFolder = settings?.lastFolder ?? "";
 
@@ -179,7 +179,7 @@ async function openQuickNote(
             folder,
             content: contentInput.value,
           });
-          await api.settings.save<Settings>({ lastFolder: folder });
+          await api.settings.save<Settings>({ lastFolder: folder }).catch(() => {});
           close();
           api.ui.notice("Note captured.", {
             duration: 6000,

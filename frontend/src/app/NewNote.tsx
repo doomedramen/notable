@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-import { Navigate } from "react-router";
 import { useNotesStore } from "../store/notes-store";
 import { openNote } from "../core/navigation";
 
@@ -15,5 +14,5 @@ export function NewNote() {
     void create("Untitled", "", "").then((meta) => openNote(meta.path));
   }, [create]);
 
-  return <Navigate to="/" replace />;
+  return null;
 }
