@@ -63,6 +63,7 @@ export const pluginStore = createStore<PluginState>(() => ({
 }));
 
 const loaded = new Map<string, LoadedPlugin>();
+const loading = new Map<string, Promise<boolean>>();
 
 export async function fetchPlugins(): Promise<PluginInfo[]> {
   try {
@@ -98,7 +99,7 @@ export async function fetchPluginStore(): Promise<CommunityPlugin[]> {
   }
 }
 
-/** Load every enabled plugin. Called once at startup. */
+/** Load every enabled plugin. Safe to retry after reconnecting. */
 export async function loadEnabledPlugins(): Promise<void> {
   const available = await fetchPlugins();
   await Promise.all(
@@ -107,6 +108,18 @@ export async function loadEnabledPlugins(): Promise<void> {
 }
 
 export async function loadPlugin(manifest: PluginManifest): Promise<boolean> {
+  const pending = loading.get(manifest.id);
+  if (pending) return pending;
+  const task = loadPluginOnce(manifest);
+  loading.set(manifest.id, task);
+  try {
+    return await task;
+  } finally {
+    if (loading.get(manifest.id) === task) loading.delete(manifest.id);
+  }
+}
+
+async function loadPluginOnce(manifest: PluginManifest): Promise<boolean> {
   if (loaded.has(manifest.id)) return true;
   if ((manifest.apiVersion ?? 1) > CURRENT_PLUGIN_API_VERSION) {
     notice(`Plugin “${manifest.name}” requires a newer Notable version.`, {
@@ -143,6 +156,7 @@ export async function loadPlugin(manifest: PluginManifest): Promise<boolean> {
 }
 
 export async function unloadPlugin(id: string): Promise<void> {
+  await loading.get(id);
   const plugin = loaded.get(id);
   if (!plugin) return;
   loaded.delete(id);
@@ -189,7 +203,7 @@ export async function setPluginEnabled(
 }
 
 export async function installCommunityPlugin(id: string): Promise<void> {
-  const wasRunning = loaded.has(id);
+  const wasRunning = loaded.has(id) || loading.has(id);
   const selectedTheme = useUI.getState().customTheme;
   const selectedIconTheme = useUI.getState().appIconTheme;
   const restoreTheme =

@@ -86,6 +86,23 @@ The complete typed contract is in
 | `api.ui` | Show notices and confirmation dialogs |
 | `api.frontmatter` | Read and write a note's YAML frontmatter block |
 
+Status bar contributions should use host-rendered text so Notable can move
+them into its responsive overflow menu:
+
+```ts
+const item = api.workspace.registerStatusBarItem({
+  id: "reading-time",
+  text: "3 min read",
+  tooltip: "Estimated reading time",
+});
+
+item.update({ text: "4 min read" });
+```
+
+Items may also provide an `icon` and `onSelect`. The older `mount(el)` form is
+still accepted for compatibility, but mounted status content cannot
+participate in the host-managed overflow menu.
+
 API v2 adds appearance contributions and optional icons on commands, panels,
 and settings tabs. Plugins may also add note/folder context-menu actions.
 Contributions registered through these APIs are removed automatically when the

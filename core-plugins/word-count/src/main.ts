@@ -16,13 +16,18 @@ function countWords(text: string): number {
 const plugin: NotablePlugin = {
   onload(api) {
     const { view } = api.modules.codemirror;
-    let label: HTMLSpanElement | null = null;
+    const statusItem = api.workspace.registerStatusBarItem({
+      id: "word-count",
+      text: "0 words",
+      tooltip: "No note is open",
+    });
 
     const render = (editor: EditorView | null) => {
-      if (!label) return;
       if (!editor) {
-        label.textContent = "0 words";
-        label.title = "No note is open";
+        statusItem.update({
+          text: "0 words",
+          tooltip: "No note is open",
+        });
         return;
       }
 
@@ -34,30 +39,23 @@ const plugin: NotablePlugin = {
         const selected = countWords(
           editor.state.doc.sliceString(selection.from, selection.to),
         );
-        label.textContent = `${selected} selected · ${words} total`;
+        statusItem.update({
+          text: `${selected} selected · ${words} total`,
+          tooltip: `${characters} character${characters === 1 ? "" : "s"}`,
+        });
       } else {
-        label.textContent = `${words} word${words === 1 ? "" : "s"}`;
+        statusItem.update({
+          text: `${words} word${words === 1 ? "" : "s"}`,
+          tooltip: `${characters} character${characters === 1 ? "" : "s"}`,
+        });
       }
-      label.title = `${characters} character${characters === 1 ? "" : "s"}`;
     };
 
     const renderActive = () => {
       render(api.editor.activeView());
     };
 
-    api.workspace.registerStatusBarItem({
-      id: "word-count",
-      mount(el) {
-        label = document.createElement("span");
-        label.style.fontVariantNumeric = "tabular-nums";
-        el.appendChild(label);
-        renderActive();
-        return () => {
-          label = null;
-          el.textContent = "";
-        };
-      },
-    });
+    renderActive();
 
     // Recount as the user types…
     api.editor.registerExtension(

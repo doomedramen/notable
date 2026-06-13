@@ -1,6 +1,7 @@
 import {
   Check,
   ChevronDown,
+  Ellipsis,
   ExternalLink,
   FileSearch,
   FileText,
@@ -43,6 +44,7 @@ const fallbacks: Record<AppIconSlot, LucideIcon> = {
   folder: Folder,
   "folder-add": FolderPlus,
   icon: Smile,
+  more: Ellipsis,
   note: FileText,
   panel: PanelRight,
   plugins: Puzzle,

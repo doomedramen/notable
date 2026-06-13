@@ -21,6 +21,36 @@ function syncThemeColor() {
   }
 }
 
+export function applyCustomThemeStylesheet(
+  customTheme: string | null,
+  customThemeUrl: string | null,
+): () => void {
+  const existing = document.getElementById(CUSTOM_THEME_LINK_ID);
+  if (!customTheme) {
+    existing?.remove();
+    syncThemeColor();
+    return () => {};
+  }
+
+  const link =
+    existing instanceof HTMLLinkElement
+      ? existing
+      : document.createElement("link");
+  const onLoad = () => syncThemeColor();
+  link.addEventListener("load", onLoad);
+  link.id = CUSTOM_THEME_LINK_ID;
+  link.rel = "stylesheet";
+  link.href =
+    customThemeUrl ??
+    `/api/themes/${encodeURIComponent(customTheme)}.css`;
+
+  // The pre-paint script can create this link before Vite's base stylesheet.
+  // Appending an existing node moves it to the end so custom tokens win.
+  document.head.appendChild(link);
+  syncThemeColor();
+  return () => link.removeEventListener("load", onLoad);
+}
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const theme = useUI((s) => s.theme);
   const customTheme = useUI((s) => s.customTheme);
@@ -49,27 +79,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     );
   }, [editorFontSize]);
 
-  useEffect(() => {
-    const existing = document.getElementById(CUSTOM_THEME_LINK_ID);
-    if (!customTheme) {
-      existing?.remove();
-      syncThemeColor();
-      return;
-    }
-    const link =
-      existing instanceof HTMLLinkElement
-        ? existing
-        : document.createElement("link");
-    link.id = CUSTOM_THEME_LINK_ID;
-    link.rel = "stylesheet";
-    link.href =
-      customThemeUrl ??
-      `/api/themes/${encodeURIComponent(customTheme)}.css`;
-    // The stylesheet load is async, so --background isn't updated yet
-    // when the link is (re)inserted — re-sync once it's applied.
-    link.addEventListener("load", syncThemeColor);
-    if (!existing) document.head.appendChild(link);
-  }, [customTheme, customThemeUrl]);
+  useEffect(
+    () => applyCustomThemeStylesheet(customTheme, customThemeUrl),
+    [customTheme, customThemeUrl],
+  );
 
   useEffect(() => {
     for (const variable of appliedVariables.current) {

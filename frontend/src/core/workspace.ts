@@ -9,6 +9,8 @@ import type {
   SettingsTabSpec,
   SidebarSortComparator,
   StatusBarItemSpec,
+  StatusBarItemRegistration,
+  StatusBarItemUpdate,
 } from "../plugin-api";
 
 /* Registries for UI surfaces plugins can contribute to. All mount-based
@@ -79,8 +81,37 @@ export const registerRightPanel = (p: PanelSpec) =>
   registerIn("rightPanels", p);
 export const registerSettingsTab = (t: SettingsTabSpec) =>
   registerIn("settingsTabs", t);
-export const registerStatusBarItem = (i: StatusBarItemSpec) =>
-  registerIn("statusBarItems", i);
+export function registerStatusBarItem(
+  item: StatusBarItemSpec,
+): StatusBarItemRegistration {
+  let current = item;
+  let disposed = false;
+  workspaceStore.setState((state) => ({
+    statusBarItems: [...state.statusBarItems, current],
+  }));
+
+  return {
+    update(update: StatusBarItemUpdate) {
+      if (disposed || "mount" in current) return;
+      const next = { ...current, ...update };
+      workspaceStore.setState((state) => ({
+        statusBarItems: state.statusBarItems.map((candidate) =>
+          candidate === current ? next : candidate,
+        ),
+      }));
+      current = next;
+    },
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      workspaceStore.setState((state) => ({
+        statusBarItems: state.statusBarItems.filter(
+          (candidate) => candidate !== current,
+        ),
+      }));
+    },
+  };
+}
 export const registerNoteToolbarItem = (i: NoteToolbarItemSpec) =>
   registerIn("noteToolbarItems", i);
 export const registerNoteContextMenu = (i: ContextMenuItemSpec) =>

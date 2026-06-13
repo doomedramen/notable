@@ -52,6 +52,7 @@ export type AppIconSlot =
   | "folder"
   | "folder-add"
   | "icon"
+  | "more"
   | "note"
   | "panel"
   | "plugins"
@@ -314,9 +315,38 @@ export interface SettingsTabSpec {
   mount(el: HTMLElement): () => void;
 }
 
-export interface StatusBarItemSpec {
+/** Host-rendered status text that can move into the overflow menu. */
+export interface StatusBarTextItemSpec {
+  id: string;
+  text: string;
+  icon?: IconSource;
+  /** Additional context exposed as a tooltip while the item is inline. */
+  tooltip?: string;
+  /** Makes the item actionable in both the footer and overflow menu. */
+  onSelect?: () => void;
+  mount?: never;
+}
+
+/**
+ * Legacy imperative status item. Prefer `StatusBarTextItemSpec`: mounted
+ * content cannot be represented reliably in the responsive overflow menu.
+ */
+export interface LegacyStatusBarItemSpec {
   id: string;
   mount(el: HTMLElement): () => void;
+  text?: never;
+}
+
+export type StatusBarItemSpec =
+  | StatusBarTextItemSpec
+  | LegacyStatusBarItemSpec;
+
+export type StatusBarItemUpdate = Partial<
+  Omit<StatusBarTextItemSpec, "id" | "mount">
+>;
+
+export interface StatusBarItemRegistration extends Disposable {
+  update(update: StatusBarItemUpdate): void;
 }
 
 /** A button or control shown alongside the open note's title. */
@@ -415,7 +445,9 @@ export interface NotableAPI {
     registerSidebarPanel(panel: PanelSpec): Disposable;
     registerRightPanel(panel: PanelSpec): Disposable;
     registerSettingsTab(tab: SettingsTabSpec): Disposable;
-    registerStatusBarItem(item: StatusBarItemSpec): Disposable;
+    registerStatusBarItem(
+      item: StatusBarItemSpec,
+    ): StatusBarItemRegistration;
     registerNoteToolbarItem(item: NoteToolbarItemSpec): Disposable;
     registerNoteContextMenu(item: ContextMenuItemSpec): Disposable;
     registerFolderContextMenu(item: ContextMenuItemSpec): Disposable;

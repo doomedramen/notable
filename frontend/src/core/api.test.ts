@@ -37,7 +37,11 @@ describe("plugin API handle", () => {
     const onOpen = vi.fn();
     api.commands.register({ id: "tp.cmd", name: "Cmd", run: vi.fn() });
     api.hotkeys.register("Mod-9", "tp.cmd");
-    api.workspace.registerStatusBarItem({ id: "tp.s", mount: () => () => {} });
+    const statusItem = api.workspace.registerStatusBarItem({
+      id: "tp.s",
+      text: "Ready",
+    });
+    statusItem.update({ text: "Updated" });
     api.workspace.registerRightPanel({
       id: "tp.p",
       title: "P",
@@ -48,6 +52,9 @@ describe("plugin API handle", () => {
     expect(disposables).toHaveLength(5);
     expect(commandStore.getState().commands.has("tp.cmd")).toBe(true);
     expect(workspaceStore.getState().rightPanels).toHaveLength(1);
+    expect(workspaceStore.getState().statusBarItems[0]).toMatchObject({
+      text: "Updated",
+    });
 
     // What the plugin loader does on unload:
     for (const d of disposables.splice(0)) d.dispose();

@@ -95,15 +95,10 @@ const plugin: NotablePlugin = {
 
     api.workspace.registerStatusBarItem({
       id: "backlinks-toggle",
-      mount(el) {
-        const button = document.createElement("button");
-        button.className = "notable-backlinks-toggle";
-        button.setAttribute("aria-label", "Toggle backlinks panel");
-        button.textContent = "Backlinks";
-        button.onclick = () => api.workspace.toggleRightPanel("backlinks");
-        el.appendChild(button);
-        return () => el.removeChild(button);
-      },
+      text: "Backlinks",
+      icon: "panel",
+      tooltip: "Toggle backlinks panel",
+      onSelect: () => api.workspace.toggleRightPanel("backlinks"),
     });
   },
 };
@@ -153,17 +148,6 @@ function injectStyles() {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-    }
-    .notable-backlinks-toggle {
-      background: transparent;
-      border: none;
-      color: inherit;
-      font: inherit;
-      cursor: pointer;
-      padding: 0;
-    }
-    .notable-backlinks-toggle:hover {
-      color: var(--accent);
     }
   `;
   document.head.appendChild(style);

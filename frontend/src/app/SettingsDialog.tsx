@@ -13,8 +13,8 @@ import { useUI, type ThemePref } from "../store/ui";
 import { workspaceStore } from "../core/workspace";
 import {
   fetchPluginStore,
-  fetchPlugins,
   installCommunityPlugin,
+  loadEnabledPlugins,
   pluginStore,
   setPluginEnabled,
   uninstallCommunityPlugin,
@@ -42,7 +42,7 @@ export function SettingsDialog() {
   const [active, setActive] = useState<string>("appearance");
 
   useEffect(() => {
-    if (open) void Promise.all([fetchPlugins(), fetchPluginStore()]);
+    if (open) void Promise.all([loadEnabledPlugins(), fetchPluginStore()]);
   }, [open]);
 
   const tabs: { id: string; title: string; icon?: IconSource }[] = [

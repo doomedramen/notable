@@ -55,6 +55,23 @@ test("footer sits flush with the viewport bottom", async ({ page }) => {
   await expect(footer).toHaveCSS("padding-bottom", "0px");
 });
 
+test("plugin status moves into a menu only when it runs out of room", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(page.getByTestId("status-bar-overflow")).toHaveCount(0);
+
+  await page.setViewportSize({ width: 180, height: 844 });
+  const overflow = page.getByTestId("status-bar-overflow");
+  await expect(overflow).toBeVisible();
+  await expect(page.getByTestId("status-bar-inline-items")).toBeHidden();
+
+  await overflow.click();
+  const menu = page.getByRole("menu");
+  await expect(menu).toContainText("Backlinks");
+  await expect(menu).toContainText("0 words");
+});
+
 test("backdrop tap closes the drawer", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("Open sidebar").click();

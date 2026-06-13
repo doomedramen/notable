@@ -310,6 +310,38 @@ test("command palette opens with Mod-K and runs commands", async ({ page }) => {
   await expect(page.getByRole("dialog")).toContainText("Plugins");
 });
 
+test("enabled plugins recover after startup discovery fails", async ({ page }) => {
+  let pluginRequests = 0;
+  await page.route("**/api/plugins", async (route) => {
+    pluginRequests += 1;
+    if (pluginRequests === 1) {
+      await route.abort("connectionfailed");
+    } else {
+      await route.continue();
+    }
+  });
+
+  await page.goto("/");
+  await page.getByLabel("Settings").click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Plugins" }).click();
+
+  await expect
+    .poll(async () => {
+      const rows = dialog.locator("li");
+      let enabled = 0;
+      for (let index = 0; index < (await rows.count()); index += 1) {
+        const row = rows.nth(index);
+        const toggle = row.getByRole("switch");
+        if ((await toggle.count()) === 0 || !(await toggle.isChecked())) continue;
+        enabled += 1;
+        if (!(await row.textContent())?.includes("running")) return false;
+      }
+      return enabled > 0;
+    })
+    .toBe(true);
+});
+
 test("word-count plugin enables and disables live, without reload", async ({
   page,
 }) => {
@@ -529,8 +561,26 @@ test("custom theme picker injects a stylesheet link and updates colors", async (
     );
     expect(after).not.toBe(before);
   }).toPass({ timeout: 5_000 });
+  const themedBackground = await page.evaluate(() =>
+    getComputedStyle(document.documentElement)
+      .getPropertyValue("--background")
+      .trim(),
+  );
+
+  // A persisted pre-paint link must still override the app stylesheet.
+  await page.reload();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        getComputedStyle(document.documentElement)
+          .getPropertyValue("--background")
+          .trim(),
+      ),
+    )
+    .toBe(themedBackground);
 
   // "None" removes the injected stylesheet again.
+  await page.getByLabel("Settings").click();
   await page.getByRole("dialog").getByRole("button", { name: "None" }).click();
   await expect(page.locator("#notable-custom-theme")).toHaveCount(0);
 });

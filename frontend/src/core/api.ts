@@ -63,7 +63,7 @@ export function createPluginAPI(
   manifest: PluginManifest,
   disposables: Disposable[],
 ): NotableAPI {
-  const track = (d: Disposable): Disposable => {
+  const track = <T extends Disposable>(d: T): T => {
     disposables.push(d);
     return d;
   };

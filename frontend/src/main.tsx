@@ -51,6 +51,9 @@ registerBuiltinCommands();
 installHotkeys();
 // Plugins load in the background; the app never blocks on them.
 void loadEnabledPlugins();
+const reloadPlugins = () => void loadEnabledPlugins();
+window.addEventListener("online", reloadPlugins);
+window.addEventListener("notable:server-reachable", reloadPlugins);
 void loadIconAssignments().then(() => flushIconAssignmentQueue());
 const flushIconAssignments = () => void flushIconAssignmentQueue();
 window.addEventListener("online", flushIconAssignments);

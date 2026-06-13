@@ -27,8 +27,13 @@ describe("workspace registries", () => {
   });
 
   it("registers and disposes status bar items", () => {
-    const d = registerStatusBarItem({ id: "x", mount: noopMount });
+    const d = registerStatusBarItem({ id: "x", text: "Ready" });
     expect(workspaceStore.getState().statusBarItems).toHaveLength(1);
+    d.update({ text: "Updated" });
+    expect(workspaceStore.getState().statusBarItems[0]).toMatchObject({
+      id: "x",
+      text: "Updated",
+    });
     d.dispose();
     expect(workspaceStore.getState().statusBarItems).toHaveLength(0);
   });
