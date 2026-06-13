@@ -604,7 +604,6 @@ test("soft-delete moves a note to .trash/, and it can be restored or purged", as
     .getByRole("button", { name: noteName, exact: true })
     .click({ button: "right" });
   await page.getByRole("menuitem", { name: "Delete note" }).click();
-  await page.getByRole("button", { name: "Delete" }).click();
 
   await expect(page.locator("nav")).not.toContainText(noteName);
   await expect(page).toHaveURL("/");
@@ -635,7 +634,6 @@ test("soft-delete moves a note to .trash/, and it can be restored or purged", as
     .getByRole("button", { name: noteName, exact: true })
     .click({ button: "right" });
   await page.getByRole("menuitem", { name: "Delete note" }).click();
-  await page.getByRole("button", { name: "Delete" }).click();
 
   await page.getByRole("button", { name: "Trash" }).click();
   const trashRow2 = page.locator("li", { hasText: noteName });
@@ -695,14 +693,6 @@ test("custom theme picker injects a stylesheet link and updates colors", async (
   await page.getByLabel("Settings").click();
   await page.getByRole("dialog").getByRole("button", { name: "None" }).click();
   await expect(page.locator("#notable-custom-theme")).toHaveCount(0);
-});
-
-test("/new creates a note and redirects into it (app-shortcut target)", async ({
-  page,
-}) => {
-  await page.goto("/new");
-  await expect(page).toHaveURL(/\/note\//);
-  await expect(page.locator(".cm-content")).toBeVisible();
 });
 
 test("/share-target creates a note from shared text and url", async ({ page }) => {

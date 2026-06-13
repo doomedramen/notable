@@ -193,12 +193,9 @@ test("swiping the drawer open does not trigger header tooltips", async ({
   await page.goto("/");
   const sidebar = page.getByRole("dialog", { name: "Sidebar" });
 
-  // Finish the drag where the Settings button lands. Moving drawer content
-  // under a mouse-like pointer must not be interpreted as a desktop hover.
-  await page.mouse.move(5, 28);
-  await page.mouse.down();
-  await page.mouse.move(184, 28, { steps: 6 });
-  await page.mouse.up();
+  // Finish the touch drag where the Settings button lands. Drawer content
+  // moving under the gesture must not be interpreted as a desktop hover.
+  await swipe(page, 5, 200, 28);
 
   await expect(sidebar).toBeInViewport();
   await page.waitForTimeout(450);

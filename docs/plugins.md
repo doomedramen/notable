@@ -35,7 +35,7 @@ my-plugin/
   "version": "1.0.0",
   "description": "What it does",
   "entry": "main.js",
-  "apiVersion": 3,
+  "apiVersion": 5,
   "categories": ["productivity"]
 }
 ```
@@ -116,6 +116,10 @@ offline guarantees.
 API v4 adds frontmatter access, a font theme control, multi-selection
 context-menu actions, a note toolbar contribution point, and sidebar
 decoration/sorting hooks. See the [API v4 guide](plugin-api-v4.md).
+
+API v5 adds host-rendered responsive status items and structured notices with
+variants, duration, and actions. The original `notice(message, durationMs)`
+form remains supported. See the [API v5 guide](plugin-api-v5.md).
 
 ## Icon packs and themes
 

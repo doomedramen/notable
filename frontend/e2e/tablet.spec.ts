@@ -15,9 +15,8 @@ test("tablet layout keeps the sidebar and calm responsive density", async ({
 
 test("dark theme preserves readable host tokens", async ({ page }) => {
   await page.goto("/");
-  await page.evaluate(() => {
-    document.documentElement.dataset.theme = "dark";
-  });
+  await page.getByRole("button", { name: "Theme" }).click();
+  await page.getByRole("menuitem", { name: "Dark" }).click();
   const tokens = await page.evaluate(() => {
     const style = getComputedStyle(document.documentElement);
     return {
@@ -34,8 +33,9 @@ test("dark theme preserves readable host tokens", async ({ page }) => {
 test("reduced motion removes structural animation time", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
+  await page.getByLabel("Settings").click();
   const duration = await page
-    .locator(".ui-view")
+    .locator(".ui-dialog")
     .evaluate((element) => getComputedStyle(element).animationDuration);
   expect(Number.parseFloat(duration)).toBeLessThanOrEqual(0.01);
 });
