@@ -31,23 +31,25 @@ export function StatusBar() {
   const dirty = useSyncStatus((s) => s.dirty);
 
   return (
-    <footer className="m-0 flex h-[calc(1.75rem+env(safe-area-inset-bottom))] shrink-0 items-center gap-3 border-t border-border bg-surface px-3 pb-[env(safe-area-inset-bottom)] text-xs text-muted">
-      {status !== null && (
-        <span className="flex items-center gap-1.5">
-          <span
-            className={cn("h-1.5 w-1.5 rounded-full", statusConfig[status].dot)}
-          />
-          {statusConfig[status].label}
-        </span>
-      )}
-      {dirty > 0 && (
-        <span className="text-warning">
-          {dirty} note{dirty > 1 ? "s" : ""} pending sync
-        </span>
-      )}
-      <span className="flex-1" />
-      <StatusBarItems />
-      <ThemeToggle />
+    <footer className="m-0 flex h-[calc(1.75rem+env(safe-area-inset-bottom))] shrink-0 flex-col border-t border-border bg-surface text-xs text-muted">
+      <div className="flex h-7 items-center gap-3 px-3">
+        {status !== null && (
+          <span className="flex items-center gap-1.5">
+            <span
+              className={cn("h-1.5 w-1.5 rounded-full", statusConfig[status].dot)}
+            />
+            {statusConfig[status].label}
+          </span>
+        )}
+        {dirty > 0 && (
+          <span className="text-warning">
+            {dirty} note{dirty > 1 ? "s" : ""} pending sync
+          </span>
+        )}
+        <span className="flex-1" />
+        <StatusBarItems />
+        <ThemeToggle />
+      </div>
     </footer>
   );
 }
