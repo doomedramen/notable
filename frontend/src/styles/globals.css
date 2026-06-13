@@ -41,20 +41,26 @@ html,
 body,
 #root {
   height: 100%;
+  margin: 0;
+  padding: 0;
 }
 
-/* The app shell is a fixed-height layout (h-dvh) with its own scroll
-   regions (sidebar, editor, dialogs). The outer page itself should never
-   scroll — this stops the rubber-band bounce and the browser/PWA
-   pull-to-refresh gesture it triggers. */
+/* The app shell fills the fixed root and owns its scroll regions (sidebar,
+   editor, dialogs). The outer page itself should never scroll — this stops
+   rubber-band bounce and the browser/PWA pull-to-refresh gesture it triggers. */
 html,
 body {
   overflow: hidden;
   overscroll-behavior: none;
 }
 
+#root {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
 body {
-  margin: 0;
   font-family: var(--font-sans);
   font-size: 14px;
   background: var(--background);
