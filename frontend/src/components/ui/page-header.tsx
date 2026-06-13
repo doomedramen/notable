@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import type { LucideIcon } from "lucide-react";
+import type { IconSource } from "../../plugin-api";
+import { AppIcon } from "../AppIcon";
 
 /** Top-level view container (TagView, TrashView, …): centered column with
     consistent padding so every full-page view aligns the same way. */
@@ -13,15 +14,15 @@ export function PageContainer({ children }: { children: ReactNode }) {
 
 /** Page title with a leading icon, matching across full-page views. */
 export function PageHeader({
-  icon: Icon,
+  icon,
   children,
 }: {
-  icon: LucideIcon;
+  icon: IconSource;
   children: ReactNode;
 }) {
   return (
     <h1 className="flex items-center gap-1.5 text-2xl font-bold tracking-tight">
-      <Icon size={20} className="text-faint" />
+      <AppIcon icon={icon} size={20} className="text-faint" />
       {children}
     </h1>
   );

@@ -1,4 +1,3 @@
-import { Monitor, Moon, Sun } from "lucide-react";
 import { useStore } from "zustand";
 import { useSyncStatus } from "../store/sync-status";
 import { workspaceStore } from "../core/workspace";
@@ -13,6 +12,7 @@ import {
 import { Button } from "../components/ui/button";
 import { Tooltip } from "../components/ui/tooltip";
 import { cn } from "../lib/cn";
+import { AppIcon } from "../components/AppIcon";
 
 const statusConfig = {
   synced: { label: "Synced", dot: "bg-success" },
@@ -20,10 +20,10 @@ const statusConfig = {
   offline: { label: "Offline — changes saved locally", dot: "bg-warning" },
 } as const;
 
-const themeIcons: Record<ThemePref, typeof Sun> = {
-  light: Sun,
-  dark: Moon,
-  system: Monitor,
+const themeIcons: Record<ThemePref, "theme-light" | "theme-dark" | "theme-system"> = {
+  light: "theme-light",
+  dark: "theme-dark",
+  system: "theme-system",
 };
 
 export function StatusBar() {
@@ -71,23 +71,23 @@ function StatusBarItems() {
 function ThemeToggle() {
   const theme = useUI((s) => s.theme);
   const setTheme = useUI((s) => s.setTheme);
-  const Icon = themeIcons[theme];
+  const icon = themeIcons[theme];
 
   return (
     <DropdownMenu>
       <Tooltip label="Theme">
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" className="h-5 w-5" aria-label="Theme">
-            <Icon size={14} />
+            <AppIcon icon={icon} size={14} />
           </Button>
         </DropdownMenuTrigger>
       </Tooltip>
       <DropdownMenuContent align="end" side="top">
         {(["light", "dark", "system"] as const).map((t) => {
-          const ItemIcon = themeIcons[t];
+          const itemIcon = themeIcons[t];
           return (
             <DropdownMenuItem key={t} onSelect={() => setTheme(t)}>
-              <ItemIcon size={14} className="text-muted" />
+              <AppIcon icon={itemIcon} size={14} className="text-muted" />
               <span className="capitalize">{t}</span>
               {theme === t && <span className="ml-auto text-accent">✓</span>}
             </DropdownMenuItem>

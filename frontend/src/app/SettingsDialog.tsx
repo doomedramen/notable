@@ -1,15 +1,5 @@
 import { useEffect, useState } from "react";
 import { useStore } from "zustand";
-import {
-  ExternalLink,
-  Monitor,
-  Moon,
-  Palette,
-  Puzzle,
-  Search,
-  Sun,
-  Trash2,
-} from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "../components/ui/dialog";
 import { Switch } from "../components/ui/switch";
 import { Button } from "../components/ui/button";
@@ -29,6 +19,16 @@ import { notice } from "../components/ui/toast";
 import { confirm } from "../components/ui/confirm";
 import { Badge } from "../components/ui/badge";
 import { EmptyState } from "../components/ui/empty-state";
+import { AppIcon } from "../components/AppIcon";
+import type { AppIconSlot, IconSource, ThemeControl } from "../plugin-api";
+import {
+  appearanceStore,
+  selectLocalTheme,
+  selectTheme,
+  setThemeControl,
+  themeControlValue,
+} from "../core/appearance";
+import { iconsStore, selectIconTheme } from "../core/icons";
 
 export function SettingsDialog() {
   const open = useUI((s) => s.settingsOpen);
@@ -40,10 +40,14 @@ export function SettingsDialog() {
     if (open) void Promise.all([fetchPlugins(), fetchPluginStore()]);
   }, [open]);
 
-  const tabs: { id: string; title: string; icon?: typeof Sun }[] = [
-    { id: "appearance", title: "Appearance", icon: Palette },
-    { id: "plugins", title: "Plugins", icon: Puzzle },
-    ...pluginTabs.map((t) => ({ id: `ext:${t.id}`, title: t.title })),
+  const tabs: { id: string; title: string; icon?: IconSource }[] = [
+    { id: "appearance", title: "Appearance", icon: "appearance" },
+    { id: "plugins", title: "Plugins", icon: "plugins" },
+    ...pluginTabs.map((t) => ({
+      id: `ext:${t.id}`,
+      title: t.title,
+      icon: t.icon,
+    })),
   ];
 
   return (
@@ -66,7 +70,9 @@ export function SettingsDialog() {
                   : "text-muted hover:bg-surface-hover hover:text-foreground",
               )}
             >
-              {tab.icon && <tab.icon size={14} className="text-faint" />}
+              {tab.icon && (
+                <AppIcon icon={tab.icon} size={14} className="text-faint" />
+              )}
               {tab.title}
             </button>
           ))}
@@ -91,9 +97,13 @@ function AppearanceTab() {
   const setTheme = useUI((s) => s.setTheme);
   const customTheme = useUI((s) => s.customTheme);
   const setCustomTheme = useUI((s) => s.setCustomTheme);
+  useUI((s) => s.themeSettings);
+  const appIconTheme = useUI((s) => s.appIconTheme);
   const editorFontSize = useUI((s) => s.editorFontSize);
   const setEditorFontSize = useUI((s) => s.setEditorFontSize);
   const [themes, setThemes] = useState<{ id: string; name: string }[]>([]);
+  const pluginThemes = useStore(appearanceStore, (s) => s.themes);
+  const iconThemes = useStore(iconsStore, (s) => s.themes);
 
   useEffect(() => {
     fetch("/api/themes")
@@ -102,11 +112,18 @@ function AppearanceTab() {
       .catch(() => setThemes([]));
   }, []);
 
-  const options: { value: ThemePref; label: string; icon: typeof Sun }[] = [
-    { value: "light", label: "Light", icon: Sun },
-    { value: "dark", label: "Dark", icon: Moon },
-    { value: "system", label: "System", icon: Monitor },
+  const options: {
+    value: ThemePref;
+    label: string;
+    icon: AppIconSlot;
+  }[] = [
+    { value: "light", label: "Light", icon: "theme-light" },
+    { value: "dark", label: "Dark", icon: "theme-dark" },
+    { value: "system", label: "System", icon: "theme-system" },
   ];
+  const activePluginTheme = pluginThemes.find(
+    (candidate) => candidate.id === customTheme,
+  );
 
   return (
     <section>
@@ -121,7 +138,7 @@ function AppearanceTab() {
             variant={theme === opt.value ? "primary" : "secondary"}
             onClick={() => setTheme(opt.value)}
           >
-            <opt.icon size={14} />
+            <AppIcon icon={opt.icon} size={14} />
             {opt.label}
           </Button>
         ))}
@@ -160,11 +177,11 @@ function AppearanceTab() {
         )}
       </div>
 
-      {themes.length > 0 && (
+      {(themes.length > 0 || pluginThemes.length > 0) && (
         <>
           <h3 className="mt-5 text-sm font-semibold">Custom theme</h3>
           <p className="mt-1 text-sm text-muted">
-            CSS files from the themes directory, overriding the colors above.
+            Installed theme plugins and CSS files from the themes directory.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <Button
@@ -177,15 +194,148 @@ function AppearanceTab() {
               <Button
                 key={t.id}
                 variant={customTheme === t.id ? "primary" : "secondary"}
-                onClick={() => setCustomTheme(t.id)}
+                onClick={() => selectLocalTheme(t.id)}
               >
                 {t.name}
+              </Button>
+            ))}
+            {pluginThemes.map((registered) => (
+              <Button
+                key={registered.id}
+                variant={
+                  customTheme === registered.id ? "primary" : "secondary"
+                }
+                onClick={() => selectTheme(registered.id)}
+              >
+                {registered.name}
+              </Button>
+            ))}
+          </div>
+        </>
+      )}
+
+      {activePluginTheme && (activePluginTheme.controls?.length ?? 0) > 0 && (
+        <section className="mt-5 border-t border-border pt-5">
+          <h3 className="text-sm font-semibold">
+            {activePluginTheme.name} settings
+          </h3>
+          <div className="mt-3 space-y-3">
+            {activePluginTheme.controls?.map((control) => (
+              <ThemeControlField
+                key={control.id}
+                themeId={activePluginTheme.id}
+                control={control}
+                value={themeControlValue(activePluginTheme, control)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {iconThemes.length > 0 && (
+        <>
+          <h3 className="mt-5 text-sm font-semibold">Application icons</h3>
+          <p className="mt-1 text-sm text-muted">
+            Replace Notable's built-in interface icons with an installed pack.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button
+              variant={appIconTheme === null ? "primary" : "secondary"}
+              onClick={() => selectIconTheme(null)}
+            >
+              Built-in
+            </Button>
+            {iconThemes.map((iconTheme) => (
+              <Button
+                key={iconTheme.id}
+                variant={
+                  appIconTheme === iconTheme.id ? "primary" : "secondary"
+                }
+                onClick={() => selectIconTheme(iconTheme.id)}
+              >
+                {iconTheme.name}
               </Button>
             ))}
           </div>
         </>
       )}
     </section>
+  );
+}
+
+function ThemeControlField({
+  themeId,
+  control,
+  value,
+}: {
+  themeId: string;
+  control: ThemeControl;
+  value: string | number | boolean;
+}) {
+  const labelClass = "flex items-center justify-between gap-3 text-sm";
+  if (control.type === "toggle") {
+    return (
+      <label className={labelClass}>
+        <span>{control.label}</span>
+        <Switch
+          checked={Boolean(value)}
+          onCheckedChange={(checked) =>
+            setThemeControl(themeId, control.id, checked)
+          }
+        />
+      </label>
+    );
+  }
+  if (control.type === "select") {
+    return (
+      <label className={labelClass}>
+        <span>{control.label}</span>
+        <select
+          value={String(value)}
+          onChange={(event) =>
+            setThemeControl(themeId, control.id, event.target.value)
+          }
+          className="h-8 rounded-sm border border-border bg-background px-2 text-sm"
+        >
+          {control.options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </label>
+    );
+  }
+  if (control.type === "color") {
+    return (
+      <label className={labelClass}>
+        <span>{control.label}</span>
+        <input
+          type="color"
+          value={String(value)}
+          onChange={(event) =>
+            setThemeControl(themeId, control.id, event.target.value)
+          }
+          className="h-8 w-12 cursor-pointer rounded-sm border border-border bg-background p-1"
+        />
+      </label>
+    );
+  }
+  return (
+    <label className={labelClass}>
+      <span>{control.label}</span>
+      <input
+        type="number"
+        value={Number(value)}
+        min={control.min}
+        max={control.max}
+        step={control.step ?? 1}
+        onChange={(event) =>
+          setThemeControl(themeId, control.id, Number(event.target.value))
+        }
+        className="h-8 w-24 rounded-sm border border-border bg-background px-2 text-sm"
+      />
+    </label>
   );
 }
 
@@ -198,6 +348,9 @@ function PluginsTab() {
   const [busy, setBusy] = useState<string | null>(null);
   const [view, setView] = useState<"installed" | "browse">("installed");
   const [query, setQuery] = useState("");
+  const [category, setCategory] = useState<"plugins" | "themes" | "icons">(
+    "plugins",
+  );
 
   const toggle = async (id: string, enabled: boolean) => {
     setBusy(id);
@@ -245,10 +398,19 @@ function PluginsTab() {
 
   const filteredStore = store.filter((plugin) => {
     const needle = query.trim().toLowerCase();
+    const categoryMatch =
+      category === "themes"
+        ? plugin.categories.includes("theme")
+        : category === "icons"
+          ? plugin.categories.includes("icons")
+          : !plugin.categories.some(
+              (item) => item === "theme" || item === "icons",
+            );
     return (
-      !needle ||
-      plugin.name.toLowerCase().includes(needle) ||
-      plugin.description.toLowerCase().includes(needle)
+      categoryMatch &&
+      (!needle ||
+        plugin.name.toLowerCase().includes(needle) ||
+        plugin.description.toLowerCase().includes(needle))
     );
   });
 
@@ -279,7 +441,7 @@ function PluginsTab() {
       </p>
 
       {view === "installed" && available.length === 0 ? (
-        <EmptyState icon={Puzzle} className="mt-4">
+        <EmptyState icon="plugins" className="mt-4">
           No plugins are installed.
         </EmptyState>
       ) : view === "installed" ? (
@@ -313,7 +475,7 @@ function PluginsTab() {
                   aria-label={`Uninstall ${p.name}`}
                   title="Uninstall"
                 >
-                  <Trash2 size={14} />
+                  <AppIcon icon="trash" size={14} />
                 </Button>
               )}
               <Switch
@@ -327,8 +489,25 @@ function PluginsTab() {
         </ul>
       ) : (
         <div className="mt-4">
+          <div className="mb-3 flex gap-1 rounded-sm border border-border bg-surface p-1">
+            {(["plugins", "themes", "icons"] as const).map((item) => (
+              <button
+                key={item}
+                onClick={() => setCategory(item)}
+                className={cn(
+                  "flex-1 rounded-sm px-2 py-1 text-xs capitalize",
+                  category === item
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted hover:text-foreground",
+                )}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
           <label className="relative block">
-            <Search
+            <AppIcon
+              icon="search"
               size={14}
               className="absolute top-1/2 left-2.5 -translate-y-1/2 text-faint"
             />
@@ -373,7 +552,7 @@ function PluginsTab() {
                       className="rounded-sm p-1.5 text-faint hover:bg-surface-hover hover:text-foreground"
                       aria-label={`${plugin.name} homepage`}
                     >
-                      <ExternalLink size={14} />
+                      <AppIcon icon="external-link" size={14} />
                     </a>
                   )}
                   <Button
@@ -382,6 +561,7 @@ function PluginsTab() {
                     disabled={
                       busy !== null ||
                       !plugin.installable ||
+                      !plugin.compatible ||
                       (plugin.installed && !plugin.updateAvailable)
                     }
                     onClick={() =>
@@ -394,6 +574,8 @@ function PluginsTab() {
                         ? "Update"
                         : plugin.installed
                           ? "Installed"
+                          : !plugin.compatible
+                            ? "Requires newer Notable"
                           : plugin.installable
                             ? "Install"
                             : "Unavailable"}

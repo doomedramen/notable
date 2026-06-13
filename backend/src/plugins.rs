@@ -29,6 +29,7 @@ const LEGACY_ENABLED_KEY: &str = "plugins.enabled";
 const MAX_PACKAGE_BYTES: usize = 20 * 1024 * 1024;
 const MAX_UNPACKED_BYTES: u64 = 100 * 1024 * 1024;
 const MAX_PACKAGE_FILES: usize = 256;
+const CURRENT_API_VERSION: u32 = 2;
 
 type ApiError = (StatusCode, String);
 type ApiResult<T> = Result<T, ApiError>;
@@ -45,10 +46,18 @@ pub struct PluginManifest {
     pub entry: String,
     #[serde(default)]
     pub default_enabled: bool,
+    #[serde(default = "default_api_version")]
+    pub api_version: u32,
+    #[serde(default)]
+    pub categories: Vec<String>,
 }
 
 fn default_entry() -> String {
     "main.js".into()
+}
+
+fn default_api_version() -> u32 {
+    1
 }
 
 #[derive(Debug, Serialize, Clone, Copy, PartialEq, Eq)]
@@ -94,6 +103,10 @@ pub struct StorePlugin {
     pub author: String,
     #[serde(default)]
     pub homepage: String,
+    #[serde(default = "default_api_version")]
+    pub api_version: u32,
+    #[serde(default)]
+    pub categories: Vec<String>,
     pub package: Option<RegistryPackage>,
 }
 
@@ -112,6 +125,7 @@ pub struct StorePluginInfo {
     active_version: Option<String>,
     update_available: bool,
     installable: bool,
+    compatible: bool,
 }
 
 #[derive(Serialize)]
@@ -148,14 +162,17 @@ pub async fn store(State(state): State<Arc<AppState>>) -> ApiResult<Json<StoreRe
         .map(|plugin| {
             let current = installed.get(&plugin.id);
             let active_version = current.map(|item| item.manifest.version.clone());
+            let compatible = plugin.api_version <= CURRENT_API_VERSION;
             StorePluginInfo {
                 installed: current.is_some(),
                 enabled: current.is_some_and(|item| item.enabled),
                 update_available: active_version
                     .as_deref()
                     .is_some_and(|version| is_newer(&plugin.version, version)),
-                installable: plugin.package.is_some()
+                installable: compatible
+                    && plugin.package.is_some()
                     && !current.is_some_and(|item| item.source == PluginSource::Core),
+                compatible,
                 active_version,
                 plugin,
             }
@@ -429,6 +446,12 @@ fn validate_manifest(manifest: &PluginManifest) -> ApiResult<()> {
     }
     Version::parse(&manifest.version)
         .map_err(|_| bad_request("manifest version must be valid semver"))?;
+    if manifest.api_version == 0 || manifest.api_version > CURRENT_API_VERSION {
+        return Err(bad_request("manifest requires an unsupported API version"));
+    }
+    if manifest.categories.iter().any(|category| !valid_category(category)) {
+        return Err(bad_request("manifest contains an invalid category"));
+    }
     if !safe_relative_path(Path::new(&manifest.entry)) {
         return Err(bad_request("manifest entry must be a relative path"));
     }
@@ -441,6 +464,12 @@ fn validate_store_plugin(plugin: &StorePlugin) -> ApiResult<()> {
     }
     Version::parse(&plugin.version)
         .map_err(|_| bad_request("registry plugin version must be valid semver"))?;
+    if plugin.api_version == 0 {
+        return Err(bad_request("registry plugin API version must be positive"));
+    }
+    if plugin.categories.iter().any(|category| !valid_category(category)) {
+        return Err(bad_request("registry plugin contains an invalid category"));
+    }
     Ok(())
 }
 
@@ -451,6 +480,16 @@ fn valid_plugin_id(id: &str) -> bool {
         .is_some_and(|character| character.is_ascii_lowercase())
         && chars.all(|character| {
             character.is_ascii_lowercase() || character.is_ascii_digit() || character == '-'
+        })
+}
+
+fn valid_category(category: &str) -> bool {
+    !category.is_empty()
+        && category.len() <= 32
+        && category.chars().all(|character| {
+            character.is_ascii_lowercase()
+                || character.is_ascii_digit()
+                || character == '-'
         })
 }
 
@@ -667,6 +706,8 @@ fn install_package(
         if manifest.id != expected.id
             || manifest.name != expected.name
             || manifest.version != expected.version
+            || manifest.api_version != expected.api_version
+            || manifest.categories != expected.categories
         {
             return Err(bad_request(
                 "plugin manifest does not match the registry metadata",

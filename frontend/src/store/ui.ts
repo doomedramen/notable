@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { IconRef } from "../plugin-api";
 
 export type ThemePref = "system" | "light" | "dark";
 
@@ -8,7 +9,22 @@ interface UIState {
   setTheme: (t: ThemePref) => void;
   /** Selected custom theme id (filename without `.css`), or null for none. */
   customTheme: string | null;
-  setCustomTheme: (id: string | null) => void;
+  customThemeUrl: string | null;
+  customThemeVariables: Record<string, string>;
+  themeSettings: Record<string, Record<string, string | number | boolean>>;
+  setCustomTheme: (
+    id: string | null,
+    url?: string | null,
+    variables?: Record<string, string>,
+  ) => void;
+  setThemeSettings: (
+    themeSettings: Record<string, Record<string, string | number | boolean>>,
+    variables: Record<string, string>,
+  ) => void;
+  appIconTheme: string | null;
+  setAppIconTheme: (id: string | null) => void;
+  recentIcons: IconRef[];
+  setRecentIcons: (icons: IconRef[]) => void;
   /** Editor content font size in px. */
   editorFontSize: number;
   setEditorFontSize: (size: number) => void;
@@ -32,7 +48,20 @@ export const useUI = create<UIState>()(
       theme: "system",
       setTheme: (theme) => set({ theme }),
       customTheme: null,
-      setCustomTheme: (customTheme) => set({ customTheme }),
+      customThemeUrl: null,
+      customThemeVariables: {},
+      themeSettings: {},
+      setCustomTheme: (
+        customTheme,
+        customThemeUrl = null,
+        customThemeVariables = {},
+      ) => set({ customTheme, customThemeUrl, customThemeVariables }),
+      setThemeSettings: (themeSettings, customThemeVariables) =>
+        set({ themeSettings, customThemeVariables }),
+      appIconTheme: null,
+      setAppIconTheme: (appIconTheme) => set({ appIconTheme }),
+      recentIcons: [],
+      setRecentIcons: (recentIcons) => set({ recentIcons }),
       editorFontSize: 15.5,
       setEditorFontSize: (editorFontSize) => set({ editorFontSize }),
       sidebarOpen: startOpen,
@@ -48,6 +77,11 @@ export const useUI = create<UIState>()(
       partialize: (s) => ({
         theme: s.theme,
         customTheme: s.customTheme,
+        customThemeUrl: s.customThemeUrl,
+        customThemeVariables: s.customThemeVariables,
+        themeSettings: s.themeSettings,
+        appIconTheme: s.appIconTheme,
+        recentIcons: s.recentIcons,
         editorFontSize: s.editorFontSize,
         sidebarOpen: s.sidebarOpen,
       }),

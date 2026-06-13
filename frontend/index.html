@@ -17,7 +17,8 @@
         try {
           var pref = "system";
           var raw = localStorage.getItem("notable-ui");
-          if (raw) pref = JSON.parse(raw).state.theme || "system";
+          var state = raw ? JSON.parse(raw).state : {};
+          if (state) pref = state.theme || "system";
           var dark =
             pref === "dark" ||
             (pref === "system" &&
@@ -28,6 +29,26 @@
               .querySelector('meta[name="theme-color"]')
               .setAttribute("content", "#1e1e2e");
           }
+          if (state.customThemeUrl) {
+            var link = document.createElement("link");
+            link.id = "notable-custom-theme";
+            link.rel = "stylesheet";
+            link.href = state.customThemeUrl;
+            document.head.appendChild(link);
+          } else if (state.customTheme) {
+            var legacyLink = document.createElement("link");
+            legacyLink.id = "notable-custom-theme";
+            legacyLink.rel = "stylesheet";
+            legacyLink.href =
+              "/api/themes/" + encodeURIComponent(state.customTheme) + ".css";
+            document.head.appendChild(legacyLink);
+          }
+          var variables = state.customThemeVariables || {};
+          Object.keys(variables).forEach(function (name) {
+            if (/^--[a-z][a-z0-9-]*$/.test(name)) {
+              document.documentElement.style.setProperty(name, variables[name]);
+            }
+          });
         } catch (e) {
           document.documentElement.dataset.theme = "light";
         }

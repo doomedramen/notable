@@ -1,7 +1,7 @@
 import { Dialog as DialogPrimitive } from "radix-ui";
-import { X } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 import { cn } from "../../lib/cn";
+import { AppIcon } from "../AppIcon";
 
 export const Dialog = DialogPrimitive.Root;
 export const DialogTrigger = DialogPrimitive.Trigger;
@@ -31,7 +31,7 @@ export function DialogContent({
             className="absolute top-3.5 right-3.5 rounded-sm p-1 text-muted transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
             aria-label="Close"
           >
-            <X size={15} />
+            <AppIcon icon="close" size={15} />
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Content>

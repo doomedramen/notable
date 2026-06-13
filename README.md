@@ -14,9 +14,10 @@ a command palette, and runtime plugins on top.
 - **External edits welcome.** The server watches the vault; changes made
   by other tools merge live into open editors.
 - **Plugins.** Built-in core plugins plus checksum-verified community
-  plugins from a separately published registry — see
+  plugins, themes, and icon packs from a separately published registry — see
   [docs/plugins.md](docs/plugins.md).
-- **Themes.** Drop CSS files into a themes directory to restyle the app —
+- **Themes.** Install configurable theme plugins or drop CSS files into a
+  themes directory to restyle the app —
   see [docs/themes.md](docs/themes.md).
 
 ## Run it (Docker)
@@ -147,6 +148,7 @@ backend/
   src/vault.rs       The vault: list/create/read/rename/delete .md files
   src/sync.rs        WebSocket rooms, file write-behind, watcher, doc cache
   src/plugins.rs     Plugin manifests + serving, enable/disable
+  src/icon_assignments.rs  Synced note/folder icon metadata
   src/themes.rs      Custom theme listing + CSS serving
   src/auth.rs        Optional single-password session auth
   src/settings.rs    Generic settings KV
@@ -156,7 +158,7 @@ frontend/
   src/sync/provider.ts   Y.Doc ↔ IndexedDB ↔ WebSocket, epochs, reconnect
   src/store/notes.ts     Offline-aware vault listing with mutation queue
   src/editor/Editor.tsx  CodeMirror 6 + yCollab + plugin extensions
-core-plugins/         Built-in plugins (outline, word count)
+core-plugins/         Built-in plugins
 plugins/             Installed community plugins in local development
 docs/plugins.md      Plugin author guide
 ```

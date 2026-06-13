@@ -34,7 +34,9 @@ my-plugin/
   "name": "My plugin",
   "version": "1.0.0",
   "description": "What it does",
-  "entry": "main.js"
+  "entry": "main.js",
+  "apiVersion": 2,
+  "categories": ["productivity"]
 }
 ```
 
@@ -71,12 +73,58 @@ The complete typed contract is in
 | Area | What it can do |
 | --- | --- |
 | `api.commands` / `api.hotkeys` | Register commands and keyboard shortcuts |
+| `api.assets` | Build safe URLs for files shipped in the plugin package |
+| `api.appearance` | Register configurable CSS themes |
+| `api.icons` | Register icon packs/themes, open the picker, and assign icons |
 | `api.editor` | Add CodeMirror extensions and access the active editor |
 | `api.workspace` | Add panels, settings tabs, and status bar items |
 | `api.vault` | List/create notes and inspect the active note |
 | `api.events` | Subscribe to note, editor, and theme lifecycle events |
 | `api.settings` | Store per-plugin JSON settings |
 | `api.ui` | Show notices and confirmation dialogs |
+
+API v2 adds appearance contributions and optional icons on commands, panels,
+and settings tabs. Plugins may also add note/folder context-menu actions.
+Contributions registered through these APIs are removed automatically when the
+plugin unloads.
+
+## Icon packs and themes
+
+An icon pack supplies trusted SVG child markup or text glyphs:
+
+```js
+api.icons.registerPack({
+  id: "example",
+  name: "Example",
+  icons: {
+    star: {
+      body: "<path d=\"...\" />",
+      viewBox: "0 0 24 24",
+      keywords: ["favorite"]
+    },
+    note: { glyph: "📝", keywords: ["write"] }
+  }
+});
+```
+
+An app icon theme maps every semantic host slot to an icon. Pack references
+using a local pack ID are namespaced to the current plugin:
+
+```js
+api.icons.registerTheme({
+  id: "example",
+  name: "Example",
+  icons: {
+    note: { packId: "example", iconId: "note" },
+    search: { packId: "example", iconId: "search" }
+  }
+});
+```
+
+`api.icons.pick()` opens the host picker. `api.icons.getAssignment()` and
+`setAssignment()` read or write vault-wide note/folder assignments. Assignments
+remain stored when their pack is disabled and render the built-in fallback
+until the pack returns.
 
 ## Share host modules
 
@@ -125,6 +173,8 @@ The registry format is:
       "description": "Shows an estimated reading time.",
       "author": "Notable community",
       "homepage": "https://github.com/doomedramen/notable-plugins",
+      "apiVersion": 2,
+      "categories": ["productivity"],
       "package": {
         "url": "https://github.com/doomedramen/notable-plugins/releases/download/plugins-latest/reading-time.tar.gz",
         "sha256": "64 hexadecimal characters",

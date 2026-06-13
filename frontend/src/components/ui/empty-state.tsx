@@ -1,14 +1,15 @@
 import type { ReactNode } from "react";
-import type { LucideIcon } from "lucide-react";
+import type { IconSource } from "../../plugin-api";
 import { cn } from "../../lib/cn";
+import { AppIcon } from "../AppIcon";
 
 /** Centered icon + message for empty lists (sidebar, trash, tags, palette). */
 export function EmptyState({
-  icon: Icon,
+  icon,
   children,
   className,
 }: {
-  icon?: LucideIcon;
+  icon?: IconSource;
   children: ReactNode;
   className?: string;
 }) {
@@ -19,7 +20,7 @@ export function EmptyState({
         className,
       )}
     >
-      {Icon && <Icon size={28} strokeWidth={1.5} />}
+      {icon && <AppIcon icon={icon} size={28} strokeWidth={1.5} />}
       <p>{children}</p>
     </div>
   );

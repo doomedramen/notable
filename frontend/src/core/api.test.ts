@@ -18,6 +18,8 @@ describe("plugin API handle", () => {
       rightPanels: [],
       settingsTabs: [],
       statusBarItems: [],
+      noteContextMenuItems: [],
+      folderContextMenuItems: [],
       activeRightPanel: null,
     });
   });
@@ -64,5 +66,16 @@ describe("plugin API handle", () => {
     // Identity, not just shape — a duplicate instance breaks the editor.
     expect(api.modules.codemirror.state).toBe(hostState);
     expect(api.modules.yjs).toBe(hostYjs);
+  });
+
+  it("builds versioned safe asset URLs", () => {
+    const api = createPluginAPI(
+      { id: "test-plugin", name: "Test", version: "1.2.3" },
+      [],
+    );
+    expect(api.assets.url("assets/icon pack.json")).toBe(
+      "/api/plugins/test-plugin/assets/icon%20pack.json?v=1.2.3",
+    );
+    expect(() => api.assets.url("../secret")).toThrow(/safe relative path/);
   });
 });

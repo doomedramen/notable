@@ -1,4 +1,5 @@
 mod auth;
+mod icon_assignments;
 mod indexer;
 mod plugins;
 mod settings;
@@ -128,6 +129,10 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/backlinks/{*path}", get(indexer::backlinks))
         .route("/api/tags", get(indexer::tags))
         .route("/api/tags/{*tag}", get(indexer::notes_with_tag))
+        .route(
+            "/api/icon-assignments",
+            get(icon_assignments::list).put(icon_assignments::set),
+        )
         // Runtime plugins: manifests, code, enablement
         .route("/api/plugins", get(plugins::list))
         .route("/api/plugins/store", get(plugins::store))

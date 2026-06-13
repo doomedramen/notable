@@ -2,13 +2,17 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import { useStore } from "zustand";
 import { Command as Cmdk } from "cmdk";
 import fuzzysort from "fuzzysort";
-import { FileSearch, FileText, Terminal } from "lucide-react";
 import { commandStore, runCommand } from "../core/commands";
 import { openNote } from "../core/navigation";
 import { useNotesStore } from "../store/notes-store";
 import { useUI } from "../store/ui";
 import { normalizeKey } from "../core/hotkeys";
 import { Skeleton } from "../components/ui/skeleton";
+import { AppIcon } from "../components/AppIcon";
+import {
+  getIconAssignment,
+  iconAssignmentStore,
+} from "../core/icon-assignments";
 
 const IS_MAC =
   typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
@@ -69,6 +73,7 @@ export function CommandPalette() {
   const [searching, setSearching] = useState(false);
   const notes = useNotesStore((s) => s.notes);
   const commands = useStore(commandStore, (s) => s.commands);
+  useStore(iconAssignmentStore, (s) => s.assignments);
 
   useEffect(() => {
     if (!open) setQuery("");
@@ -156,7 +161,14 @@ export function CommandPalette() {
                 }}
                 className="flex cursor-default items-center gap-2 rounded-sm px-2 py-2 text-sm text-foreground select-none data-[selected=true]:bg-surface-hover"
               >
-                <FileText size={14} className="shrink-0 text-faint" />
+                <AppIcon
+                  icon={
+                    getIconAssignment({ kind: "note", path: note.path }) ??
+                    "note"
+                  }
+                  size={14}
+                  className="shrink-0 text-faint"
+                />
                 <span className="truncate">{note.name}</span>
                 {note.folder && (
                   <span className="ml-auto truncate text-xs text-faint">
@@ -190,7 +202,11 @@ export function CommandPalette() {
                 }}
                 className="flex cursor-default items-center gap-2 rounded-sm px-2 py-2 text-sm text-foreground select-none data-[selected=true]:bg-surface-hover"
               >
-                <FileSearch size={14} className="shrink-0 text-faint" />
+                <AppIcon
+                  icon="file-search"
+                  size={14}
+                  className="shrink-0 text-faint"
+                />
                 <span className="shrink-0">{hit.name}</span>
                 <Snippet text={hit.snippet} />
               </Cmdk.Item>
@@ -213,7 +229,11 @@ export function CommandPalette() {
                 }}
                 className="flex cursor-default items-center gap-2 rounded-sm px-2 py-2 text-sm text-foreground select-none data-[selected=true]:bg-surface-hover"
               >
-                <Terminal size={14} className="shrink-0 text-faint" />
+                <AppIcon
+                  icon={cmd.icon ?? "command"}
+                  size={14}
+                  className="shrink-0 text-faint"
+                />
                 <span className="flex-1 truncate">{cmd.name}</span>
                 {cmd.hotkey && (
                   <kbd className="rounded-sm border border-border bg-surface px-1.5 py-0.5 font-sans text-xs text-muted">

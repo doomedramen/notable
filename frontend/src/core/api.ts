@@ -15,6 +15,16 @@ import type {
   SettingsTabSpec,
   StatusBarItemSpec,
 } from "../plugin-api";
+import { registerTheme } from "./appearance";
+import {
+  registerIconPack,
+  registerIconTheme,
+  requestIconPick,
+} from "./icons";
+import {
+  getIconAssignment,
+  setIconAssignment,
+} from "./icon-assignments";
 import { registerCommand } from "./commands";
 import { registerHotkey } from "./hotkeys";
 import * as events from "./events";
@@ -54,6 +64,20 @@ export function createPluginAPI(
     return d;
   };
   const settingsKey = `plugin:${manifest.id}`;
+  const assetUrl = (path: string): string => {
+    const parts = path.split("/");
+    if (
+      !path ||
+      path.startsWith("/") ||
+      path.includes("\\") ||
+      parts.some((part) => !part || part === "." || part === "..")
+    ) {
+      throw new Error("plugin asset path must be a safe relative path");
+    }
+    return `/api/plugins/${encodeURIComponent(manifest.id)}/${parts
+      .map(encodeURIComponent)
+      .join("/")}?v=${encodeURIComponent(manifest.version)}`;
+  };
 
   return {
     manifest,
@@ -63,6 +87,20 @@ export function createPluginAPI(
     hotkeys: {
       register: (key: string, commandId: string) =>
         track(registerHotkey(key, commandId)),
+    },
+    assets: {
+      url: assetUrl,
+    },
+    appearance: {
+      registerTheme: (theme) =>
+        track(registerTheme(manifest, theme, assetUrl(theme.stylesheet))),
+    },
+    icons: {
+      registerPack: (pack) => track(registerIconPack(manifest, pack)),
+      registerTheme: (theme) => track(registerIconTheme(manifest, theme)),
+      pick: requestIconPick,
+      getAssignment: getIconAssignment,
+      setAssignment: setIconAssignment,
     },
     editor: {
       registerExtension: (ext) => track(editor.registerEditorExtension(ext)),
@@ -77,6 +115,10 @@ export function createPluginAPI(
         track(workspace.registerSettingsTab(t)),
       registerStatusBarItem: (i: StatusBarItemSpec) =>
         track(workspace.registerStatusBarItem(i)),
+      registerNoteContextMenu: (i) =>
+        track(workspace.registerNoteContextMenu(i)),
+      registerFolderContextMenu: (i) =>
+        track(workspace.registerFolderContextMenu(i)),
       openNote,
       openTag,
       toggleRightPanel: workspace.toggleRightPanel,

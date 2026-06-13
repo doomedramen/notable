@@ -7,6 +7,11 @@
 // the cached listing) so creation is idempotent on replay — and if two
 // devices create the same path offline, their edits simply merge via
 // CRDT into one note.
+import {
+  moveCachedIconAssignment,
+  removeCachedFolderTree,
+  removeCachedIconAssignment,
+} from "../core/icon-assignments";
 
 export interface NoteMeta {
   /** Vault-relative path — the note's identity. */
@@ -136,6 +141,7 @@ export async function deleteNote(path: string): Promise<void> {
     ...cached,
     notes: cached.notes.filter((n) => n.path !== path),
   });
+  removeCachedIconAssignment("note", path);
   try {
     const res = await fetch(`/api/notes/${encodePath(path)}`, {
       method: "DELETE",
@@ -156,6 +162,7 @@ export async function renameNote(from: string, to: string): Promise<NoteMeta> {
     ...cached,
     notes: cached.notes.map((n) => (n.path === from ? meta : n)),
   });
+  moveCachedIconAssignment("note", from, to);
   try {
     const res = await fetch(`/api/notes/${encodePath(from)}`, {
       method: "PATCH",
@@ -205,6 +212,7 @@ export async function deleteFromTrash(path: string): Promise<void> {
     method: "DELETE",
   });
   if (!res.ok) throw new Error();
+  removeCachedIconAssignment("note", path);
 }
 
 export async function createFolder(path: string): Promise<void> {
@@ -240,6 +248,7 @@ export async function deleteFolder(path: string): Promise<void> {
       (f) => f !== path && !f.startsWith(`${path}/`),
     ),
   });
+  removeCachedFolderTree(path);
 }
 
 async function enqueue(op: Pending) {

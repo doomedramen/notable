@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router";
-import { Hash } from "lucide-react";
 import { openNote } from "../core/navigation";
 import { EmptyState } from "../components/ui/empty-state";
 import { PageContainer, PageHeader } from "../components/ui/page-header";
@@ -31,9 +30,9 @@ export function TagView() {
 
   return (
     <PageContainer>
-      <PageHeader icon={Hash}>{tag}</PageHeader>
+      <PageHeader icon="tag">{tag}</PageHeader>
       {notes.length === 0 ? (
-        <EmptyState icon={Hash} className="mt-4">
+        <EmptyState icon="tag" className="mt-4">
           No notes tagged #{tag}.
         </EmptyState>
       ) : (

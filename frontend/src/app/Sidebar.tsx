@@ -1,16 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { useStore } from "zustand";
-import {
-  ChevronDown,
-  FileText,
-  Folder,
-  FolderPlus,
-  PanelLeft,
-  Plus,
-  Settings,
-  Trash2,
-} from "lucide-react";
 import { useNotesStore, syncNotesList } from "../store/notes-store";
 import { useUI } from "../store/ui";
 import { workspaceStore } from "../core/workspace";
@@ -45,6 +35,11 @@ import {
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
 import { cn } from "../lib/cn";
+import { AppIcon } from "../components/AppIcon";
+import {
+  getIconAssignment,
+  iconAssignmentStore,
+} from "../core/icon-assignments";
 
 export function Sidebar() {
   const notes = useNotesStore((s) => s.notes);
@@ -116,7 +111,7 @@ export function Sidebar() {
         <div className="hidden shrink-0 flex-col border-r border-border bg-surface p-1.5 md:flex">
           <Tooltip label="Show sidebar" side="right">
             <Button variant="ghost" size="icon" onClick={toggle} aria-label="Show sidebar">
-              <PanelLeft size={15} />
+              <AppIcon icon="sidebar" size={15} />
             </Button>
           </Tooltip>
         </div>
@@ -141,29 +136,29 @@ export function Sidebar() {
             onClick={() => useUI.getState().setSettingsOpen(true)}
             aria-label="Settings"
           >
-            <Settings size={15} />
+            <AppIcon icon="settings" size={15} />
           </Button>
         </Tooltip>
         <Tooltip label="Hide sidebar">
           <Button variant="ghost" size="icon" onClick={toggle} aria-label="Hide sidebar">
-            <PanelLeft size={15} />
+            <AppIcon icon="sidebar" size={15} />
           </Button>
         </Tooltip>
         <DropdownMenu>
           <Tooltip label="New…">
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" aria-label="New…">
-                <Plus size={16} />
+                <AppIcon icon="add" size={16} />
               </Button>
             </DropdownMenuTrigger>
           </Tooltip>
           <DropdownMenuContent align="start">
             <DropdownMenuItem onSelect={() => void handleCreate()}>
-              <FileText size={14} className="text-muted" />
+              <AppIcon icon="note" size={14} className="text-muted" />
               New note
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setNewFolderOpen(true)}>
-              <FolderPlus size={14} className="text-muted" />
+              <AppIcon icon="folder-add" size={14} className="text-muted" />
               New folder
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -178,7 +173,7 @@ export function Sidebar() {
             <Skeleton className="h-7 w-3/4" />
           </div>
         ) : notes.length === 0 && groups.rest.length === 0 ? (
-          <EmptyState icon={FileText}>
+          <EmptyState icon="note">
             No notes yet. Create one to start writing.
           </EmptyState>
         ) : (
@@ -221,7 +216,7 @@ export function Sidebar() {
             location.pathname === "/trash" && "bg-surface-hover text-foreground",
           )}
         >
-          <Trash2 size={14} className="text-muted" />
+          <AppIcon icon="trash" size={14} className="text-muted" />
           Trash
         </button>
       </div>
@@ -256,6 +251,15 @@ function FolderGroup({
   onDeleteFolder: () => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
+  const menuItems = useStore(
+    workspaceStore,
+    (state) => state.folderContextMenuItems,
+  );
+  useStore(iconAssignmentStore, (state) => state.assignments);
+  const icon = getIconAssignment({ kind: "folder", path: folder }) ?? "folder";
+  const contributed = menuItems.filter(
+    (item) => !item.when || item.when(folder),
+  );
 
   return (
     <section className="mt-1">
@@ -265,16 +269,26 @@ function FolderGroup({
             onClick={() => setCollapsed((c) => !c)}
             className="flex w-full items-center gap-1.5 rounded-sm px-2 py-2 text-left text-sm text-muted hover:bg-surface-hover hover:text-foreground md:py-1.5"
           >
-            <ChevronDown
+            <AppIcon
+              icon="chevron-down"
               size={12}
               className={cn("shrink-0 transition-transform duration-200", collapsed && "-rotate-90")}
             />
-            <Folder size={14} className="shrink-0 text-faint" />
+            <AppIcon icon={icon} size={14} className="shrink-0 text-faint" />
             <span className="truncate font-medium">{folder}</span>
           </button>
         </ContextMenuTrigger>
         <ContextMenuContent>
           <ContextMenuItem onSelect={onCreateNote}>New note here</ContextMenuItem>
+          {contributed.map((item) => (
+            <ContextMenuItem
+              key={item.id}
+              onSelect={() => item.run(folder)}
+            >
+              {item.icon && <AppIcon icon={item.icon} size={14} />}
+              {item.label}
+            </ContextMenuItem>
+          ))}
           <ContextMenuSeparator />
           <ContextMenuItem danger onSelect={onDeleteFolder}>
             Delete folder
@@ -369,6 +383,15 @@ function NoteRow({
   onDelete: () => void;
   hideFolder?: boolean;
 }) {
+  const menuItems = useStore(
+    workspaceStore,
+    (state) => state.noteContextMenuItems,
+  );
+  useStore(iconAssignmentStore, (state) => state.assignments);
+  const icon = getIconAssignment({ kind: "note", path: note.path }) ?? "note";
+  const contributed = menuItems.filter(
+    (item) => !item.when || item.when(note.path),
+  );
   return (
     <li>
       <ContextMenu>
@@ -382,7 +405,14 @@ function NoteRow({
                 : "text-muted hover:bg-surface-hover hover:text-foreground",
             )}
           >
-            <FileText size={14} className={cn("shrink-0", active ? "text-accent" : "text-faint")} />
+            <AppIcon
+              icon={icon}
+              size={14}
+              className={cn(
+                "shrink-0",
+                active ? "text-accent" : "text-faint",
+              )}
+            />
             <span className="truncate">{note.name}</span>
             {!hideFolder && note.folder && (
               <span className="ml-auto truncate text-xs text-faint">
@@ -393,6 +423,15 @@ function NoteRow({
         </ContextMenuTrigger>
         <ContextMenuContent>
           <ContextMenuItem onSelect={onRename}>Rename…</ContextMenuItem>
+          {contributed.map((item) => (
+            <ContextMenuItem
+              key={item.id}
+              onSelect={() => item.run(note.path)}
+            >
+              {item.icon && <AppIcon icon={item.icon} size={14} />}
+              {item.label}
+            </ContextMenuItem>
+          ))}
           <ContextMenuSeparator />
           <ContextMenuItem danger onSelect={onDelete}>
             Delete note
@@ -519,7 +558,8 @@ function SidebarPanels() {
             }
             className="flex w-full items-center gap-1.5 px-3 py-2 text-xs font-medium text-muted hover:text-foreground"
           >
-            <ChevronDown
+            <AppIcon
+              icon="chevron-down"
               size={12}
               className={cn(
                 "transition-transform duration-200",

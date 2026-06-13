@@ -1,7 +1,6 @@
 import { useEffect, useRef, type TouchEvent } from "react";
 import { Outlet, useMatch, useNavigate } from "react-router";
 import { useStore } from "zustand";
-import { PanelLeft, Search, X } from "lucide-react";
 import { Sidebar } from "./Sidebar";
 import { StatusBar } from "./StatusBar";
 import { ThemeProvider } from "./ThemeProvider";
@@ -17,6 +16,8 @@ import { Button } from "../components/ui/button";
 import { setActiveNoteId, setNavigator } from "../core/navigation";
 import { toggleRightPanel, workspaceStore } from "../core/workspace";
 import { useUI } from "../store/ui";
+import { AppIcon } from "../components/AppIcon";
+import { IconPicker } from "../components/IconPicker";
 
 const isMobile = () => window.matchMedia("(max-width: 767px)").matches;
 
@@ -93,6 +94,7 @@ export function AppShell() {
         <InstallPrompt />
         <UpdatePrompt />
         <Toaster />
+        <IconPicker />
       </TooltipProvider>
     </ThemeProvider>
   );
@@ -112,7 +114,7 @@ function MobileTopBar({ activePath }: { activePath: string | null }) {
         aria-label="Open sidebar"
         onClick={() => useUI.getState().toggleSidebar()}
       >
-        <PanelLeft size={16} />
+        <AppIcon icon="sidebar" size={16} />
       </Button>
       <span className="flex-1 truncate px-1 text-sm font-medium">
         {name ?? "Notable"}
@@ -123,7 +125,7 @@ function MobileTopBar({ activePath }: { activePath: string | null }) {
         aria-label="Search"
         onClick={() => useUI.getState().setPaletteOpen(true)}
       >
-        <Search size={16} />
+        <AppIcon icon="search" size={16} />
       </Button>
     </header>
   );
@@ -139,6 +141,7 @@ function RightPanel() {
   return (
     <aside className="fixed inset-y-0 right-0 z-40 flex w-80 max-w-[85vw] flex-col border-l border-border bg-surface md:static md:z-auto md:w-72">
       <div className="flex h-9 shrink-0 items-center gap-2 border-b border-border px-3">
+        {panel.icon && <AppIcon icon={panel.icon} size={14} className="text-faint" />}
         <span className="flex-1 text-sm font-medium">{panel.title}</span>
         <Button
           variant="ghost"
@@ -146,7 +149,7 @@ function RightPanel() {
           aria-label="Close panel"
           onClick={() => toggleRightPanel(panel.id)}
         >
-          <X size={14} />
+          <AppIcon icon="close" size={14} />
         </Button>
       </div>
       <MountHost

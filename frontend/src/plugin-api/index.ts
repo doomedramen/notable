@@ -30,6 +30,133 @@ export interface PluginManifest {
   entry?: string;
   /** Core plugins may opt into loading on a fresh install. */
   defaultEnabled?: boolean;
+  /** Host API contract required by this plugin. Defaults to 1. */
+  apiVersion?: number;
+  /** Marketplace categories such as "theme" or "icons". */
+  categories?: string[];
+}
+
+export type AppIconSlot =
+  | "add"
+  | "appearance"
+  | "check"
+  | "chevron-down"
+  | "clear"
+  | "close"
+  | "command"
+  | "external-link"
+  | "file-search"
+  | "folder"
+  | "folder-add"
+  | "icon"
+  | "note"
+  | "panel"
+  | "plugins"
+  | "restore"
+  | "search"
+  | "settings"
+  | "sidebar"
+  | "tag"
+  | "theme-dark"
+  | "theme-light"
+  | "theme-system"
+  | "trash";
+
+export interface IconRef {
+  packId: string;
+  iconId: string;
+}
+
+export type IconSource = AppIconSlot | IconRef;
+
+export interface IconDefinition {
+  /** Trusted SVG child markup, e.g. one or more path elements. */
+  body?: string;
+  /** View box used with body. Defaults to "0 0 24 24". */
+  viewBox?: string;
+  /** Text glyph alternative, used by emoji-style packs. */
+  glyph?: string;
+  keywords?: string[];
+}
+
+export interface IconPackSpec {
+  id: string;
+  name: string;
+  icons: Record<string, IconDefinition>;
+}
+
+export interface IconThemeSpec {
+  id: string;
+  name: string;
+  icons: Partial<Record<AppIconSlot, IconRef>>;
+}
+
+export type ThemeControl =
+  | {
+      id: string;
+      label: string;
+      type: "color";
+      cssVariable: string;
+      default: string;
+    }
+  | {
+      id: string;
+      label: string;
+      type: "number";
+      cssVariable: string;
+      default: number;
+      min: number;
+      max: number;
+      step?: number;
+      unit?: string;
+    }
+  | {
+      id: string;
+      label: string;
+      type: "toggle";
+      cssVariable: string;
+      default: boolean;
+      trueValue: string;
+      falseValue: string;
+    }
+  | {
+      id: string;
+      label: string;
+      type: "select";
+      default: string;
+      cssVariable?: string;
+      options: {
+        label: string;
+        value: string;
+        variables?: Record<string, string>;
+      }[];
+    };
+
+export interface ThemeSpec {
+  id: string;
+  name: string;
+  /** Plugin-relative CSS asset path. */
+  stylesheet: string;
+  controls?: ThemeControl[];
+}
+
+export interface IconPickerOptions {
+  title?: string;
+  current?: IconRef | null;
+  allowClear?: boolean;
+}
+
+export interface IconTarget {
+  kind: "note" | "folder";
+  path: string;
+}
+
+export interface ContextMenuItemSpec {
+  id: string;
+  label: string;
+  icon?: IconSource;
+  when?: (path: string) => boolean;
+  run(path: string): void;
 }
 
 export interface NoteMeta {
@@ -50,6 +177,7 @@ export interface Command {
   name: string;
   /** Default hotkey, e.g. "Mod-Shift-P" (Mod = Cmd on macOS, Ctrl elsewhere). */
   hotkey?: string;
+  icon?: IconSource;
   /** If present and returns false, the command is hidden/inert. */
   when?: () => boolean;
   run: () => void;
@@ -58,6 +186,7 @@ export interface Command {
 export interface PanelSpec {
   id: string;
   title: string;
+  icon?: IconSource;
   /** Mount imperative UI into `el`; return a cleanup function. */
   mount(el: HTMLElement): () => void;
 }
@@ -65,6 +194,7 @@ export interface PanelSpec {
 export interface SettingsTabSpec {
   id: string;
   title: string;
+  icon?: IconSource;
   mount(el: HTMLElement): () => void;
 }
 
@@ -94,6 +224,27 @@ export interface NotableAPI {
     register(key: string, commandId: string): Disposable;
   };
 
+  assets: {
+    /** Build a URL for a regular file shipped inside this plugin. */
+    url(path: string): string;
+  };
+
+  appearance: {
+    registerTheme(theme: ThemeSpec): Disposable;
+  };
+
+  icons: {
+    registerPack(pack: IconPackSpec): Disposable;
+    registerTheme(theme: IconThemeSpec): Disposable;
+    /**
+     * Open the host picker. `undefined` means cancelled and `null` means
+     * the user explicitly chose Clear.
+     */
+    pick(options?: IconPickerOptions): Promise<IconRef | null | undefined>;
+    getAssignment(target: IconTarget): IconRef | null;
+    setAssignment(target: IconTarget, icon: IconRef | null): Promise<void>;
+  };
+
   editor: {
     /** Add a CodeMirror extension to every editor (live-reconfigured). */
     registerExtension(ext: Extension): Disposable;
@@ -105,6 +256,8 @@ export interface NotableAPI {
     registerRightPanel(panel: PanelSpec): Disposable;
     registerSettingsTab(tab: SettingsTabSpec): Disposable;
     registerStatusBarItem(item: StatusBarItemSpec): Disposable;
+    registerNoteContextMenu(item: ContextMenuItemSpec): Disposable;
+    registerFolderContextMenu(item: ContextMenuItemSpec): Disposable;
     openNote(path: string): void;
     /** Navigate to the note-list view for a tag (`/tag/<tag>`). */
     openTag(tag: string): void;

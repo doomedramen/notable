@@ -27,6 +27,12 @@ import { emit } from "../core/events";
 import { useNotesStore } from "../store/notes-store";
 import { openNote } from "../core/navigation";
 import { notice } from "../components/ui/toast";
+import { AppIcon } from "../components/AppIcon";
+import {
+  getIconAssignment,
+  iconAssignmentStore,
+} from "../core/icon-assignments";
+import { useStore } from "zustand";
 import { takePendingContent } from "../core/pending-content";
 
 /* Typographic markdown styling — headings scale, syntax markers fade.
@@ -146,6 +152,8 @@ function EditableTitle({ notePath }: { notePath: string }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(name);
   const inputRef = useRef<HTMLInputElement>(null);
+  useStore(iconAssignmentStore, (state) => state.assignments);
+  const icon = getIconAssignment({ kind: "note", path: notePath });
 
   useEffect(() => {
     setValue(name);
@@ -198,12 +206,15 @@ function EditableTitle({ notePath }: { notePath: string }) {
   }
 
   return (
-    <h1
-      onClick={() => setEditing(true)}
-      className="-mx-1 cursor-text rounded-sm px-1 text-2xl font-bold tracking-tight hover:bg-surface-hover"
-      title="Click to rename"
-    >
-      {name}
-    </h1>
+    <div className="flex items-center gap-2">
+      {icon && <AppIcon icon={icon} size={22} className="text-faint" />}
+      <h1
+        onClick={() => setEditing(true)}
+        className="-mx-1 cursor-text rounded-sm px-1 text-2xl font-bold tracking-tight hover:bg-surface-hover"
+        title="Click to rename"
+      >
+        {name}
+      </h1>
+    </div>
   );
 }

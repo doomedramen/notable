@@ -15,6 +15,8 @@ describe("workspace registries", () => {
       rightPanels: [],
       settingsTabs: [],
       statusBarItems: [],
+      noteContextMenuItems: [],
+      folderContextMenuItems: [],
       activeRightPanel: null,
     });
   });

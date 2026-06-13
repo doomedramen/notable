@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X } from "lucide-react";
+import { AppIcon } from "./components/AppIcon";
 
 // On iOS, installing to the Home Screen isn't cosmetic — per WebKit's
 // ITP policy, installed web apps are exempt from the 7-day storage
@@ -43,7 +43,7 @@ export function InstallPrompt() {
         aria-label="Dismiss"
         className="rounded-sm p-0.5 text-faint hover:text-foreground"
       >
-        <X size={14} />
+        <AppIcon icon="close" size={14} />
       </button>
     </div>
   );

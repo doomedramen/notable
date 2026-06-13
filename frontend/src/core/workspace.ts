@@ -1,5 +1,6 @@
 import { createStore } from "zustand";
 import type {
+  ContextMenuItemSpec,
   Disposable,
   PanelSpec,
   SettingsTabSpec,
@@ -15,6 +16,8 @@ interface WorkspaceState {
   rightPanels: readonly PanelSpec[];
   settingsTabs: readonly SettingsTabSpec[];
   statusBarItems: readonly StatusBarItemSpec[];
+  noteContextMenuItems: readonly ContextMenuItemSpec[];
+  folderContextMenuItems: readonly ContextMenuItemSpec[];
   /** Currently visible right panel (null = hidden). */
   activeRightPanel: string | null;
 }
@@ -24,11 +27,19 @@ export const workspaceStore = createStore<WorkspaceState>(() => ({
   rightPanels: [],
   settingsTabs: [],
   statusBarItems: [],
+  noteContextMenuItems: [],
+  folderContextMenuItems: [],
   activeRightPanel: null,
 }));
 
 function registerIn<T extends { id: string }>(
-  key: "sidebarPanels" | "rightPanels" | "settingsTabs" | "statusBarItems",
+  key:
+    | "sidebarPanels"
+    | "rightPanels"
+    | "settingsTabs"
+    | "statusBarItems"
+    | "noteContextMenuItems"
+    | "folderContextMenuItems",
   item: T,
 ): Disposable {
   workspaceStore.setState((s) => ({
@@ -59,6 +70,10 @@ export const registerSettingsTab = (t: SettingsTabSpec) =>
   registerIn("settingsTabs", t);
 export const registerStatusBarItem = (i: StatusBarItemSpec) =>
   registerIn("statusBarItems", i);
+export const registerNoteContextMenu = (i: ContextMenuItemSpec) =>
+  registerIn("noteContextMenuItems", i);
+export const registerFolderContextMenu = (i: ContextMenuItemSpec) =>
+  registerIn("folderContextMenuItems", i);
 
 export function toggleRightPanel(id: string): void {
   workspaceStore.setState((s) => ({

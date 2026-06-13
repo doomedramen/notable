@@ -288,6 +288,16 @@ pub async fn rename(
     crate::sync::flush_and_evict(&state, &path).await;
 
     std::fs::rename(&from, &to).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    if let Err(error) = crate::icon_assignments::move_path(
+        &state,
+        crate::icon_assignments::AssignmentKind::Note,
+        &path,
+        &req.new_path,
+    )
+    .await
+    {
+        tracing::warn!("could not move icon assignment after note rename: {error}");
+    }
 
     let entering_trash = req.new_path.starts_with(".trash/");
     let leaving_trash = path.starts_with(".trash/");
@@ -335,11 +345,25 @@ pub async fn delete(
         .execute(&state.db)
         .await;
     crate::indexer::remove_note(&state, &path).await;
-    match std::fs::remove_file(abs) {
+    let status = match std::fs::remove_file(abs) {
         Ok(_) => StatusCode::NO_CONTENT,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => StatusCode::NO_CONTENT,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            StatusCode::NO_CONTENT
+        }
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
+    };
+    if status == StatusCode::NO_CONTENT {
+        if let Err(error) = crate::icon_assignments::remove_path(
+            &state,
+            crate::icon_assignments::AssignmentKind::Note,
+            &path,
+        )
+        .await
+        {
+            tracing::warn!("could not remove icon assignment after note delete: {error}");
+        }
     }
+    status
 }
 
 #[derive(Serialize)]
@@ -441,7 +465,14 @@ pub async fn delete_folder(
         return StatusCode::CONFLICT;
     }
     match std::fs::remove_dir_all(&abs) {
-        Ok(_) => StatusCode::NO_CONTENT,
+        Ok(_) => {
+            if let Err(error) =
+                crate::icon_assignments::remove_folder_tree(&state, &path).await
+            {
+                tracing::warn!("could not remove folder icon assignments: {error}");
+            }
+            StatusCode::NO_CONTENT
+        }
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }

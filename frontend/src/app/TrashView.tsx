@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Trash2, RotateCcw, X } from "lucide-react";
 import {
   deleteFromTrash,
   listTrash,
@@ -12,6 +11,7 @@ import { notice } from "../components/ui/toast";
 import { on } from "../core/events";
 import { EmptyState } from "../components/ui/empty-state";
 import { PageContainer, PageHeader } from "../components/ui/page-header";
+import { AppIcon } from "../components/AppIcon";
 
 /** Lists notes sitting in `.trash/`, with restore / delete-forever (route: /trash). */
 export function TrashView() {
@@ -50,9 +50,9 @@ export function TrashView() {
 
   return (
     <PageContainer>
-      <PageHeader icon={Trash2}>Trash</PageHeader>
+      <PageHeader icon="trash">Trash</PageHeader>
       {loaded && items.length === 0 ? (
-        <EmptyState icon={Trash2} className="mt-4">
+        <EmptyState icon="trash" className="mt-4">
           Trash is empty.
         </EmptyState>
       ) : (
@@ -76,7 +76,7 @@ export function TrashView() {
                 aria-label={`Restore ${note.name}`}
                 title="Restore"
               >
-                <RotateCcw size={14} />
+                <AppIcon icon="restore" size={14} />
               </button>
               <button
                 onClick={() => void handleDeleteForever(note)}
@@ -84,7 +84,7 @@ export function TrashView() {
                 aria-label={`Delete ${note.name} forever`}
                 title="Delete forever"
               >
-                <X size={14} />
+                <AppIcon icon="close" size={14} />
               </button>
             </li>
           ))}

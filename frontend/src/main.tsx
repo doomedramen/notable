@@ -15,6 +15,10 @@ import { dirtyCount, DIRTY_EVENT } from "./sync/dirty";
 import { registerBuiltinCommands } from "./app/builtin-commands";
 import { installHotkeys } from "./core/hotkeys";
 import { loadEnabledPlugins } from "./core/plugin-loader";
+import {
+  flushIconAssignmentQueue,
+  loadIconAssignments,
+} from "./core/icon-assignments";
 
 // Mitigation for Safari/iOS storage eviction: ask the browser to treat
 // our origin's storage (IndexedDB) as persistent. Chrome/Firefox honor
@@ -47,6 +51,10 @@ registerBuiltinCommands();
 installHotkeys();
 // Plugins load in the background; the app never blocks on them.
 void loadEnabledPlugins();
+void loadIconAssignments().then(() => flushIconAssignmentQueue());
+const flushIconAssignments = () => void flushIconAssignmentQueue();
+window.addEventListener("online", flushIconAssignments);
+window.addEventListener("notable:server-reachable", flushIconAssignments);
 
 const router = createBrowserRouter([
   {

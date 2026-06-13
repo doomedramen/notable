@@ -19,11 +19,14 @@ export interface CommunityPlugin {
   description: string;
   author: string;
   homepage: string;
+  apiVersion: number;
+  categories: string[];
   installed: boolean;
   enabled: boolean;
   activeVersion: string | null;
   updateAvailable: boolean;
   installable: boolean;
+  compatible: boolean;
 }
 
 interface LoadedPlugin {
@@ -97,6 +100,12 @@ export async function loadEnabledPlugins(): Promise<void> {
 
 export async function loadPlugin(manifest: PluginManifest): Promise<boolean> {
   if (loaded.has(manifest.id)) return true;
+  if ((manifest.apiVersion ?? 1) > 2) {
+    notice(`Plugin “${manifest.name}” requires a newer Notable version.`, {
+      variant: "danger",
+    });
+    return false;
+  }
   const entry = manifest.entry ?? "main.js";
   try {
     const entryPath = entry.split("/").map(encodeURIComponent).join("/");

@@ -1,5 +1,5 @@
 import { createStore, useStore } from "zustand";
-import { X } from "lucide-react";
+import { AppIcon } from "../AppIcon";
 
 /* Toasts live in a vanilla store so non-React code (sync layer, plugin
    API's ui.notice) can raise them. */
@@ -64,7 +64,7 @@ export function Toaster() {
             className="rounded-sm p-0.5 text-faint hover:text-foreground"
             aria-label="Dismiss"
           >
-            <X size={14} />
+            <AppIcon icon="close" size={14} />
           </button>
         </div>
       ))}
