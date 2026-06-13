@@ -166,6 +166,7 @@ export function CommandPalette() {
                     getIconAssignment({ kind: "note", path: note.path }) ??
                     "note"
                   }
+                  fallback="note"
                   size={14}
                   className="shrink-0 text-faint"
                 />

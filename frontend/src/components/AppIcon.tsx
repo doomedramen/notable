@@ -59,11 +59,13 @@ const fallbacks: Record<AppIconSlot, LucideIcon> = {
 
 export function AppIcon({
   icon,
+  fallback,
   size = 16,
   className,
   strokeWidth,
 }: {
   icon: IconSource;
+  fallback?: AppIconSlot;
   size?: number;
   className?: string;
   strokeWidth?: number;
@@ -71,7 +73,7 @@ export function AppIcon({
   useStore(iconsStore, (state) => state.packs);
   useStore(iconsStore, (state) => state.themes);
   useUI((state) => state.appIconTheme);
-  const resolved = resolveIcon(icon);
+  const resolved = resolveIcon(icon) ?? (fallback ? resolveIcon(fallback) : null);
 
   if (resolved?.definition.glyph) {
     return (
@@ -100,8 +102,9 @@ export function AppIcon({
     );
   }
 
-  if (typeof icon === "string") {
-    const Fallback = fallbacks[icon];
+  const fallbackSlot = typeof icon === "string" ? icon : fallback;
+  if (fallbackSlot) {
+    const Fallback = fallbacks[fallbackSlot];
     return (
       <Fallback
         aria-hidden

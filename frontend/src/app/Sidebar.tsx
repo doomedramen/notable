@@ -119,7 +119,7 @@ export function Sidebar() {
       {/* Mobile: off-canvas drawer. Desktop: static panel. */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-72 max-w-[85vw] shrink-0 flex-col border-r border-border bg-surface pt-[env(safe-area-inset-top)] transition-transform duration-200 md:static md:z-auto md:w-60 md:max-w-none md:pt-0 md:transition-none",
+          "fixed inset-y-0 left-0 z-40 flex w-72 max-w-[85vw] shrink-0 flex-col border-r border-border bg-surface pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] transition-transform duration-200 md:static md:z-auto md:w-60 md:max-w-none md:pt-0 md:pb-0 md:transition-none",
           open ? "translate-x-0" : "-translate-x-full",
           !open && "md:hidden",
         )}
@@ -274,7 +274,12 @@ function FolderGroup({
               size={12}
               className={cn("shrink-0 transition-transform duration-200", collapsed && "-rotate-90")}
             />
-            <AppIcon icon={icon} size={14} className="shrink-0 text-faint" />
+            <AppIcon
+              icon={icon}
+              fallback="folder"
+              size={14}
+              className="shrink-0 text-faint"
+            />
             <span className="truncate font-medium">{folder}</span>
           </button>
         </ContextMenuTrigger>
@@ -407,6 +412,7 @@ function NoteRow({
           >
             <AppIcon
               icon={icon}
+              fallback="note"
               size={14}
               className={cn(
                 "shrink-0",

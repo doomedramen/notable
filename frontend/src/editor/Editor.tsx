@@ -207,7 +207,14 @@ function EditableTitle({ notePath }: { notePath: string }) {
 
   return (
     <div className="flex items-center gap-2">
-      {icon && <AppIcon icon={icon} size={22} className="text-faint" />}
+      {icon && (
+        <AppIcon
+          icon={icon}
+          fallback="note"
+          size={22}
+          className="text-faint"
+        />
+      )}
       <h1
         onClick={() => setEditing(true)}
         className="-mx-1 cursor-text rounded-sm px-1 text-2xl font-bold tracking-tight hover:bg-surface-hover"

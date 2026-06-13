@@ -104,7 +104,7 @@ export function AppShell() {
 function MobileTopBar({ activePath }: { activePath: string | null }) {
   return (
     <header
-      className="flex h-11 shrink-0 items-center gap-1 border-b border-border px-2 pt-[env(safe-area-inset-top)] md:hidden"
+      className="flex h-[calc(2.75rem+env(safe-area-inset-top))] shrink-0 items-center gap-1 border-b border-border px-2 pt-[env(safe-area-inset-top)] md:hidden"
       data-testid="mobile-top-bar"
       aria-label={activePath ? "Note navigation" : "App navigation"}
     >
