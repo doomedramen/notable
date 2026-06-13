@@ -52,7 +52,7 @@ export function QuickNote() {
     const preferred = requestedFolder ?? lastFolder;
     setFolder(preferred && folders.includes(preferred) ? preferred : "");
     requestAnimationFrame(() => contentRef.current?.focus());
-  }, [open, requestedFolder, lastFolder, folders]);
+  }, [open]);
 
   const save = async () => {
     if (saving) return;

@@ -25,6 +25,9 @@ test("sidebar is a drawer: closed on load, opens, closes on navigation", async (
   // Creating a note navigates to it — drawer must close to reveal it.
   await page.getByLabel("New…").click();
   await page.getByRole("menuitem", { name: "New note" }).click();
+  await expect(page.getByRole("dialog", { name: "Quick Note" })).toBeVisible();
+  await page.getByRole("button", { name: "Save note" }).click();
+  await page.getByRole("button", { name: "Open", exact: true }).click();
   await expect(page).toHaveURL(/\/note\//);
   await expect(sidebar).not.toBeInViewport();
   await expect(page.locator(".cm-content")).toBeVisible();
@@ -53,6 +56,14 @@ test("footer sits flush with the viewport bottom", async ({ page }) => {
   expect(box.y + box.height).toBe(viewport.height);
   await expect(footer).toHaveCSS("margin-bottom", "0px");
   await expect(footer).toHaveCSS("padding-bottom", "0px");
+});
+
+test("mobile Quick Note button is a 48px touch target", async ({ page }) => {
+  await page.goto("/");
+  const floating = page.locator('button.fixed[aria-label="Quick note"]');
+  const box = (await floating.boundingBox())!;
+  expect(box.width).toBe(48);
+  expect(box.height).toBe(48);
 });
 
 test("plugin status moves into a menu only when it runs out of room", async ({
@@ -245,4 +256,22 @@ test("settings opens as a near-fullscreen sheet with tab strip", async ({
   const box = (await dialog.boundingBox())!;
   const viewport = page.viewportSize()!;
   expect(box.width).toBeGreaterThan(viewport.width * 0.9);
+});
+
+test("settings sheet can be dismissed with a downward drag", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByLabel("Open sidebar").click();
+  await page.getByLabel("Settings").click();
+  const dialog = page.getByRole("dialog", { name: "Settings" });
+  const handle = page.getByTestId("settings-sheet-handle");
+  const box = (await handle.boundingBox())!;
+
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2, box.y + 180, { steps: 8 });
+  await page.mouse.up();
+
+  await expect(dialog).not.toBeVisible();
 });

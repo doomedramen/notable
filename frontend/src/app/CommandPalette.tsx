@@ -173,7 +173,9 @@ export function CommandPalette() {
 
             {noteResults.length > 0 && (
               <Cmdk.Group
-                heading={query ? "Notes" : "Recent notes"}
+                heading={
+                  query || recentNotePaths.length === 0 ? "Notes" : "Recent notes"
+                }
                 className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-faint"
               >
                 {noteResults.map((note) => (
@@ -242,7 +244,11 @@ export function CommandPalette() {
 
             {commandResults.length > 0 && (
               <Cmdk.Group
-                heading={query ? "Commands" : "Recent commands"}
+                heading={
+                  query || recentCommandIds.length === 0
+                    ? "Commands"
+                    : "Recent commands"
+                }
                 className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-faint"
               >
                 {commandResults.map((cmd) => (

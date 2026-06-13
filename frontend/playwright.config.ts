@@ -23,6 +23,14 @@ export default defineConfig({
       testMatch: /mobile\.spec\.ts/,
       use: { ...devices["iPhone 14"], browserName: "chromium" },
     },
+    {
+      name: "tablet",
+      testMatch: /tablet\.spec\.ts/,
+      use: {
+        ...devices["iPad (gen 7)"],
+        browserName: "chromium",
+      },
+    },
   ],
   webServer: {
     command:

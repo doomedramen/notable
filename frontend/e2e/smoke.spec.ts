@@ -10,6 +10,9 @@ const DATABASE = "/tmp/notable-e2e.db";
 async function createNote(page: Page): Promise<string> {
   await page.getByLabel("New…").click();
   await page.getByRole("menuitem", { name: "New note" }).click();
+  await expect(page.getByRole("dialog", { name: "Quick Note" })).toBeVisible();
+  await page.getByRole("button", { name: "Save note" }).click();
+  await page.getByRole("button", { name: "Open", exact: true }).click();
   await expect(page).toHaveURL(/\/note\//);
   return decodeURIComponent(
     new URL(page.url()).pathname.replace(/^\/note\//, ""),
@@ -224,6 +227,8 @@ test("delete an empty folder, but not a non-empty one", async ({ page }) => {
     .getByRole("button", { name: fullFolder, exact: true })
     .click({ button: "right" });
   await page.getByRole("menuitem", { name: "New note here" }).click();
+  await page.getByRole("button", { name: "Save note" }).click();
+  await page.getByRole("button", { name: "Open", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`${encodeURIComponent(fullFolder)}/`));
 
   // Deleting the non-empty folder is refused.
@@ -265,7 +270,114 @@ test("create a folder and a note inside it", async ({ page }) => {
     .getByRole("button", { name: "Projects", exact: true })
     .click({ button: "right" });
   await page.getByRole("menuitem", { name: "New note here" }).click();
+  await expect(page.getByLabel("Folder")).toHaveValue("Projects");
+  await page.getByRole("button", { name: "Save note" }).click();
+  await page.getByRole("button", { name: "Open", exact: true }).click();
   await expect(page).toHaveURL(/\/note\/Projects\//);
+});
+
+test("quick note captures in place, remembers its folder, and supports Undo", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await page.getByLabel("New…").click();
+  await page.getByRole("menuitem", { name: "New folder" }).click();
+  const folder = `Capture ${Date.now()}`;
+  await page.getByLabel("Folder name").fill(folder);
+  await page.getByRole("button", { name: "Create" }).click();
+
+  await page.keyboard.press("ControlOrMeta+Alt+n");
+  await page.getByLabel("Quick note content").fill("# Captured thought\nBody");
+  await page.getByLabel("Folder").selectOption(folder);
+  const before = page.url();
+  await page.getByLabel("Quick note content").press("ControlOrMeta+Enter");
+
+  await expect(page).toHaveURL(before);
+  await expect(page.getByText("Note captured.")).toBeVisible();
+  await expect(page.locator("nav")).toContainText("Captured thought");
+
+  await page.keyboard.press("ControlOrMeta+Alt+n");
+  await expect(page.getByLabel("Folder")).toHaveValue(folder);
+  await page.keyboard.press("Escape");
+
+  const row = page
+    .locator("nav")
+    .getByRole("button", { name: "Captured thought", exact: true });
+  await row.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Delete note" }).click();
+  await expect(page.locator("nav")).not.toContainText("Captured thought");
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(page.locator("nav")).toContainText("Captured thought");
+});
+
+test("quick note captures content while offline", async ({ page, context }) => {
+  await page.goto("/");
+  await context.setOffline(true);
+
+  await page.keyboard.press("ControlOrMeta+Alt+n");
+  await page.getByLabel("Quick note content").fill("Offline quick capture");
+  await page.getByLabel("Quick note content").press("ControlOrMeta+Enter");
+  await page.getByRole("button", { name: "Open", exact: true }).click();
+
+  await expect(page.locator(".cm-content")).toContainText("Offline quick capture");
+  await context.setOffline(false);
+});
+
+test("sidebar note rows support keyboard navigation and trash", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const notePath = await createNote(page);
+  const noteName = notePath.split("/").pop()!.replace(/\.md$/, "");
+  const activeRow = page
+    .locator("nav")
+    .getByRole("button", { name: noteName, exact: true });
+  await activeRow.focus();
+  await page.keyboard.press("F2");
+  await expect(page.getByRole("dialog", { name: "Rename note" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await activeRow.focus();
+  await page.keyboard.press("Delete");
+  await expect(page.getByRole("button", { name: "Undo" })).toBeVisible();
+});
+
+test("notes drag onto folders and can be moved back with Undo", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByLabel("New…").click();
+  await page.getByRole("menuitem", { name: "New folder" }).click();
+  const folder = `Drop ${Date.now()}`;
+  await page.getByLabel("Folder name").fill(folder);
+  await page.getByRole("button", { name: "Create" }).click();
+  const notePath = await createNote(page);
+  const noteName = notePath.replace(/\.md$/, "").split("/").pop()!;
+
+  const row = page
+    .locator("nav")
+    .getByRole("button", { name: noteName, exact: true });
+  const target = page
+    .locator("nav")
+    .getByRole("button", { name: folder, exact: true });
+  await row.dragTo(target);
+
+  await expect(page).toHaveURL(
+    new RegExp(`/note/${encodeURIComponent(folder)}/`),
+  );
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(page).not.toHaveURL(
+    new RegExp(`/note/${encodeURIComponent(folder)}/`),
+  );
+});
+
+test("installed-app new-note shortcut opens focused Quick Note", async ({
+  page,
+}) => {
+  await page.goto("/new");
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole("dialog", { name: "Quick Note" })).toBeVisible();
+  await expect(page.getByLabel("Quick note content")).toBeFocused();
 });
 
 test("full-text search finds notes by content in the palette", async ({
