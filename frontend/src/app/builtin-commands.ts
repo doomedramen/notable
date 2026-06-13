@@ -28,7 +28,14 @@ export function registerBuiltinCommands(): void {
     id: "sidebar.toggle",
     name: "Toggle sidebar",
     hotkey: "Mod-\\",
-    run: () => useUI.getState().toggleSidebar(),
+    run: () => {
+      const state = useUI.getState();
+      if (window.matchMedia("(max-width: 767px)").matches) {
+        state.toggleMobileSidebar();
+      } else {
+        state.toggleSidebar();
+      }
+    },
   });
 
   registerCommand({

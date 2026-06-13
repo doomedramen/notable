@@ -1,6 +1,5 @@
 import {
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -11,7 +10,6 @@ import {
 } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { useStore } from "zustand";
-import { SwipeBarLeft, useSwipeBarContext } from "@luciodale/swipe-bar";
 import { useNotesStore, syncNotesList } from "../store/notes-store";
 import { useUI } from "../store/ui";
 import { workspaceStore } from "../core/workspace";
@@ -46,17 +44,21 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetContent,
+  SheetOverlay,
+  SheetPortal,
+} from "../components/ui/sheet";
 import { cn } from "../lib/cn";
 import { AppIcon } from "../components/AppIcon";
+import { useMobileSidebarGesture } from "./useMobileSidebarGesture";
 import {
   getIconAssignment,
   iconAssignmentStore,
 } from "../core/icon-assignments";
 
 const MOBILE_DRAWER_WIDTH = 288;
-const SWIPE_EDGE_WIDTH = 40;
-const SWIPE_ACTIVATION_DELTA = 20;
-const SWIPE_TRANSITION_MS = 200;
 
 /** Tracks the md breakpoint (768px) so sidebarBody is only mounted into
     whichever of the two wrappers (desktop aside / mobile drawer) is
@@ -75,132 +77,6 @@ function useIsMobile() {
   return isMobile;
 }
 
-/** The drawer package only reveals its overlay after the open state settles.
-    This companion layer follows an edge drag so the page dims immediately,
-    then cross-fades into the package's clickable overlay. */
-function MobileSwipeBackdrop() {
-  const { leftSidebars } = useSwipeBarContext();
-  const drawerOpen = leftSidebars.sidebar?.isOpen ?? false;
-  const backdropRef = useRef<HTMLDivElement>(null);
-  const touchIdRef = useRef<number | null>(null);
-  const startXRef = useRef<number | null>(null);
-  const previousXRef = useRef<number | null>(null);
-  const lastXRef = useRef<number | null>(null);
-  const activatedRef = useRef(false);
-
-  const setOpacity = (opacity: number, animate: boolean) => {
-    const backdrop = backdropRef.current;
-    if (!backdrop) return;
-    backdrop.style.transition = animate
-      ? `opacity ${SWIPE_TRANSITION_MS}ms ease`
-      : "none";
-    backdrop.style.opacity = String(opacity);
-  };
-
-  useEffect(() => {
-    if (!drawerOpen) return;
-    // The built-in overlay starts fading in now. Cross-fade this drag layer
-    // out instead of dropping the dimming for a frame at handoff.
-    const frame = requestAnimationFrame(() => setOpacity(0, true));
-    return () => cancelAnimationFrame(frame);
-  }, [drawerOpen]);
-
-  useLayoutEffect(() => {
-    const findTouch = (touches: TouchList, id: number) => {
-      for (let index = 0; index < touches.length; index += 1) {
-        const touch = touches[index];
-        if (touch?.identifier === id) return touch;
-      }
-      return null;
-    };
-
-    const resetGesture = () => {
-      touchIdRef.current = null;
-      startXRef.current = null;
-      previousXRef.current = null;
-      lastXRef.current = null;
-      activatedRef.current = false;
-    };
-
-    const onTouchStart = (event: TouchEvent) => {
-      if (drawerOpen || event.changedTouches.length === 0) return;
-      const touch = event.changedTouches[0];
-      if (!touch || touch.clientX > SWIPE_EDGE_WIDTH) return;
-      touchIdRef.current = touch.identifier;
-      startXRef.current = touch.clientX;
-      previousXRef.current = touch.clientX;
-      lastXRef.current = touch.clientX;
-      activatedRef.current = false;
-      setOpacity(0, false);
-    };
-
-    const onTouchMove = (event: TouchEvent) => {
-      const touchId = touchIdRef.current;
-      const startX = startXRef.current;
-      if (touchId === null || startX === null) return;
-      const touch = findTouch(event.changedTouches, touchId);
-      if (!touch) return;
-      const delta = touch.clientX - startX;
-      if (
-        !activatedRef.current &&
-        Math.abs(delta) >= SWIPE_ACTIVATION_DELTA
-      ) {
-        activatedRef.current = true;
-      }
-      if (!activatedRef.current) return;
-      previousXRef.current = lastXRef.current;
-      lastXRef.current = touch.clientX;
-      const revealed = Math.max(
-        0,
-        delta - SWIPE_ACTIVATION_DELTA,
-      );
-      setOpacity(Math.min(1, revealed / MOBILE_DRAWER_WIDTH), false);
-    };
-
-    const onTouchEnd = () => {
-      const touchId = touchIdRef.current;
-      const startX = startXRef.current;
-      if (touchId === null || startX === null) return;
-      const currentX = lastXRef.current ?? startX;
-      const previousX = previousXRef.current ?? startX;
-      const willOpen =
-        activatedRef.current && currentX >= previousX;
-      // When opening, snap straight to fully dim instead of animating —
-      // the drawer-open effect above immediately animates this layer back
-      // to 0 to cross-fade into the package's overlay. On a fast swipe
-      // both transitions would otherwise queue back-to-back and the
-      // backdrop visibly flickers (animates up, then instantly reverses).
-      setOpacity(willOpen ? 1 : 0, !willOpen);
-      resetGesture();
-    };
-
-    const onTouchCancel = () => {
-      setOpacity(0, true);
-      resetGesture();
-    };
-
-    window.addEventListener("touchstart", onTouchStart, { passive: true });
-    window.addEventListener("touchmove", onTouchMove, { passive: true });
-    window.addEventListener("touchend", onTouchEnd, { passive: true });
-    window.addEventListener("touchcancel", onTouchCancel, { passive: true });
-    return () => {
-      window.removeEventListener("touchstart", onTouchStart);
-      window.removeEventListener("touchmove", onTouchMove);
-      window.removeEventListener("touchend", onTouchEnd);
-      window.removeEventListener("touchcancel", onTouchCancel);
-    };
-  }, [drawerOpen]);
-
-  return (
-    <div
-      ref={backdropRef}
-      data-testid="sidebar-swipe-backdrop"
-      aria-hidden
-      className="pointer-events-none fixed inset-0 z-[30] bg-black/50 opacity-0 md:hidden"
-    />
-  );
-}
-
 export function Sidebar() {
   const notes = useNotesStore((s) => s.notes);
   const folders = useNotesStore((s) => s.folders);
@@ -211,6 +87,11 @@ export function Sidebar() {
   const rmdir = useNotesStore((s) => s.rmdir);
   const open = useUI((s) => s.sidebarOpen);
   const toggle = useUI((s) => s.toggleSidebar);
+  const mobileOpen = useUI((s) => s.mobileSidebarOpen);
+  const setMobileOpen = useUI((s) => s.setMobileSidebarOpen);
+  const settingsOpen = useUI((s) => s.settingsOpen);
+  const paletteOpen = useUI((s) => s.paletteOpen);
+  const quickNoteOpen = useUI((s) => s.quickNoteOpen);
   const params = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -223,13 +104,29 @@ export function Sidebar() {
   const [draggedPath, setDraggedPath] = useState<string | null>(null);
   const [dragOverFolder, setDragOverFolder] = useState<string | null>(null);
   const navRef = useRef<HTMLElement>(null);
+  const mobileSidebarRef = useRef<HTMLDivElement>(null);
   const touchDragRef = useRef<{
     path: string;
     active: boolean;
     timer: number;
     targetFolder: string | null;
+    startX: number;
+    startY: number;
   } | null>(null);
   const isMobile = useIsMobile();
+  const modalOpen = settingsOpen || paletteOpen || quickNoteOpen;
+  const {
+    contentStyle,
+    overlayStyle,
+    gestureActive,
+    contentHandlers,
+  } = useMobileSidebarGesture({
+    open: mobileOpen,
+    setOpen: setMobileOpen,
+    disabled: modalOpen,
+    width: MOBILE_DRAWER_WIDTH,
+    contentRef: mobileSidebarRef,
+  });
 
   const sidebarSortComparators = useStore(
     workspaceStore,
@@ -416,6 +313,8 @@ export function Sidebar() {
         path,
         active: false,
         targetFolder: null as string | null,
+        startX: event.clientX,
+        startY: event.clientY,
         timer: window.setTimeout(() => {
           drag.active = true;
           setDraggedPath(path);
@@ -425,6 +324,18 @@ export function Sidebar() {
     },
     onPointerMove: (event: PointerEvent<HTMLButtonElement>) => {
       const drag = touchDragRef.current;
+      if (
+        drag &&
+        !drag.active &&
+        Math.hypot(
+          event.clientX - drag.startX,
+          event.clientY - drag.startY,
+        ) >= 12
+      ) {
+        clearTimeout(drag.timer);
+        touchDragRef.current = null;
+        return;
+      }
       if (!drag?.active) return;
       event.preventDefault();
       const target = document
@@ -453,8 +364,8 @@ export function Sidebar() {
     }
   };
 
-  // Shared sidebar contents, rendered into both the desktop static panel
-  // and the mobile swipe-bar drawer below.
+  // Shared sidebar contents, rendered into either the desktop static panel
+  // or the mobile Radix sheet.
   const sidebarBody = (
     <div className="flex h-full min-h-0 flex-1 flex-col">
       <div className="flex items-center gap-1.5 px-3 pt-3 pb-2">
@@ -472,7 +383,12 @@ export function Sidebar() {
           </Button>
         </Tooltip>
         <Tooltip label="Hide sidebar" disabled={isMobile}>
-          <Button variant="ghost" size="icon" onClick={toggle} aria-label="Hide sidebar">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={isMobile ? () => setMobileOpen(false) : toggle}
+            aria-label="Hide sidebar"
+          >
             <AppIcon icon="sidebar" size={15} />
           </Button>
         </Tooltip>
@@ -621,21 +537,32 @@ export function Sidebar() {
           {!isMobile && sidebarBody}
         </aside>
       )}
-      {/* Mobile: off-canvas drawer with edge-swipe and live drag-to-open. */}
-      <MobileSwipeBackdrop />
-      <SwipeBarLeft
-        id="sidebar"
-        ariaLabel="Sidebar"
-        className="flex flex-col border-r border-border bg-surface pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] md:hidden"
-        sidebarWidthPx={MOBILE_DRAWER_WIDTH}
-        mediaQueryWidth={768}
-        transitionMs={SWIPE_TRANSITION_MS}
-        swipeBarZIndex={40}
-        overlayZIndex={30}
-        showToggle={false}
-      >
-        {isMobile ? sidebarBody : <div aria-hidden />}
-      </SwipeBarLeft>
+      {/* Mobile: Radix modal sheet with local edge-open/drag-close gestures. */}
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <SheetPortal>
+          <SheetOverlay
+            data-testid="sidebar-swipe-backdrop"
+            style={overlayStyle}
+          />
+          <SheetContent
+            ref={mobileSidebarRef}
+            title="Sidebar"
+            description="Navigate notes, folders, and application views."
+            tabIndex={-1}
+            style={{
+              width: MOBILE_DRAWER_WIDTH,
+              ...contentStyle,
+            }}
+            className="flex touch-pan-y flex-col border-r border-border bg-surface pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] md:hidden"
+            onOpenAutoFocus={(event) => {
+              if (gestureActive) event.preventDefault();
+            }}
+            {...contentHandlers}
+          >
+            {isMobile ? sidebarBody : <div aria-hidden />}
+          </SheetContent>
+        </SheetPortal>
+      </Sheet>
 
       <RenameDialog note={renaming} onClose={() => setRenaming(null)} activePath={activePath} />
       <RenameFolderDialog

@@ -30,6 +30,9 @@ interface UIState {
   setEditorFontSize: (size: number) => void;
   sidebarOpen: boolean;
   toggleSidebar: () => void;
+  mobileSidebarOpen: boolean;
+  setMobileSidebarOpen: (open: boolean) => void;
+  toggleMobileSidebar: () => void;
   paletteOpen: boolean;
   setPaletteOpen: (open: boolean) => void;
   settingsOpen: boolean;
@@ -78,6 +81,12 @@ export const useUI = create<UIState>()(
       setEditorFontSize: (editorFontSize) => set({ editorFontSize }),
       sidebarOpen: startOpen,
       toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
+      mobileSidebarOpen: false,
+      setMobileSidebarOpen: (mobileSidebarOpen) => set({ mobileSidebarOpen }),
+      toggleMobileSidebar: () =>
+        set((state) => ({
+          mobileSidebarOpen: !state.mobileSidebarOpen,
+        })),
       paletteOpen: false,
       setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
       settingsOpen: false,

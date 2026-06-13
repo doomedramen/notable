@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { Outlet, useMatch, useNavigate } from "react-router";
 import { useStore } from "zustand";
-import { SwipeBarProvider, useSwipeBarContext } from "@luciodale/swipe-bar";
 import { Sidebar } from "./Sidebar";
 import { StatusBar } from "./StatusBar";
 import { ThemeProvider } from "./ThemeProvider";
@@ -23,19 +22,15 @@ import { useNotesStore } from "../store/notes-store";
 import { MobileQuickNoteButton, QuickNote } from "./QuickNote";
 
 export function AppShell() {
-  return (
-    <SwipeBarProvider>
-      <AppShellInner />
-    </SwipeBarProvider>
-  );
+  return <AppShellInner />;
 }
 
 function AppShellInner() {
   const navigate = useNavigate();
   const noteMatch = useMatch("/note/*");
   const activePath = noteMatch?.params["*"] ?? null;
-  const { closeSidebar, leftSidebars } = useSwipeBarContext();
-  const drawerOpen = leftSidebars.sidebar?.isOpen ?? false;
+  const drawerOpen = useUI((state) => state.mobileSidebarOpen);
+  const setDrawerOpen = useUI((state) => state.setMobileSidebarOpen);
 
   // Bridge router state into framework-agnostic core (plugins use it).
   useEffect(() => setNavigator(navigate), [navigate]);
@@ -43,9 +38,9 @@ function AppShellInner() {
     setActiveNoteId(activePath);
     // Mobile: navigating to a note closes the drawer to reveal it.
     if (activePath && drawerOpen) {
-      closeSidebar("left", { id: "sidebar" });
+      setDrawerOpen(false);
     }
-  }, [activePath]);
+  }, [activePath, drawerOpen, setDrawerOpen]);
 
   return (
     <ThemeProvider>
@@ -79,7 +74,6 @@ function AppShellInner() {
 
 /** Small-screen header: drawer toggle, current note, search. */
 function MobileTopBar({ activePath }: { activePath: string | null }) {
-  const { openSidebar } = useSwipeBarContext();
   return (
     <header
       className="flex h-[calc(2.75rem+env(safe-area-inset-top))] shrink-0 items-center gap-1 border-b border-border px-2 pt-[env(safe-area-inset-top)] md:hidden"
@@ -90,7 +84,7 @@ function MobileTopBar({ activePath }: { activePath: string | null }) {
         variant="ghost"
         size="icon"
         aria-label="Open sidebar"
-        onClick={() => openSidebar("left", { id: "sidebar" })}
+        onClick={() => useUI.getState().setMobileSidebarOpen(true)}
       >
         <AppIcon icon="sidebar" size={16} />
       </Button>

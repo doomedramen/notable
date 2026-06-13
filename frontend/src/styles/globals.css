@@ -150,6 +150,22 @@ body .select-text {
   from { opacity: 0; scale: 0.97; }
   to { opacity: 1; scale: 1; }
 }
+@keyframes ui-sheet-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes ui-sheet-overlay-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes ui-sheet-left-in {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+@keyframes ui-sheet-left-out {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
 
 .ui-overlay[data-state="open"] {
   animation: ui-fade-in var(--motion-transition) ease-out;
@@ -159,6 +175,18 @@ body .select-text {
 }
 .ui-dialog[data-state="open"] {
   animation: ui-dialog-in var(--motion-transition) var(--ease-emphasized);
+}
+.ui-sheet-overlay[data-state="open"] {
+  animation: ui-sheet-overlay-in var(--motion-structural) ease-out;
+}
+.ui-sheet-overlay[data-state="closed"] {
+  animation: ui-sheet-overlay-out var(--motion-structural) ease-in;
+}
+.ui-sheet-content[data-state="open"] {
+  animation: ui-sheet-left-in var(--motion-structural) var(--ease-emphasized);
+}
+.ui-sheet-content[data-state="closed"] {
+  animation: ui-sheet-left-out var(--motion-structural) var(--ease-emphasized);
 }
 
 @keyframes ui-view-in {
@@ -188,6 +216,8 @@ body .select-text {
   .ui-overlay,
   .ui-popover,
   .ui-dialog,
+  .ui-sheet-overlay,
+  .ui-sheet-content,
   .ui-view {
     animation: none !important;
   }
