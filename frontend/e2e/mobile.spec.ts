@@ -32,7 +32,7 @@ test("sidebar is a drawer: closed on load, opens, closes on navigation", async (
   await page.getByRole("menuitem", { name: "New note" }).click();
   await expect(page.getByRole("dialog", { name: "Quick Note" })).toBeVisible();
   await page.getByRole("button", { name: "Save note" }).click();
-  await page.getByRole("button", { name: "Open", exact: true }).click();
+  await page.getByRole("button", { name: "Untitled" }).click();
   await expect(page).toHaveURL(/\/note\//);
   await expect(sidebar).not.toBeInViewport();
   await expect(page.locator(".cm-content")).toBeVisible();
@@ -172,6 +172,9 @@ test("edge swipe opens the drawer, swipe left closes it", async ({ page }) => {
   // Swipe right starting near the left edge -> opens the drawer.
   await swipe(page, 5, 200);
   await expect(sidebar).toBeInViewport();
+  await expect
+    .poll(async () => (await sidebar.boundingBox())?.x)
+    .toBeCloseTo(0, 0);
 
   // Swipe left anywhere -> closes the drawer.
   await swipe(page, 250, 50);
@@ -186,7 +189,7 @@ test("swiping the drawer open does not trigger header tooltips", async ({
 
   // Finish the touch drag where the Settings button lands. Drawer content
   // moving under the gesture must not be interpreted as a desktop hover.
-  await swipe(page, 5, 200, 28);
+  await swipe(page, 5, 200, 50);
 
   await expect(sidebar).toBeInViewport();
   await page.waitForTimeout(450);

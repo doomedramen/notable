@@ -39,6 +39,9 @@ import {
   themeControlValue,
 } from "../core/appearance";
 import { iconsStore, selectIconTheme } from "../core/icons";
+import { triggerFeedback } from "../core/feedback";
+
+const SHEET_DISMISS_THRESHOLD = 110;
 
 export function SettingsDialog() {
   const open = useUI((s) => s.settingsOpen);
@@ -48,7 +51,12 @@ export function SettingsDialog() {
   const [sheetOffset, setSheetOffset] = useState(0);
   const [draggingSheet, setDraggingSheet] = useState(false);
   const sheetOffsetRef = useRef(0);
-  const sheetDrag = useRef<{ pointerId: number; startY: number } | null>(null);
+  const sheetDrag = useRef<{
+    pointerId: number;
+    startY: number;
+    touch: boolean;
+    feedbackTriggered: boolean;
+  } | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -63,6 +71,8 @@ export function SettingsDialog() {
     sheetDrag.current = {
       pointerId: event.pointerId,
       startY: event.clientY - sheetOffset,
+      touch: event.pointerType === "touch",
+      feedbackTriggered: false,
     };
     event.currentTarget.setPointerCapture(event.pointerId);
     setDraggingSheet(true);
@@ -72,6 +82,14 @@ export function SettingsDialog() {
     const drag = sheetDrag.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     const offset = Math.max(0, event.clientY - drag.startY);
+    if (
+      drag.touch &&
+      offset >= SHEET_DISMISS_THRESHOLD &&
+      !drag.feedbackTriggered
+    ) {
+      drag.feedbackTriggered = true;
+      triggerFeedback("selection");
+    }
     sheetOffsetRef.current = offset;
     setSheetOffset(offset);
   };
@@ -81,7 +99,7 @@ export function SettingsDialog() {
     if (!drag || drag.pointerId !== event.pointerId) return;
     sheetDrag.current = null;
     setDraggingSheet(false);
-    if (sheetOffsetRef.current > 110) setOpen(false);
+    if (sheetOffsetRef.current >= SHEET_DISMISS_THRESHOLD) setOpen(false);
     else {
       sheetOffsetRef.current = 0;
       setSheetOffset(0);
@@ -110,7 +128,7 @@ export function SettingsDialog() {
             ? "none"
             : "transform var(--motion-structural) var(--ease-emphasized)",
         }}
-        className="bottom-0 top-auto left-0 flex h-[88dvh] w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-b-none p-0 md:top-1/2 md:left-1/2 md:h-[26rem] md:max-w-2xl md:-translate-x-1/2 md:-translate-y-1/2 md:flex-row md:rounded-md"
+        className="settings-sheet bottom-0 top-auto left-0 flex h-[88dvh] w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-b-none p-0 md:top-1/2 md:left-1/2 md:h-[26rem] md:max-w-2xl md:-translate-x-1/2 md:-translate-y-1/2 md:flex-row md:rounded-md"
       >
         <DialogTitle className="sr-only">Settings</DialogTitle>
         <DialogDescription className="sr-only">
@@ -179,6 +197,8 @@ function AppearanceTab() {
   const appIconTheme = useUI((s) => s.appIconTheme);
   const editorFontSize = useUI((s) => s.editorFontSize);
   const setEditorFontSize = useUI((s) => s.setEditorFontSize);
+  const hapticsEnabled = useUI((s) => s.hapticsEnabled);
+  const setHapticsEnabled = useUI((s) => s.setHapticsEnabled);
   const [themes, setThemes] = useState<{ id: string; name: string }[]>([]);
   const pluginThemes = useStore(appearanceStore, (s) => s.themes);
   const iconThemes = useStore(iconsStore, (s) => s.themes);
@@ -254,6 +274,21 @@ function AppearanceTab() {
           </Button>
         )}
       </div>
+
+      <h3 className="mt-5 text-sm font-semibold">Interaction</h3>
+      <label className="mt-3 flex items-center justify-between gap-4 rounded-md border border-border bg-surface px-3 py-2.5">
+        <span className="min-w-0">
+          <span className="block text-sm font-medium">Haptic feedback</span>
+          <span className="mt-0.5 block text-xs leading-relaxed text-muted">
+            Subtle tactile confirmation on supported touch devices.
+          </span>
+        </span>
+        <Switch
+          checked={hapticsEnabled}
+          onCheckedChange={setHapticsEnabled}
+          aria-label="Haptic feedback"
+        />
+      </label>
 
       {(themes.length > 0 || pluginThemes.length > 0) && (
         <>

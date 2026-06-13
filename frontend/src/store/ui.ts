@@ -28,6 +28,8 @@ interface UIState {
   /** Editor content font size in px. */
   editorFontSize: number;
   setEditorFontSize: (size: number) => void;
+  hapticsEnabled: boolean;
+  setHapticsEnabled: (enabled: boolean) => void;
   sidebarOpen: boolean;
   toggleSidebar: () => void;
   mobileSidebarOpen: boolean;
@@ -79,6 +81,8 @@ export const useUI = create<UIState>()(
       setRecentIcons: (recentIcons) => set({ recentIcons }),
       editorFontSize: 14,
       setEditorFontSize: (editorFontSize) => set({ editorFontSize }),
+      hapticsEnabled: true,
+      setHapticsEnabled: (hapticsEnabled) => set({ hapticsEnabled }),
       sidebarOpen: startOpen,
       toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
       mobileSidebarOpen: false,
@@ -139,6 +143,7 @@ export const useUI = create<UIState>()(
         appIconTheme: s.appIconTheme,
         recentIcons: s.recentIcons,
         editorFontSize: s.editorFontSize,
+        hapticsEnabled: s.hapticsEnabled,
         sidebarOpen: s.sidebarOpen,
         lastQuickNoteFolder: s.lastQuickNoteFolder,
         collapsedFolders: s.collapsedFolders,

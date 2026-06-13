@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { useNotesStore } from "../store/notes-store";
 import { useUI } from "../store/ui";
 import { quickNoteTitle } from "../core/quick-note";
@@ -13,6 +19,9 @@ import {
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { AppIcon } from "../components/AppIcon";
+import { triggerFeedback } from "../core/feedback";
+
+const SHEET_DISMISS_THRESHOLD = 110;
 
 function useSoftwareKeyboardVisible(): boolean {
   const [visible, setVisible] = useState(false);
@@ -42,19 +51,30 @@ export function QuickNote() {
   const [content, setContent] = useState("");
   const [folder, setFolder] = useState("");
   const [saving, setSaving] = useState(false);
+  const [sheetOffset, setSheetOffset] = useState(0);
+  const [draggingSheet, setDraggingSheet] = useState(false);
   const contentRef = useRef<HTMLTextAreaElement>(null);
+  const sheetOffsetRef = useRef(0);
+  const sheetDrag = useRef<{
+    pointerId: number;
+    startY: number;
+    feedbackTriggered: boolean;
+  } | null>(null);
+  const saveTouchRef = useRef(false);
 
   useEffect(() => {
     if (!open) return;
     setTitle("");
     setContent("");
     setSaving(false);
+    sheetOffsetRef.current = 0;
+    setSheetOffset(0);
     const preferred = requestedFolder ?? lastFolder;
     setFolder(preferred && folders.includes(preferred) ? preferred : "");
     requestAnimationFrame(() => contentRef.current?.focus());
   }, [open]);
 
-  const save = async () => {
+  const save = async (fromTouch = false) => {
     if (saving) return;
     setSaving(true);
     try {
@@ -65,12 +85,14 @@ export function QuickNote() {
       );
       setLastFolder(folder);
       close();
+      if (fromTouch) triggerFeedback("success");
       notice("Note captured.", {
         duration: 6000,
         action: { label: "Open", run: () => openNote(meta.path) },
       });
     } catch {
       setSaving(false);
+      if (fromTouch) triggerFeedback("error");
       notice("Could not save the note.", { variant: "danger" });
     }
   };
@@ -82,13 +104,67 @@ export function QuickNote() {
     }
   };
 
+  const startSheetDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (window.innerWidth >= 768 || event.pointerType !== "touch") return;
+    sheetDrag.current = {
+      pointerId: event.pointerId,
+      startY: event.clientY - sheetOffset,
+      feedbackTriggered: false,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDraggingSheet(true);
+  };
+
+  const moveSheet = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = sheetDrag.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const offset = Math.max(0, event.clientY - drag.startY);
+    if (offset >= SHEET_DISMISS_THRESHOLD && !drag.feedbackTriggered) {
+      drag.feedbackTriggered = true;
+      triggerFeedback("selection");
+    }
+    sheetOffsetRef.current = offset;
+    setSheetOffset(offset);
+  };
+
+  const finishSheetDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = sheetDrag.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    sheetDrag.current = null;
+    setDraggingSheet(false);
+    if (sheetOffsetRef.current >= SHEET_DISMISS_THRESHOLD) {
+      close();
+      return;
+    }
+    sheetOffsetRef.current = 0;
+    setSheetOffset(0);
+  };
+
   return (
     <Dialog open={open} onOpenChange={(next) => !next && close()}>
       <DialogContent
         showClose={false}
         onKeyDown={handleKeyDown}
-        className="bottom-0 top-auto left-0 w-full max-w-none translate-x-0 translate-y-0 rounded-b-none p-0 md:top-1/2 md:left-1/2 md:max-w-xl md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-md"
+        style={{
+          transform:
+            sheetOffset > 0 ? `translateY(${sheetOffset}px)` : undefined,
+          transition: draggingSheet
+            ? "none"
+            : "transform var(--motion-structural) var(--ease-emphasized)",
+        }}
+        className="quick-note-dialog bottom-0 top-auto left-0 w-full max-w-none translate-x-0 translate-y-0 rounded-b-none p-0 md:top-1/2 md:left-1/2 md:max-w-xl md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-md"
       >
+        <div
+          className="flex h-6 touch-none items-center justify-center md:hidden"
+          data-testid="quick-note-sheet-handle"
+          aria-hidden
+          onPointerDown={startSheetDrag}
+          onPointerMove={moveSheet}
+          onPointerUp={finishSheetDrag}
+          onPointerCancel={finishSheetDrag}
+        >
+          <span className="h-1 w-9 rounded-full bg-border-strong" />
+        </div>
         <div className="border-b border-border px-4 py-3 md:px-5">
           <DialogTitle>Quick Note</DialogTitle>
           <DialogDescription className="sr-only">
@@ -136,8 +212,17 @@ export function QuickNote() {
               <Button
                 variant="primary"
                 disabled={saving}
-                onClick={() => void save()}
+                aria-busy={saving}
+                onPointerDown={(event) => {
+                  saveTouchRef.current = event.pointerType === "touch";
+                }}
+                onClick={() => {
+                  const fromTouch = saveTouchRef.current;
+                  saveTouchRef.current = false;
+                  void save(fromTouch);
+                }}
               >
+                {saving && <span className="ui-spinner" aria-hidden />}
                 {saving ? "Saving…" : "Save note"}
               </Button>
             </div>
@@ -158,8 +243,11 @@ export function MobileQuickNoteButton() {
     <button
       type="button"
       onClick={() => openQuickNote()}
+      onPointerDown={(event) => {
+        if (event.pointerType === "touch") triggerFeedback("impact");
+      }}
       aria-label="Quick note"
-      className="fixed right-4 bottom-12 z-30 flex h-12 w-12 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-[var(--shadow-float)] transition-[transform,opacity] active:scale-95 md:hidden"
+      className="fixed right-4 bottom-[calc(2.75rem+env(safe-area-inset-bottom))] z-30 flex h-12 w-12 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-[var(--shadow-float)] transition-[transform,opacity,box-shadow] hover:shadow-[var(--shadow-float-hover)] active:scale-95 active:shadow-[var(--shadow-float-pressed)] md:hidden"
     >
       <AppIcon icon="add" size={22} />
     </button>
