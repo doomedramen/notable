@@ -41,17 +41,21 @@ html,
 body,
 #root {
   height: 100vh;
+  height: 100dvh;
   margin: 0;
   padding: 0;
 }
 
 /* The app shell fills the fixed root and owns its scroll regions (sidebar,
    editor, dialogs). The outer page itself should never scroll — this stops
-   rubber-band bounce and the browser/PWA pull-to-refresh gesture it triggers. */
+   rubber-band bounce and the browser/PWA pull-to-refresh gesture it triggers.
+   `touch-action` also disables the pinch-to-zoom and double-tap-to-zoom
+   gestures so the installed PWA behaves like a native app. */
 html,
 body {
   overflow: hidden;
   overscroll-behavior: none;
+  touch-action: pan-x pan-y;
 }
 
 #root {
