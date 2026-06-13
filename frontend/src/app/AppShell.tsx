@@ -102,11 +102,11 @@ export function AppShell() {
 
 /** Small-screen header: drawer toggle, current note, search. */
 function MobileTopBar({ activePath }: { activePath: string | null }) {
-  const name = activePath?.split("/").pop()?.replace(/\.md$/, "");
   return (
     <header
       className="flex h-11 shrink-0 items-center gap-1 border-b border-border px-2 pt-[env(safe-area-inset-top)] md:hidden"
       data-testid="mobile-top-bar"
+      aria-label={activePath ? "Note navigation" : "App navigation"}
     >
       <Button
         variant="ghost"
@@ -116,9 +116,7 @@ function MobileTopBar({ activePath }: { activePath: string | null }) {
       >
         <AppIcon icon="sidebar" size={16} />
       </Button>
-      <span className="flex-1 truncate px-1 text-sm font-medium">
-        {name ?? "Notable"}
-      </span>
+      <span className="flex-1" aria-hidden />
       <Button
         variant="ghost"
         size="icon"
