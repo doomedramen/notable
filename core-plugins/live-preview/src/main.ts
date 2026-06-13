@@ -7,6 +7,9 @@
 //
 // Built from the syntax tree (markdown() + GFM, see editor/Editor.tsx)
 // over `view.visibleRanges` only — never the whole document.
+import type { SyntaxNodeRef } from "@lezer/common";
+import type { Decoration, DecorationSet, EditorView, ViewUpdate } from "@codemirror/view";
+import type { NotablePlugin } from "notable-plugin-api";
 
 const HEADING_RE = /^ATXHeading([1-6])$/;
 
@@ -43,7 +46,7 @@ function injectStyles() {
   document.head.appendChild(style);
 }
 
-export default {
+const plugin: NotablePlugin = {
   onload(api) {
     injectStyles();
 
@@ -53,20 +56,23 @@ export default {
     const { syntaxTree } = language;
 
     class CheckboxWidget extends WidgetType {
-      constructor(checked, from, to) {
+      checked: boolean;
+      from: number;
+      to: number;
+      constructor(checked: boolean, from: number, to: number) {
         super();
         this.checked = checked;
         this.from = from;
         this.to = to;
       }
-      eq(other) {
+      eq(other: CheckboxWidget) {
         return (
           other.checked === this.checked &&
           other.from === this.from &&
           other.to === this.to
         );
       }
-      toDOM(view) {
+      toDOM(view: EditorView) {
         const box = document.createElement("input");
         box.type = "checkbox";
         box.className = "cm-task-checkbox";
@@ -88,12 +94,12 @@ export default {
       }
     }
 
-    function build(view) {
-      const builder = new RangeSetBuilder();
+    function build(view: EditorView): DecorationSet {
+      const builder = new RangeSetBuilder<Decoration>();
       const { state } = view;
       const sel = state.selection;
 
-      const lineIsActive = (from, to) => {
+      const lineIsActive = (from: number, to: number) => {
         for (const range of sel.ranges) {
           if (range.from <= to && range.to >= from) return true;
         }
@@ -104,7 +110,7 @@ export default {
         syntaxTree(state).iterate({
           from,
           to,
-          enter(node) {
+          enter(node: SyntaxNodeRef) {
             const headingMatch = HEADING_RE.exec(node.name);
             if (headingMatch) {
               const line = state.doc.lineAt(node.from);
@@ -185,10 +191,11 @@ export default {
 
     const livePreviewPlugin = ViewPlugin.fromClass(
       class {
-        constructor(view) {
+        decorations: DecorationSet;
+        constructor(view: EditorView) {
           this.decorations = build(view);
         }
-        update(update) {
+        update(update: ViewUpdate) {
           if (update.view.composing) return;
           if (
             update.docChanged ||
@@ -211,3 +218,5 @@ export default {
     api.editor.registerExtension([livePreviewPlugin]);
   },
 };
+
+export default plugin;

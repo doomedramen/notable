@@ -5,22 +5,20 @@
 //   - editor.registerExtension using the HOST's CodeMirror via api.modules
 //     (never bundle your own copy of @codemirror/* — see docs/plugins.md)
 //   - events.on("editor:ready") for note switches
-//
-// This file is plain JS on purpose: a plugin can be a single hand-written
-// ES module. For TypeScript, compile against src/plugin-api/index.ts with
-// @codemirror/* and yjs marked external.
+import type { EditorView } from "@codemirror/view";
+import type { NotablePlugin } from "notable-plugin-api";
 
-function countWords(text) {
+function countWords(text: string): number {
   const trimmed = text.trim();
   return trimmed ? trimmed.split(/\s+/).length : 0;
 }
 
-export default {
+const plugin: NotablePlugin = {
   onload(api) {
     const { view } = api.modules.codemirror;
-    let label = null;
+    let label: HTMLSpanElement | null = null;
 
-    const render = (editor) => {
+    const render = (editor: EditorView | null) => {
       if (!label) return;
       if (!editor) {
         label.textContent = "0 words";
@@ -72,3 +70,5 @@ export default {
     api.events.on("editor:ready", () => renderActive());
   },
 };
+
+export default plugin;

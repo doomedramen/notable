@@ -209,6 +209,17 @@ publishes all artifacts to the rolling GitHub release on every push to `main`.
 
 Add core plugins directly under `core-plugins/<id>`. They are part of the
 Notable release and should be reserved for features maintained with the app.
+
+Core plugin sources are TypeScript: write `core-plugins/<id>/src/main.ts`
+against the types in `frontend/src/plugin-api/index.ts` (available as the
+`notable-plugin-api` module via `core-plugins/tsconfig.json`). `manifest.json`
+still points `entry` at `main.js` — `npm --prefix core-plugins run build`
+type-checks every plugin and bundles each `src/main.ts` to `main.js` with
+`@codemirror/*` and `yjs` external, matching the runtime modules exposed at
+`api.modules`. `make build-core-plugins` runs this, and it's part of `make
+build`/`make dev`/the Docker image build. Built `main.js` files are
+git-ignored.
+
 Core plugins currently include:
 
 - `advanced-tables` - table cell navigation, formatting, and row/column editing

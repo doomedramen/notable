@@ -12,6 +12,8 @@
 // than the syntax tree: wikilinks aren't part of CommonMark/GFM, so CM6's
 // markdown grammar has no node for them (same regex shape as the
 // server-side indexer, for parity).
+import type { Decoration, DecorationSet, EditorView, ViewUpdate } from "@codemirror/view";
+import type { NotableAPI, NotablePlugin, NoteMeta } from "notable-plugin-api";
 
 const WIKILINK = /\[\[([^[\]#|\n]+)(?:#[^\]|\n]*)?(?:\|([^\]\n]*))?\]\]/gd;
 
@@ -38,15 +40,15 @@ function injectStyles() {
   document.head.appendChild(style);
 }
 
-export default {
-  onload(api) {
+const plugin: NotablePlugin = {
+  onload(api: NotableAPI) {
     injectStyles();
     const { state: cmState, view: cmView, autocomplete: cmAutocomplete } =
       api.modules.codemirror;
     const { Decoration, ViewPlugin, EditorView } = cmView;
     const { RangeSetBuilder } = cmState;
 
-    let notes = [];
+    let notes: NoteMeta[] = [];
     const refreshNotes = () => {
       api.vault.list().then((list) => {
         notes = list;
@@ -56,14 +58,14 @@ export default {
     api.events.on("note:create", refreshNotes);
     api.events.on("note:open", refreshNotes);
 
-    function resolve(target) {
+    function resolve(target: string): NoteMeta | undefined {
       const norm = target.trim().toLowerCase();
       return notes.find(
         (n) => n.name.toLowerCase() === norm || n.path.toLowerCase() === norm,
       );
     }
 
-    async function followLink(target) {
+    async function followLink(target: string) {
       const existing = resolve(target);
       if (existing) {
         api.workspace.openNote(existing.path);
@@ -74,8 +76,8 @@ export default {
       api.workspace.openNote(meta.path);
     }
 
-    function build(view) {
-      const builder = new RangeSetBuilder();
+    function build(view: EditorView): DecorationSet {
+      const builder = new RangeSetBuilder<Decoration>();
       const sel = view.state.selection.main;
       for (const { from, to } of view.visibleRanges) {
         const text = view.state.doc.sliceString(from, to);
@@ -86,8 +88,8 @@ export default {
           if (sel.from <= end && sel.to >= start) continue;
 
           const target = m[1].trim();
-          const [g1Start, g1End] = m.indices[1];
-          const g2 = m.indices[2];
+          const [g1Start, g1End] = m.indices![1];
+          const g2 = m.indices![2];
           const labelFrom = from + (g2 ? g2[0] : g1Start);
           const labelTo = from + (g2 ? g2[1] : g1End);
           const resolved = resolve(target);
@@ -114,10 +116,11 @@ export default {
 
     const wikilinkPlugin = ViewPlugin.fromClass(
       class {
-        constructor(view) {
+        decorations: DecorationSet;
+        constructor(view: EditorView) {
           this.decorations = build(view);
         }
-        update(update) {
+        update(update: ViewUpdate) {
           if (
             update.docChanged ||
             update.selectionSet ||
@@ -133,10 +136,10 @@ export default {
     const clickHandler = EditorView.domEventHandlers({
       mousedown(event, view) {
         if (!(event.metaKey || event.ctrlKey)) return false;
-        const el = event.target.closest?.(".cm-wikilink");
+        const el = (event.target as HTMLElement | null)?.closest?.(".cm-wikilink") as HTMLElement | null;
         if (!el || !view.dom.contains(el)) return false;
         event.preventDefault();
-        void followLink(el.dataset.wikilinkTarget);
+        void followLink(el.dataset.wikilinkTarget!);
         return true;
       },
     });
@@ -158,10 +161,10 @@ export default {
                 label: n.name,
                 type: "file",
                 detail: n.folder || undefined,
-                apply: (view, completion, from, to) => {
+                apply: (view: EditorView, _completion: unknown, from: number, to: number) => {
                   view.dispatch({
-                    changes: { from, to, insert: `${completion.label}]]` },
-                    selection: { anchor: from + completion.label.length + 2 },
+                    changes: { from, to, insert: `${n.name}]]` },
+                    selection: { anchor: from + n.name.length + 2 },
                   });
                 },
               }));
@@ -172,3 +175,5 @@ export default {
     );
   },
 };
+
+export default plugin;

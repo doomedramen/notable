@@ -1,7 +1,16 @@
-function collectHeadings(view) {
+import type { EditorView } from "@codemirror/view";
+import type { NotablePlugin } from "notable-plugin-api";
+
+interface Heading {
+  level: number;
+  title: string;
+  position: number;
+}
+
+function collectHeadings(view: EditorView | null): Heading[] {
   if (!view) return [];
 
-  const headings = [];
+  const headings: Heading[] = [];
   let fenced = false;
   for (let lineNumber = 1; lineNumber <= view.state.doc.lines; lineNumber += 1) {
     const line = view.state.doc.line(lineNumber);
@@ -23,15 +32,15 @@ function collectHeadings(view) {
   return headings;
 }
 
-function style(element, rules) {
+function style<T extends HTMLElement>(element: T, rules: Partial<CSSStyleDeclaration>): T {
   Object.assign(element.style, rules);
   return element;
 }
 
-export default {
+const plugin: NotablePlugin = {
   onload(api) {
     const { view } = api.modules.codemirror;
-    let host = null;
+    let host: HTMLElement | null = null;
 
     const render = () => {
       if (!host) return;
@@ -132,3 +141,5 @@ export default {
     api.events.on("note:open", render);
   },
 };
+
+export default plugin;

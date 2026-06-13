@@ -1,30 +1,36 @@
+import type { NotablePlugin } from "notable-plugin-api";
+
 const MAX_RECENT_FILES = 12;
 
-function noteName(path) {
+interface Settings {
+  recent?: unknown;
+}
+
+function noteName(path: string): string {
   const filename = path.split("/").pop() ?? path;
   return filename.replace(/\.md$/i, "");
 }
 
-function noteFolder(path) {
+function noteFolder(path: string): string {
   const parts = path.split("/");
   parts.pop();
   return parts.join("/");
 }
 
-function style(element, rules) {
+function style<T extends HTMLElement>(element: T, rules: Partial<CSSStyleDeclaration>): T {
   Object.assign(element.style, rules);
   return element;
 }
 
-export default {
+const plugin: NotablePlugin = {
   async onload(api) {
-    const saved = (await api.settings.load()) ?? {};
-    let recent = Array.isArray(saved.recent)
+    const saved = (await api.settings.load<Settings>()) ?? {};
+    let recent: string[] = Array.isArray(saved.recent)
       ? saved.recent
-          .filter((path) => typeof path === "string")
+          .filter((path): path is string => typeof path === "string")
           .slice(0, MAX_RECENT_FILES)
       : [];
-    let host = null;
+    let host: HTMLElement | null = null;
 
     const save = () => {
       void api.settings.save({ recent }).catch((error) => {
@@ -106,7 +112,7 @@ export default {
       host.appendChild(list);
     };
 
-    const record = (path) => {
+    const record = (path: string) => {
       recent = [path, ...recent.filter((candidate) => candidate !== path)].slice(
         0,
         MAX_RECENT_FILES,
@@ -148,3 +154,5 @@ export default {
     if (active) record(active);
   },
 };
+
+export default plugin;

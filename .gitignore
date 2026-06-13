@@ -6,6 +6,10 @@
 /frontend/dist
 /frontend/dev-dist
 
+# Core plugins build output (TypeScript sources live in */src)
+/core-plugins/node_modules
+/core-plugins/*/main.js
+
 # Tests
 /frontend/test-results
 /frontend/playwright-report

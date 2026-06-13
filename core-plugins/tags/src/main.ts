@@ -5,7 +5,15 @@
 //  - Inline #tag chips in the editor; Mod-click opens the same view.
 //
 // Tag regex mirrors the server-side extractor in indexer.rs.
+import type { Decoration, DecorationSet, EditorView, ViewUpdate } from "@codemirror/view";
+import type { NotablePlugin } from "notable-plugin-api";
+
 const TAG = /(?:^|\s)#([A-Za-z0-9_][A-Za-z0-9_/-]*)/gd;
+
+interface TagHit {
+  tag: string;
+  count: number;
+}
 
 const STYLE_ID = "notable-tags-style";
 
@@ -53,7 +61,7 @@ function injectStyles() {
   document.head.appendChild(style);
 }
 
-export default {
+const plugin: NotablePlugin = {
   onload(api) {
     injectStyles();
 
@@ -62,14 +70,14 @@ export default {
     const { RangeSetBuilder } = cmState;
 
     // --- Sidebar panel -----------------------------------------------
-    let container = null;
-    let abort = null;
+    let container: HTMLElement | null = null;
+    let abort: AbortController | null = null;
 
     async function renderPanel() {
       if (!container) return;
       abort?.abort();
       abort = new AbortController();
-      let tags;
+      let tags: TagHit[];
       try {
         const res = await fetch("/api/tags", { signal: abort.signal });
         tags = res.ok ? await res.json() : [];
@@ -127,12 +135,12 @@ export default {
     api.events.on("note:create", () => void renderPanel());
 
     // --- Inline #tag chips ---------------------------------------------
-    function build(view) {
-      const builder = new RangeSetBuilder();
+    function build(view: EditorView): DecorationSet {
+      const builder = new RangeSetBuilder<Decoration>();
       for (const { from, to } of view.visibleRanges) {
         const text = view.state.doc.sliceString(from, to);
         for (const m of text.matchAll(TAG)) {
-          const [start, end] = m.indices[1];
+          const [start, end] = m.indices![1];
           builder.add(from + start - 1, from + end, Decoration.mark({
             class: "cm-tag",
             attributes: { "data-tag": m[1] },
@@ -144,10 +152,11 @@ export default {
 
     const tagPlugin = ViewPlugin.fromClass(
       class {
-        constructor(view) {
+        decorations: DecorationSet;
+        constructor(view: EditorView) {
           this.decorations = build(view);
         }
-        update(update) {
+        update(update: ViewUpdate) {
           if (update.docChanged || update.viewportChanged) {
             this.decorations = build(update.view);
           }
@@ -159,10 +168,10 @@ export default {
     const clickHandler = EditorView.domEventHandlers({
       mousedown(event, view) {
         if (!(event.metaKey || event.ctrlKey)) return false;
-        const el = event.target.closest?.(".cm-tag");
+        const el = (event.target as HTMLElement | null)?.closest?.(".cm-tag") as HTMLElement | null;
         if (!el || !view.dom.contains(el)) return false;
         event.preventDefault();
-        api.workspace.openTag(el.dataset.tag);
+        api.workspace.openTag(el.dataset.tag!);
         return true;
       },
     });
@@ -170,3 +179,5 @@ export default {
     api.editor.registerExtension([tagPlugin, clickHandler]);
   },
 };
+
+export default plugin;

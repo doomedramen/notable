@@ -2,11 +2,18 @@
 //
 // Shows every note that links to the currently open note, via the
 // server-side link index (GET /api/backlinks/{path}).
+import type { NotablePlugin } from "notable-plugin-api";
 
-export default {
+interface BacklinkHit {
+  source_path: string;
+  source_name: string;
+  context?: string;
+}
+
+const plugin: NotablePlugin = {
   onload(api) {
-    let container = null;
-    let abort = null;
+    let container: HTMLElement | null = null;
+    let abort: AbortController | null = null;
 
     async function render() {
       if (!container) return;
@@ -22,7 +29,7 @@ export default {
 
       abort?.abort();
       abort = new AbortController();
-      let hits;
+      let hits: BacklinkHit[];
       try {
         const res = await fetch(`/api/backlinks/${path.split("/").map(encodeURIComponent).join("/")}`, {
           signal: abort.signal,
@@ -100,6 +107,8 @@ export default {
     });
   },
 };
+
+export default plugin;
 
 const STYLE_ID = "notable-backlinks-style";
 

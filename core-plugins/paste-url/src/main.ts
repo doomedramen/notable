@@ -1,4 +1,6 @@
-function isWebUrl(value) {
+import type { NotablePlugin } from "notable-plugin-api";
+
+function isWebUrl(value: string): boolean {
   if (/\s/.test(value)) return false;
   try {
     const url = new URL(value);
@@ -8,15 +10,15 @@ function isWebUrl(value) {
   }
 }
 
-function escapeLabel(value) {
+function escapeLabel(value: string): string {
   return value.replaceAll("\\", "\\\\").replaceAll("]", "\\]");
 }
 
-function escapeDestination(value) {
+function escapeDestination(value: string): string {
   return value.replaceAll("(", "\\(").replaceAll(")", "\\)");
 }
 
-export default {
+const plugin: NotablePlugin = {
   onload(api) {
     const { EditorView } = api.modules.codemirror.view;
 
@@ -49,3 +51,5 @@ export default {
     );
   },
 };
+
+export default plugin;

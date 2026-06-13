@@ -12,12 +12,54 @@
 //
 // All editing happens through `view.dispatch` on the active CodeMirror view,
 // matching the documented pattern for editor extensions.
+import type { EditorState } from "@codemirror/state";
+import type { EditorView } from "@codemirror/view";
+import type { NotablePlugin } from "notable-plugin-api";
 
 const TABLE_LINE = /^[ \t]*\|(.*)\|[ \t]*$/;
 const SEPARATOR_CELL = /^:?-{1,}:?$/;
 
-function splitCellsRaw(content) {
-  const cells = [];
+type Alignment = "" | "left" | "center" | "right";
+
+interface Cursor {
+  modelRow: number;
+  col: number;
+  offsetInCell: number;
+  onSeparator: boolean;
+}
+
+interface TableModel {
+  header: string[];
+  body: string[][];
+  alignments: Alignment[];
+}
+
+interface ParsedTable extends TableModel {
+  from: number;
+  to: number;
+  cursor: Cursor;
+}
+
+interface RenderedTable {
+  lines: string[];
+  widths: number[];
+  colCount: number;
+  header: string[];
+  alignments: Alignment[];
+  body: string[][];
+}
+
+type Transform = (model: TableModel, cursor: Cursor) => void;
+
+interface CommandSpec {
+  id: string;
+  name: string;
+  transform: Transform;
+  enabled?: (table: ParsedTable) => boolean;
+}
+
+function splitCellsRaw(content: string): string[] {
+  const cells: string[] = [];
   let current = "";
   for (let i = 0; i < content.length; i++) {
     const ch = content[i];
@@ -37,7 +79,7 @@ function splitCellsRaw(content) {
   return cells;
 }
 
-function cellAlignment(cell) {
+function cellAlignment(cell: string): Alignment {
   const left = cell.startsWith(":");
   const right = cell.endsWith(":");
   if (left && right) return "center";
@@ -46,13 +88,13 @@ function cellAlignment(cell) {
   return "";
 }
 
-function padArray(arr, len, fill) {
+function padArray<T>(arr: T[], len: number, fill: T): T[] {
   const out = arr.slice(0, len);
   while (out.length < len) out.push(fill);
   return out;
 }
 
-function padCell(text, width, align) {
+function padCell(text: string, width: number, align: Alignment): string {
   const pad = Math.max(0, width - text.length);
   if (align === "right") return " ".repeat(pad) + text;
   if (align === "center") {
@@ -62,14 +104,17 @@ function padCell(text, width, align) {
   return text + " ".repeat(pad);
 }
 
-function padStart(text, width, align) {
+function padStart(text: string, width: number, align: Alignment): number {
   const pad = Math.max(0, width - text.length);
   if (align === "right") return pad;
   if (align === "center") return Math.floor(pad / 2);
   return 0;
 }
 
-function cellInfoAt(lineText, col) {
+function cellInfoAt(
+  lineText: string,
+  col: number,
+): { cellIndex: number; offsetInCell: number } {
   const pipeStart = lineText.indexOf("|");
   const pipeEnd = lineText.lastIndexOf("|");
   const content = lineText.slice(pipeStart + 1, pipeEnd);
@@ -82,7 +127,7 @@ function cellInfoAt(lineText, col) {
     const end = pos + raw.length;
     const isLast = i === rawCells.length - 1;
     if (col <= end || isLast) {
-      const leading = raw.match(/^\s*/)[0].length;
+      const leading = raw.match(/^\s*/)?.[0].length ?? 0;
       const trimmed = raw.trim();
       const offsetInRaw = Math.max(0, Math.min(col, end) - start);
       const offsetInCell = Math.max(
@@ -96,7 +141,7 @@ function cellInfoAt(lineText, col) {
   return { cellIndex: rawCells.length - 1, offsetInCell: 0 };
 }
 
-function colCountOf(model) {
+function colCountOf(model: TableModel): number {
   return Math.max(
     1,
     model.header.length,
@@ -105,16 +150,13 @@ function colCountOf(model) {
   );
 }
 
-function parseTable(state, pos) {
+function parseTable(state: EditorState, pos: number): ParsedTable | null {
   const doc = state.doc;
   const cur = doc.lineAt(pos);
   if (!TABLE_LINE.test(cur.text)) return null;
 
   let startLine = cur.number;
-  while (
-    startLine > 1 &&
-    TABLE_LINE.test(doc.line(startLine - 1).text)
-  ) {
+  while (startLine > 1 && TABLE_LINE.test(doc.line(startLine - 1).text)) {
     startLine--;
   }
   let endLine = cur.number;
@@ -127,17 +169,20 @@ function parseTable(state, pos) {
   if (endLine - startLine < 1) return null;
 
   const sepMatch = TABLE_LINE.exec(doc.line(startLine + 1).text);
+  if (!sepMatch) return null;
   const sepCells = splitCellsRaw(sepMatch[1]).map((c) => c.trim());
   if (sepCells.length === 0 || !sepCells.every((c) => SEPARATOR_CELL.test(c))) {
     return null;
   }
 
-  const header = splitCellsRaw(
-    TABLE_LINE.exec(doc.line(startLine).text)[1],
-  ).map((c) => c.trim());
-  const body = [];
+  const headerMatch = TABLE_LINE.exec(doc.line(startLine).text);
+  if (!headerMatch) return null;
+  const header = splitCellsRaw(headerMatch[1]).map((c) => c.trim());
+  const body: string[][] = [];
   for (let n = startLine + 2; n <= endLine; n++) {
-    body.push(splitCellsRaw(TABLE_LINE.exec(doc.line(n).text)[1]).map((c) => c.trim()));
+    const rowMatch = TABLE_LINE.exec(doc.line(n).text);
+    if (!rowMatch) continue;
+    body.push(splitCellsRaw(rowMatch[1]).map((c) => c.trim()));
   }
   const alignments = sepCells.map(cellAlignment);
 
@@ -160,11 +205,11 @@ function parseTable(state, pos) {
   };
 }
 
-function renderRow(cells, widths, alignments) {
+function renderRow(cells: string[], widths: number[], alignments: Alignment[]): string {
   return `| ${cells.map((c, i) => padCell(c, widths[i], alignments[i] || "left")).join(" | ")} |`;
 }
 
-function renderSeparator(widths, alignments) {
+function renderSeparator(widths: number[], alignments: Alignment[]): string {
   const cells = widths.map((w, i) => {
     const align = alignments[i] || "";
     if (align === "center") return `:${"-".repeat(Math.max(1, w - 2))}:`;
@@ -175,13 +220,13 @@ function renderSeparator(widths, alignments) {
   return `| ${cells.join(" | ")} |`;
 }
 
-function renderTable(model) {
+function renderTable(model: TableModel): RenderedTable {
   const colCount = colCountOf(model);
   const header = padArray(model.header, colCount, "");
-  const alignments = padArray(model.alignments, colCount, "");
+  const alignments = padArray(model.alignments, colCount, "" as Alignment);
   const body = model.body.map((row) => padArray(row, colCount, ""));
 
-  const widths = [];
+  const widths: number[] = [];
   for (let c = 0; c < colCount; c++) {
     let w = Math.max(3, header[c].length);
     for (const row of body) w = Math.max(w, row[c].length);
@@ -194,24 +239,24 @@ function renderTable(model) {
   return { lines, widths, colCount, header, alignments, body };
 }
 
-function padModel(model) {
+function padModel(model: TableModel): void {
   const colCount = colCountOf(model);
   model.header = padArray(model.header, colCount, "");
-  model.alignments = padArray(model.alignments, colCount, "");
+  model.alignments = padArray(model.alignments, colCount, "" as Alignment);
   model.body = model.body.map((row) => padArray(row, colCount, ""));
 }
 
-function applyTransform(view, transform) {
+function applyTransform(view: EditorView, transform: Transform): boolean {
   const table = parseTable(view.state, view.state.selection.main.head);
   if (!table) return false;
 
-  const model = {
+  const model: TableModel = {
     header: table.header.slice(),
     body: table.body.map((row) => row.slice()),
     alignments: table.alignments.slice(),
   };
   padModel(model);
-  const cursor = { ...table.cursor };
+  const cursor: Cursor = { ...table.cursor };
 
   transform(model, cursor);
 
@@ -241,9 +286,9 @@ function applyTransform(view, transform) {
   return true;
 }
 
-function tFormat() {}
+function tFormat(): void {}
 
-function tNextCell(model, cursor) {
+function tNextCell(model: TableModel, cursor: Cursor): void {
   const colCount = colCountOf(model);
   cursor.col += 1;
   if (cursor.col >= colCount) {
@@ -256,7 +301,7 @@ function tNextCell(model, cursor) {
   cursor.offsetInCell = 0;
 }
 
-function tPrevCell(model, cursor) {
+function tPrevCell(model: TableModel, cursor: Cursor): void {
   const colCount = colCountOf(model);
   cursor.col -= 1;
   if (cursor.col < 0) {
@@ -270,7 +315,7 @@ function tPrevCell(model, cursor) {
   cursor.offsetInCell = Number.MAX_SAFE_INTEGER;
 }
 
-function tNextRow(model, cursor) {
+function tNextRow(model: TableModel, cursor: Cursor): void {
   const colCount = colCountOf(model);
   cursor.modelRow += 1;
   if (cursor.modelRow - 1 >= model.body.length) {
@@ -279,7 +324,7 @@ function tNextRow(model, cursor) {
   cursor.offsetInCell = 0;
 }
 
-function tInsertRowAbove(model, cursor) {
+function tInsertRowAbove(model: TableModel, cursor: Cursor): void {
   const colCount = colCountOf(model);
   const bodyIdx = cursor.modelRow - 1;
   model.body.splice(bodyIdx, 0, new Array(colCount).fill(""));
@@ -287,7 +332,7 @@ function tInsertRowAbove(model, cursor) {
   cursor.offsetInCell = 0;
 }
 
-function tInsertRowBelow(model, cursor) {
+function tInsertRowBelow(model: TableModel, cursor: Cursor): void {
   const colCount = colCountOf(model);
   const bodyIdx = cursor.modelRow - 1;
   model.body.splice(bodyIdx + 1, 0, new Array(colCount).fill(""));
@@ -296,7 +341,7 @@ function tInsertRowBelow(model, cursor) {
   cursor.offsetInCell = 0;
 }
 
-function tDeleteRow(model, cursor) {
+function tDeleteRow(model: TableModel, cursor: Cursor): void {
   const bodyIdx = cursor.modelRow - 1;
   model.body.splice(bodyIdx, 1);
   if (model.body.length === 0) model.body.push(new Array(colCountOf(model)).fill(""));
@@ -304,21 +349,21 @@ function tDeleteRow(model, cursor) {
   cursor.offsetInCell = 0;
 }
 
-function tMoveRowUp(model, cursor) {
+function tMoveRowUp(model: TableModel, cursor: Cursor): void {
   const bodyIdx = cursor.modelRow - 1;
   if (bodyIdx <= 0) return;
   [model.body[bodyIdx - 1], model.body[bodyIdx]] = [model.body[bodyIdx], model.body[bodyIdx - 1]];
   cursor.modelRow -= 1;
 }
 
-function tMoveRowDown(model, cursor) {
+function tMoveRowDown(model: TableModel, cursor: Cursor): void {
   const bodyIdx = cursor.modelRow - 1;
   if (bodyIdx < 0 || bodyIdx >= model.body.length - 1) return;
   [model.body[bodyIdx], model.body[bodyIdx + 1]] = [model.body[bodyIdx + 1], model.body[bodyIdx]];
   cursor.modelRow += 1;
 }
 
-function tInsertColumnLeft(model, cursor) {
+function tInsertColumnLeft(model: TableModel, cursor: Cursor): void {
   const idx = cursor.col;
   model.header.splice(idx, 0, "");
   model.alignments.splice(idx, 0, "");
@@ -326,7 +371,7 @@ function tInsertColumnLeft(model, cursor) {
   cursor.offsetInCell = 0;
 }
 
-function tInsertColumnRight(model, cursor) {
+function tInsertColumnRight(model: TableModel, cursor: Cursor): void {
   const idx = cursor.col + 1;
   model.header.splice(idx, 0, "");
   model.alignments.splice(idx, 0, "");
@@ -335,7 +380,7 @@ function tInsertColumnRight(model, cursor) {
   cursor.offsetInCell = 0;
 }
 
-function tDeleteColumn(model, cursor) {
+function tDeleteColumn(model: TableModel, cursor: Cursor): void {
   if (colCountOf(model) <= 1) return;
   const idx = cursor.col;
   model.header.splice(idx, 1);
@@ -345,32 +390,32 @@ function tDeleteColumn(model, cursor) {
   cursor.offsetInCell = 0;
 }
 
-function swapColumns(model, a, b) {
+function swapColumns(model: TableModel, a: number, b: number): void {
   [model.header[a], model.header[b]] = [model.header[b], model.header[a]];
   [model.alignments[a], model.alignments[b]] = [model.alignments[b], model.alignments[a]];
   for (const row of model.body) [row[a], row[b]] = [row[b], row[a]];
 }
 
-function tMoveColumnLeft(model, cursor) {
+function tMoveColumnLeft(model: TableModel, cursor: Cursor): void {
   if (cursor.col <= 0) return;
   swapColumns(model, cursor.col, cursor.col - 1);
   cursor.col -= 1;
 }
 
-function tMoveColumnRight(model, cursor) {
+function tMoveColumnRight(model: TableModel, cursor: Cursor): void {
   const colCount = colCountOf(model);
   if (cursor.col >= colCount - 1) return;
   swapColumns(model, cursor.col, cursor.col + 1);
   cursor.col += 1;
 }
 
-function tSetAlign(align) {
+function tSetAlign(align: Alignment): Transform {
   return (model, cursor) => {
     model.alignments[cursor.col] = align;
   };
 }
 
-function tSort(descending) {
+function tSort(descending: boolean): Transform {
   return (model, cursor) => {
     const col = cursor.col;
     const allNumeric = model.body.every(
@@ -389,7 +434,7 @@ function tSort(descending) {
   };
 }
 
-const COMMANDS = [
+const COMMANDS: CommandSpec[] = [
   { id: "format", name: "Format table", transform: tFormat },
   {
     id: "insert-row-above",
@@ -457,13 +502,13 @@ const COMMANDS = [
   },
 ];
 
-export default {
+const plugin: NotablePlugin = {
   onload(api) {
     const { state, view } = api.modules.codemirror;
     const { Prec } = state;
     const { keymap } = view;
 
-    const activeTable = () => {
+    const activeTable = (): ParsedTable | null => {
       const editor = api.editor.activeView();
       if (!editor) return null;
       return parseTable(editor.state, editor.state.selection.main.head);
@@ -509,3 +554,5 @@ export default {
     }
   },
 };
+
+export default plugin;
