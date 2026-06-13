@@ -8,6 +8,7 @@ import { ThemeProvider } from "./ThemeProvider";
 import { CommandPalette } from "./CommandPalette";
 import { SettingsDialog } from "./SettingsDialog";
 import { InstallPrompt } from "../InstallPrompt";
+import { UpdatePrompt } from "./UpdatePrompt";
 import { Toaster } from "../components/ui/toast";
 import { ConfirmHost } from "../components/ui/confirm";
 import { TooltipProvider } from "../components/ui/tooltip";
@@ -90,6 +91,7 @@ export function AppShell() {
         <SettingsDialog />
         <ConfirmHost />
         <InstallPrompt />
+        <UpdatePrompt />
         <Toaster />
       </TooltipProvider>
     </ThemeProvider>

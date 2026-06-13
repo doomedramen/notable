@@ -535,3 +535,22 @@ test("custom theme picker injects a stylesheet link and updates colors", async (
   await page.getByRole("dialog").getByRole("button", { name: "None" }).click();
   await expect(page.locator("#notable-custom-theme")).toHaveCount(0);
 });
+
+test("/new creates a note and redirects into it (app-shortcut target)", async ({
+  page,
+}) => {
+  await page.goto("/new");
+  await expect(page).toHaveURL(/\/note\//);
+  await expect(page.locator(".cm-content")).toBeVisible();
+});
+
+test("/share-target creates a note from shared text and url", async ({ page }) => {
+  await page.goto(
+    "/share-target?title=Shared+page&text=Worth+a+read&url=https%3A%2F%2Fexample.com%2F",
+  );
+  await expect(page).toHaveURL(/\/note\//);
+  await expect(page.locator("nav")).toContainText("Shared page");
+  await expect(page.locator(".cm-content")).toContainText("# Shared page");
+  await expect(page.locator(".cm-content")).toContainText("Worth a read");
+  await expect(page.locator(".cm-content")).toContainText("https://example.com/");
+});

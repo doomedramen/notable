@@ -27,6 +27,7 @@ import { emit } from "../core/events";
 import { useNotesStore } from "../store/notes-store";
 import { openNote } from "../core/navigation";
 import { notice } from "../components/ui/toast";
+import { takePendingContent } from "../core/pending-content";
 
 /* Typographic markdown styling — headings scale, syntax markers fade.
    (Full live preview that hides markers lands as a core plugin in a
@@ -66,6 +67,13 @@ export function Editor({ notePath }: { notePath: string }) {
     conn.onStatus = (s) => useSyncStatus.getState().setStatus(s);
     conn.onReset = () => setGeneration((g) => g + 1);
 
+    // A note created via a shortcut/share-target arrives with content
+    // staged for its first open (e.g. the OS share sheet's text/url).
+    const pending = takePendingContent(notePath);
+    if (pending && conn.text.length === 0) {
+      conn.text.insert(0, pending);
+    }
+
     // Yjs-aware undo: only local edits are undoable, remote ops survive.
     const undoManager = new Y.UndoManager(conn.text);
 
@@ -76,8 +84,13 @@ export function Editor({ notePath }: { notePath: string }) {
     const view = new EditorView({
       parent: host.current,
       state: EditorState.create({
+        // yCollab's ySync plugin only mirrors *future* ytext changes (it
+        // observes from construction time), so any content already in
+        // conn.text (e.g. share-target pending content) must seed the
+        // initial doc here.
+        doc: conn.text.toString(),
         // yCollab binds the editor buffer to conn.text bidirectionally;
-        // we never set doc content manually.
+        // we never set doc content manually beyond this initial seed.
         extensions: [
           highlightSpecialChars(),
           drawSelection(),
