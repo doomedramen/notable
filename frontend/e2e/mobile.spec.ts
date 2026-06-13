@@ -400,16 +400,19 @@ test("Quick Note sheet drag dismisses with one threshold pulse", async ({
   await clearHaptics(page);
 
   const handle = (await page.getByTestId("quick-note-sheet-handle").boundingBox())!;
-  await touchDrag(
+  const client = await startTouchDrag(
     page,
     handle.x + handle.width / 2,
     handle.y + handle.height / 2,
     handle.x + handle.width / 2,
     handle.y + 160,
   );
+  await expect.poll(() => hapticCount(page)).toBe(1);
+  await page.waitForTimeout(100);
+  expect(await hapticCount(page)).toBe(1);
+  await endTouchDrag(client);
 
   await expect(page.getByRole("dialog", { name: "Quick Note" })).not.toBeVisible();
-  expect(await hapticCount(page)).toBe(1);
 });
 
 test("settings gestures do not move the open sidebar", async ({ page }) => {
