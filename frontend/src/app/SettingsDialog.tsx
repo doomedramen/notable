@@ -179,8 +179,8 @@ function AppearanceTab() {
         >
           A+
         </Button>
-        {editorFontSize !== 15.5 && (
-          <Button variant="ghost" size="sm" onClick={() => setEditorFontSize(15.5)}>
+        {editorFontSize !== 14 && (
+          <Button variant="ghost" size="sm" onClick={() => setEditorFontSize(14)}>
             Reset
           </Button>
         )}

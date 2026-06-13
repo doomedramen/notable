@@ -62,7 +62,7 @@ export const useUI = create<UIState>()(
       setAppIconTheme: (appIconTheme) => set({ appIconTheme }),
       recentIcons: [],
       setRecentIcons: (recentIcons) => set({ recentIcons }),
-      editorFontSize: 15.5,
+      editorFontSize: 14,
       setEditorFontSize: (editorFontSize) => set({ editorFontSize }),
       sidebarOpen: startOpen,
       toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
