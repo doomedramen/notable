@@ -63,6 +63,25 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* Native-app selection model: chrome, navigation, menus, labels, and
+   dialogs do not accidentally highlight during clicks or gestures.
+   Editing surfaces opt back in below; plugins can use `select-text` for
+   any additional copyable content they render. */
+body,
+body * {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+body input,
+body textarea,
+body [contenteditable="true"],
+body .cm-editor .cm-content,
+body .select-text {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 ::selection {
   background: var(--accent-soft);
 }
