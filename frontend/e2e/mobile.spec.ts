@@ -305,6 +305,7 @@ test("swiping the drawer open does not trigger header tooltips", async ({
   page,
 }) => {
   await page.goto("/");
+  await expect(page.getByTestId("mobile-top-bar")).toBeVisible();
   const sidebar = page.getByRole("dialog", { name: "Sidebar" });
 
   // Drawer content moving under a touch gesture must not be interpreted as
