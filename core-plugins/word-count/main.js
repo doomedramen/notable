@@ -20,15 +20,31 @@ export default {
     const { view } = api.modules.codemirror;
     let label = null;
 
-    const render = (text) => {
+    const render = (editor) => {
       if (!label) return;
+      if (!editor) {
+        label.textContent = "0 words";
+        label.title = "No note is open";
+        return;
+      }
+
+      const text = editor.state.doc.toString();
+      const selection = editor.state.selection.main;
       const words = countWords(text);
-      label.textContent = `${words} word${words === 1 ? "" : "s"}`;
+      const characters = text.length;
+      if (!selection.empty) {
+        const selected = countWords(
+          editor.state.doc.sliceString(selection.from, selection.to),
+        );
+        label.textContent = `${selected} selected · ${words} total`;
+      } else {
+        label.textContent = `${words} word${words === 1 ? "" : "s"}`;
+      }
+      label.title = `${characters} character${characters === 1 ? "" : "s"}`;
     };
 
     const renderActive = () => {
-      const active = api.editor.activeView();
-      render(active ? active.state.doc.toString() : "");
+      render(api.editor.activeView());
     };
 
     api.workspace.registerStatusBarItem({
@@ -48,7 +64,7 @@ export default {
     // Recount as the user types…
     api.editor.registerExtension(
       view.EditorView.updateListener.of((update) => {
-        if (update.docChanged) render(update.state.doc.toString());
+        if (update.docChanged || update.selectionSet) render(update.view);
       }),
     );
 

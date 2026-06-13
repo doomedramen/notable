@@ -1,0 +1,8 @@
+{
+  "id": "paste-url",
+  "name": "Paste URL",
+  "version": "1.0.0",
+  "description": "Turns selected text into a Markdown link when a URL is pasted.",
+  "entry": "main.js",
+  "defaultEnabled": true
+}

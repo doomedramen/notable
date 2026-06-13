@@ -1,0 +1,8 @@
+{
+  "id": "recent-files",
+  "name": "Recent files",
+  "version": "1.0.0",
+  "description": "Keeps recently opened notes within easy reach.",
+  "entry": "main.js",
+  "defaultEnabled": true
+}

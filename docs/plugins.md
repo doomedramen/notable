@@ -149,8 +149,14 @@ Add core plugins directly under `core-plugins/<id>`. They are part of the
 Notable release and should be reserved for features maintained with the app.
 Core plugins currently include:
 
+- `backlinks` - incoming links for the open note
+- `live-preview` - rendered Markdown formatting while editing
 - `outline` - heading navigation in a right panel
-- `word-count` - live status bar word count
+- `paste-url` - Markdown links when pasting URLs over selected text
+- `recent-files` - recently opened note navigation
+- `tags` - tag highlighting and navigation
+- `wikilinks` - wiki link rendering, completion, and navigation
+- `word-count` - live document and selection word counts
 
 They are intentionally limited to features expected to benefit nearly every
 Notable user. More specialized workflows belong in the community registry.

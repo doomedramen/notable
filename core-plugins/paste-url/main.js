@@ -1,0 +1,51 @@
+function isWebUrl(value) {
+  if (/\s/.test(value)) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function escapeLabel(value) {
+  return value.replaceAll("\\", "\\\\").replaceAll("]", "\\]");
+}
+
+function escapeDestination(value) {
+  return value.replaceAll("(", "\\(").replaceAll(")", "\\)");
+}
+
+export default {
+  onload(api) {
+    const { EditorView } = api.modules.codemirror.view;
+
+    api.editor.registerExtension(
+      EditorView.domEventHandlers({
+        paste(event, view) {
+          const selection = view.state.selection.main;
+          if (selection.empty) return false;
+
+          const label = view.state.doc.sliceString(selection.from, selection.to);
+          if (!label.trim() || label.includes("\n")) return false;
+
+          const clipboard = event.clipboardData?.getData("text/plain").trim();
+          if (!clipboard || !isWebUrl(clipboard)) return false;
+
+          event.preventDefault();
+          const markdown = `[${escapeLabel(label)}](${escapeDestination(clipboard)})`;
+          view.dispatch({
+            changes: {
+              from: selection.from,
+              to: selection.to,
+              insert: markdown,
+            },
+            selection: { anchor: selection.from + markdown.length },
+            scrollIntoView: true,
+          });
+          return true;
+        },
+      }),
+    );
+  },
+};
