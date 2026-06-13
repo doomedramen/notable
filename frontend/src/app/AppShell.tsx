@@ -137,7 +137,7 @@ function RightPanel() {
   if (!panel) return null;
 
   return (
-    <aside className="fixed inset-y-0 right-0 z-40 flex w-80 max-w-[85vw] flex-col border-l border-border bg-surface md:static md:z-auto md:w-72">
+    <aside className="fixed inset-y-0 right-0 z-40 flex w-80 max-w-[85vw] flex-col border-l border-border bg-surface pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] md:static md:z-auto md:w-72 md:pt-0 md:pb-0">
       <div className="flex h-9 shrink-0 items-center gap-2 border-b border-border px-3">
         {panel.icon && <AppIcon icon={panel.icon} size={14} className="text-faint" />}
         <span className="flex-1 text-sm font-medium">{panel.title}</span>

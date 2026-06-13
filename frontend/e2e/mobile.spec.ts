@@ -27,8 +27,11 @@ test("sidebar is a drawer: closed on load, opens, closes on navigation", async (
   await expect(sidebar).not.toBeInViewport();
   await expect(page.locator(".cm-content")).toBeVisible();
 
-  // The top bar shows the open note's name.
-  await expect(topBar).toContainText("Untitled");
+  // The editor surfaces the open note's name (the top bar stays minimal:
+  // drawer toggle + search only).
+  await expect(
+    page.getByRole("heading", { name: "Untitled" }),
+  ).toBeVisible();
 });
 
 test("top bar search button opens the command palette", async ({ page }) => {
