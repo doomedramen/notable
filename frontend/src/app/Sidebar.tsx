@@ -546,6 +546,7 @@ export function Sidebar() {
           />
           <SheetContent
             ref={mobileSidebarRef}
+            data-testid="mobile-sidebar"
             title="Sidebar"
             description="Navigate notes, folders, and application views."
             tabIndex={-1}

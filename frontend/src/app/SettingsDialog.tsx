@@ -127,7 +127,10 @@ export function SettingsDialog() {
         >
           <span className="h-1 w-9 rounded-full bg-border-strong" />
         </div>
-        <nav className="flex w-full shrink-0 gap-0.5 overflow-x-auto rounded-t-md border-b border-border bg-surface p-2 md:w-44 md:flex-col md:overflow-x-visible md:rounded-l-md md:rounded-tr-none md:border-r md:border-b-0">
+        <nav
+          data-testid="settings-tabs"
+          className="flex w-full shrink-0 gap-0.5 overflow-x-auto rounded-t-md border-b border-border bg-surface p-2 md:w-44 md:flex-col md:overflow-x-visible md:rounded-l-md md:rounded-tr-none md:border-r md:border-b-0"
+        >
           <div className="hidden px-2 pt-1 pb-3 text-sm font-semibold md:block">
             Settings
           </div>
@@ -149,7 +152,10 @@ export function SettingsDialog() {
             </button>
           ))}
         </nav>
-        <div className="min-w-0 flex-1 overflow-y-auto overscroll-contain p-5">
+        <div
+          data-testid="settings-content"
+          className="min-w-0 flex-1 overflow-y-auto overscroll-contain p-5"
+        >
           {active === "appearance" && <AppearanceTab />}
           {active === "plugins" && <PluginsTab />}
           {pluginTabs.map(

@@ -228,6 +228,9 @@ export function useMobileSidebarGesture({
         gestureRef.current = null;
         return;
       }
+      const touch = findTouch(event.changedTouches, gesture.id);
+      if (touch) gesture.currentX = touch.clientX;
+      gesture.currentTime = event.timeStamp;
       const elapsed = Math.max(1, gesture.currentTime - gesture.previousTime);
       const velocity = (gesture.currentX - gesture.previousX) / elapsed;
       const commit =
@@ -365,6 +368,8 @@ export function useMobileSidebarGesture({
       gestureRef.current = null;
       return;
     }
+    gesture.currentX = event.clientX;
+    gesture.currentTime = event.timeStamp;
     const elapsed = Math.max(1, gesture.currentTime - gesture.previousTime);
     const velocity = (gesture.currentX - gesture.previousX) / elapsed;
     const commit =

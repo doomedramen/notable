@@ -1,4 +1,9 @@
-import { expect, test } from "@playwright/test";
+import {
+  expect,
+  test,
+  type CDPSession,
+  type Page,
+} from "@playwright/test";
 
 const MOBILE_DRAWER_WIDTH = 288;
 
@@ -93,84 +98,70 @@ test("backdrop tap closes the drawer", async ({ page }) => {
   const viewport = page.viewportSize()!;
   await page.mouse.click(viewport.width - 10, viewport.height / 2);
   await expect(sidebar).not.toBeInViewport();
+
+  await page.getByLabel("Open sidebar").click();
+  await expect(sidebar).toBeInViewport();
+  await page.keyboard.press("Escape");
+  await expect(sidebar).not.toBeInViewport();
 });
 
-/** Dispatch a synthetic horizontal drag swipe from (x1,y) to (x2,y).
-    swipe-bar listens on `window` and only activates dragging once a
-    touchmove crosses its ~20px activation threshold, so this dispatches
-    a touchstart followed by several incremental touchmoves before the
-    final touchend (a single touchstart+touchend jump is ignored). */
-async function swipe(page: import("@playwright/test").Page, x1: number, x2: number, y = 300) {
-  await page.evaluate(
-    ([from, to, yPos]) => {
-      const steps = 6;
-      const touch = (x: number) =>
-        new Touch({ identifier: 1, target: document.body, clientX: x, clientY: yPos });
-      window.dispatchEvent(
-        new TouchEvent("touchstart", {
-          bubbles: true,
-          cancelable: true,
-          touches: [touch(from)],
-          changedTouches: [touch(from)],
-        }),
-      );
-      for (let i = 1; i <= steps; i++) {
-        const x = from + ((to - from) * i) / steps;
-        window.dispatchEvent(
-          new TouchEvent("touchmove", {
-            bubbles: true,
-            cancelable: true,
-            touches: [touch(x)],
-            changedTouches: [touch(x)],
-          }),
-        );
-      }
-      window.dispatchEvent(
-        new TouchEvent("touchend", {
-          bubbles: true,
-          cancelable: true,
-          touches: [],
-          changedTouches: [touch(to)],
-        }),
-      );
-    },
-    [x1, x2, y],
-  );
+async function startTouchDrag(
+  page: Page,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+): Promise<CDPSession> {
+  const client = await page.context().newCDPSession(page);
+  await client.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [{ x: x1, y: y1 }],
+  });
+  const steps = 6;
+  for (let index = 1; index <= steps; index += 1) {
+    await client.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [
+        {
+          x: x1 + ((x2 - x1) * index) / steps,
+          y: y1 + ((y2 - y1) * index) / steps,
+        },
+      ],
+    });
+  }
+  return client;
+}
+
+async function endTouchDrag(client: CDPSession) {
+  await client.send("Input.dispatchTouchEvent", {
+    type: "touchEnd",
+    touchPoints: [],
+  });
+  await client.detach();
+}
+
+async function touchDrag(
+  page: Page,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+) {
+  const client = await startTouchDrag(page, x1, y1, x2, y2);
+  await endTouchDrag(client);
+}
+
+async function swipe(page: Page, x1: number, x2: number, y = 300) {
+  await touchDrag(page, x1, y, x2, y);
 }
 
 async function dragWithoutRelease(
-  page: import("@playwright/test").Page,
+  page: Page,
   x1: number,
   x2: number,
   y = 300,
-) {
-  await page.evaluate(
-    ([from, to, yPos]) => {
-      const steps = 6;
-      const touch = (x: number) =>
-        new Touch({ identifier: 1, target: document.body, clientX: x, clientY: yPos });
-      window.dispatchEvent(
-        new TouchEvent("touchstart", {
-          bubbles: true,
-          cancelable: true,
-          touches: [touch(from)],
-          changedTouches: [touch(from)],
-        }),
-      );
-      for (let i = 1; i <= steps; i++) {
-        const x = from + ((to - from) * i) / steps;
-        window.dispatchEvent(
-          new TouchEvent("touchmove", {
-            bubbles: true,
-            cancelable: true,
-            touches: [touch(x)],
-            changedTouches: [touch(x)],
-          }),
-        );
-      }
-    },
-    [x1, x2, y],
-  );
+): Promise<CDPSession> {
+  return startTouchDrag(page, x1, y, x2, y);
 }
 
 test("edge swipe opens the drawer, swipe left closes it", async ({ page }) => {
@@ -206,9 +197,10 @@ test("edge swipe dims the page while the drawer is moving", async ({ page }) => 
   await page.goto("/");
   const backdrop = page.getByTestId("sidebar-swipe-backdrop");
   const sidebar = page.getByRole("dialog", { name: "Sidebar" });
-  await expect(backdrop).toHaveCount(1);
+  await expect(backdrop).toHaveCount(0);
 
-  await dragWithoutRelease(page, 5, 150);
+  const client = await dragWithoutRelease(page, 5, 150);
+  await expect(backdrop).toHaveCount(1);
   const sidebarBox = await sidebar.boundingBox();
   expect(sidebarBox).not.toBeNull();
   expect(sidebarBox!.x).toBeGreaterThan(-MOBILE_DRAWER_WIDTH + 20);
@@ -219,22 +211,24 @@ test("edge swipe dims the page while the drawer is moving", async ({ page }) => 
   expect(opacity).toBeGreaterThan(0);
   expect(opacity).toBeLessThan(1);
 
-  await page.evaluate(() => {
-    const touch = new Touch({
-      identifier: 1,
-      target: document.body,
-      clientX: 150,
-      clientY: 300,
-    });
-    window.dispatchEvent(
-      new TouchEvent("touchend", {
-        bubbles: true,
-        cancelable: true,
-        touches: [],
-        changedTouches: [touch],
-      }),
-    );
-  });
+  await endTouchDrag(client);
+  await expect(sidebar).toBeInViewport();
+});
+
+test("short sidebar swipes cancel in both directions", async ({ page }) => {
+  await page.goto("/");
+  const sidebar = page.getByRole("dialog", { name: "Sidebar" });
+
+  let client = await dragWithoutRelease(page, 5, 70);
+  await page.waitForTimeout(120);
+  await endTouchDrag(client);
+  await expect(sidebar).not.toBeInViewport();
+
+  await page.getByLabel("Open sidebar").click();
+  await expect(sidebar).toBeInViewport();
+  client = await dragWithoutRelease(page, 250, 200);
+  await page.waitForTimeout(120);
+  await endTouchDrag(client);
   await expect(sidebar).toBeInViewport();
 });
 
@@ -271,4 +265,52 @@ test("settings sheet can be dismissed with a downward drag", async ({
   await page.mouse.up();
 
   await expect(dialog).not.toBeVisible();
+});
+
+test("settings gestures do not move the open sidebar", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Open sidebar").click();
+  await page.getByLabel("Settings").click();
+
+  const settings = page.getByRole("dialog", { name: "Settings" });
+  const sidebar = page.getByTestId("mobile-sidebar");
+  await expect(settings).toBeVisible();
+
+  const tabs = (await page.getByTestId("settings-tabs").boundingBox())!;
+  await touchDrag(
+    page,
+    tabs.x + tabs.width - 24,
+    tabs.y + tabs.height / 2,
+    tabs.x + 32,
+    tabs.y + tabs.height / 2,
+  );
+  expect((await sidebar.boundingBox())!.x).toBeCloseTo(0, 0);
+
+  const content = (await page.getByTestId("settings-content").boundingBox())!;
+  await touchDrag(
+    page,
+    content.x + content.width / 2,
+    content.y + Math.min(content.height - 20, 300),
+    content.x + content.width / 2,
+    content.y + 40,
+  );
+  expect((await sidebar.boundingBox())!.x).toBeCloseTo(0, 0);
+
+  await settings.getByRole("button", { name: "Close" }).click();
+  await expect(settings).not.toBeVisible();
+  expect((await sidebar.boundingBox())!.x).toBeCloseTo(0, 0);
+
+  await swipe(page, 250, 50);
+  await expect(sidebar).not.toBeInViewport();
+});
+
+test("edge swipe is ignored while settings is open", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Search").click();
+  await page.getByPlaceholder("Search notes and commands…").fill("settings");
+  await page.getByRole("option", { name: /Open settings/ }).click();
+  await expect(page.getByRole("dialog", { name: "Settings" })).toBeVisible();
+
+  await swipe(page, 5, 200);
+  await expect(page.getByTestId("mobile-sidebar")).toHaveCount(0);
 });
