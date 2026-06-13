@@ -6,6 +6,7 @@ import {
   type TrashedNote,
 } from "../store/notes";
 import { syncNotesList } from "../store/notes-store";
+import { useNotesStore } from "../store/notes-store";
 import { confirm } from "../components/ui/confirm";
 import { notice } from "../components/ui/toast";
 import { on } from "../core/events";
@@ -16,6 +17,7 @@ import { Skeleton } from "../components/ui/skeleton";
 
 /** Lists notes sitting in `.trash/`, with restore / delete-forever (route: /trash). */
 export function TrashView() {
+  const trash = useNotesStore((state) => state.trash);
   const [items, setItems] = useState<TrashedNote[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -34,6 +36,16 @@ export function TrashView() {
     setItems((prev) => prev.filter((n) => n.path !== note.path));
     await restoreFromTrash(note);
     await syncNotesList();
+    notice(`Restored “${note.name}”.`, {
+      duration: 6000,
+      action: {
+        label: "Undo",
+        run: async () => {
+          await trash(note.original_path);
+          await refresh();
+        },
+      },
+    });
   };
 
   const handleDeleteForever = async (note: TrashedNote) => {

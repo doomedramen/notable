@@ -5,7 +5,9 @@ import {
   useRef,
   useState,
   type FormEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent,
+  type PointerEvent,
 } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { useStore } from "zustand";
@@ -203,7 +205,9 @@ export function Sidebar() {
   const notes = useNotesStore((s) => s.notes);
   const folders = useNotesStore((s) => s.folders);
   const loaded = useNotesStore((s) => s.loaded);
-  const create = useNotesStore((s) => s.create);
+  const trash = useNotesStore((s) => s.trash);
+  const restore = useNotesStore((s) => s.restore);
+  const rename = useNotesStore((s) => s.rename);
   const rmdir = useNotesStore((s) => s.rmdir);
   const open = useUI((s) => s.sidebarOpen);
   const toggle = useUI((s) => s.toggleSidebar);
@@ -211,12 +215,20 @@ export function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const activePath = params["*"] ?? null;
-  const [confirmDelete, setConfirmDelete] = useState<NoteMeta | null>(null);
   const [renaming, setRenaming] = useState<NoteMeta | null>(null);
   const [renamingFolder, setRenamingFolder] = useState<string | null>(null);
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [selectionAnchor, setSelectionAnchor] = useState<string | null>(null);
+  const [draggedPath, setDraggedPath] = useState<string | null>(null);
+  const [dragOverFolder, setDragOverFolder] = useState<string | null>(null);
+  const navRef = useRef<HTMLElement>(null);
+  const touchDragRef = useRef<{
+    path: string;
+    active: boolean;
+    timer: number;
+    targetFolder: string | null;
+  } | null>(null);
   const isMobile = useIsMobile();
 
   const sidebarSortComparators = useStore(
@@ -322,10 +334,115 @@ export function Sidebar() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [selected.size]);
 
-  const handleCreate = async (folder = "") => {
-    const meta = await create("Untitled", folder);
-    openNote(meta.path);
+  const handleCreate = (folder = "") => useUI.getState().openQuickNote(folder);
+
+  const handleTrash = async (paths: string[]) => {
+    const targets = paths
+      .map((path) => notes.find((note) => note.path === path))
+      .filter((note): note is NoteMeta => note !== undefined);
+    if (targets.length === 0) return;
+    const activeWasTrashed = targets.some((note) => note.path === activePath);
+    try {
+      await Promise.all(targets.map((note) => trash(note.path)));
+      setSelected(new Set());
+      if (activeWasTrashed) navigate("/");
+      notice(
+        targets.length === 1
+          ? `Moved “${targets[0]!.name}” to Trash.`
+          : `Moved ${targets.length} notes to Trash.`,
+        {
+          duration: 6000,
+          action: {
+            label: "Undo",
+            run: async () => {
+              const restored = await Promise.all(
+                targets.map((note) => restore(note.path)),
+              );
+              if (activeWasTrashed && restored[0]) {
+                openNote(restored[0].path);
+              }
+            },
+          },
+        },
+      );
+    } catch {
+      notice("Could not move the note to Trash.", { variant: "danger" });
+      await syncNotesList();
+    }
   };
+
+  const moveNote = async (path: string, folder: string) => {
+    const note = notes.find((item) => item.path === path);
+    if (!note || note.folder === folder) return;
+    const target = folder ? `${folder}/${note.name}.md` : `${note.name}.md`;
+    const wasActive = path === activePath;
+    try {
+      const moved = await rename(path, target);
+      if (wasActive) openNote(moved.path);
+      notice(`Moved “${note.name}” to ${folder || "Root"}.`, {
+        duration: 6000,
+        action: {
+          label: "Undo",
+          run: async () => {
+            const restored = await rename(target, path);
+            if (wasActive) openNote(restored.path);
+          },
+        },
+      });
+    } catch {
+      notice("Could not move the note. Is that name already taken?", {
+        variant: "danger",
+      });
+    }
+  };
+
+  const finishTouchDrag = (event: PointerEvent<HTMLButtonElement>) => {
+    const drag = touchDragRef.current;
+    if (!drag) return;
+    clearTimeout(drag.timer);
+    if (drag.active && drag.targetFolder !== null) {
+      event.preventDefault();
+      void moveNote(drag.path, drag.targetFolder);
+    }
+    touchDragRef.current = null;
+    setDraggedPath(null);
+    setDragOverFolder(null);
+  };
+
+  const touchDragHandlers = (path: string) => ({
+    onPointerDown: (event: PointerEvent<HTMLButtonElement>) => {
+      if (event.pointerType !== "touch") return;
+      const drag = {
+        path,
+        active: false,
+        targetFolder: null as string | null,
+        timer: window.setTimeout(() => {
+          drag.active = true;
+          setDraggedPath(path);
+        }, 280),
+      };
+      touchDragRef.current = drag;
+    },
+    onPointerMove: (event: PointerEvent<HTMLButtonElement>) => {
+      const drag = touchDragRef.current;
+      if (!drag?.active) return;
+      event.preventDefault();
+      const target = document
+        .elementFromPoint(event.clientX, event.clientY)
+        ?.closest<HTMLElement>("[data-folder-drop]");
+      const folder = target?.dataset.folderDrop;
+      drag.targetFolder = folder ?? null;
+      setDragOverFolder(folder ?? null);
+      const nav = navRef.current;
+      if (nav) {
+        const bounds = nav.getBoundingClientRect();
+        if (event.clientY < bounds.top + 48) nav.scrollTop -= 12;
+        if (event.clientY > bounds.bottom - 48) nav.scrollTop += 12;
+      }
+    },
+    onPointerUp: finishTouchDrag,
+    onPointerCancel: finishTouchDrag,
+  });
 
   const handleDeleteFolder = async (folder: string) => {
     if (!(await confirm(`Delete the empty folder “${folder}”?`))) return;
@@ -380,7 +497,10 @@ export function Sidebar() {
         </DropdownMenu>
       </div>
 
-      <nav className="flex-1 overflow-y-auto overscroll-contain px-1.5 pb-2">
+      <nav
+        ref={navRef}
+        className="flex-1 overflow-y-auto overscroll-contain px-1.5 pb-2"
+      >
         {!loaded ? (
           <div className="space-y-1 px-2 py-2">
             <Skeleton className="h-7 w-full" />
@@ -393,7 +513,26 @@ export function Sidebar() {
           </EmptyState>
         ) : (
           <>
-            <ul>
+            <ul
+              data-folder-drop=""
+              onDragOver={(event) => {
+                event.preventDefault();
+                setDragOverFolder("");
+              }}
+              onDragLeave={() => setDragOverFolder(null)}
+              onDrop={(event) => {
+                event.preventDefault();
+                const path =
+                  event.dataTransfer.getData("text/notable-note") || draggedPath;
+                if (path) void moveNote(path, "");
+                setDraggedPath(null);
+                setDragOverFolder(null);
+              }}
+              className={cn(
+                "min-h-2 rounded-sm transition-colors",
+                draggedPath && dragOverFolder === "" && "bg-accent-soft",
+              )}
+            >
               {groups.root.map((note) => (
                 <NoteRow
                   key={note.path}
@@ -404,7 +543,13 @@ export function Sidebar() {
                   onClick={(event) => handleNoteClick(note, event)}
                   onContextMenu={() => ensureSelected(note.path)}
                   onRename={() => setRenaming(note)}
-                  onDelete={() => setConfirmDelete(note)}
+                  onDelete={() => void handleTrash(selectionFor(note.path))}
+                  onDragStart={() => setDraggedPath(note.path)}
+                  onDragEnd={() => {
+                    setDraggedPath(null);
+                    setDragOverFolder(null);
+                  }}
+                  touchDragHandlers={touchDragHandlers(note.path)}
                 />
               ))}
             </ul>
@@ -418,11 +563,23 @@ export function Sidebar() {
                 selectionFor={selectionFor}
                 onNoteClick={handleNoteClick}
                 onNoteContextMenu={ensureSelected}
-                onCreateNote={() => void handleCreate(folder)}
+                onCreateNote={() => handleCreate(folder)}
                 onRename={setRenaming}
-                onDelete={setConfirmDelete}
+                onDelete={(note) =>
+                  void handleTrash(selectionFor(note.path))
+                }
                 onRenameFolder={() => setRenamingFolder(folder)}
                 onDeleteFolder={() => void handleDeleteFolder(folder)}
+                draggedPath={draggedPath}
+                dragOverFolder={dragOverFolder}
+                onDragOverFolder={setDragOverFolder}
+                onDropNote={(path) => void moveNote(path, folder)}
+                onDragStart={setDraggedPath}
+                onDragEnd={() => {
+                  setDraggedPath(null);
+                  setDragOverFolder(null);
+                }}
+                touchDragHandlers={touchDragHandlers}
               />
             ))}
           </>
@@ -486,11 +643,6 @@ export function Sidebar() {
         onClose={() => setRenamingFolder(null)}
         activePath={activePath}
       />
-      <DeleteDialog
-        note={confirmDelete}
-        onClose={() => setConfirmDelete(null)}
-        activePath={activePath}
-      />
       <NewFolderDialog open={newFolderOpen} onClose={() => setNewFolderOpen(false)} />
     </>
   );
@@ -509,6 +661,13 @@ function FolderGroup({
   onDelete,
   onRenameFolder,
   onDeleteFolder,
+  draggedPath,
+  dragOverFolder,
+  onDragOverFolder,
+  onDropNote,
+  onDragStart,
+  onDragEnd,
+  touchDragHandlers,
 }: {
   folder: string;
   notes: NoteMeta[];
@@ -522,8 +681,23 @@ function FolderGroup({
   onDelete: (n: NoteMeta) => void;
   onRenameFolder: () => void;
   onDeleteFolder: () => void;
+  draggedPath: string | null;
+  dragOverFolder: string | null;
+  onDragOverFolder: (folder: string | null) => void;
+  onDropNote: (path: string) => void;
+  onDragStart: (path: string) => void;
+  onDragEnd: () => void;
+  touchDragHandlers: (
+    path: string,
+  ) => {
+    onPointerDown: (event: PointerEvent<HTMLButtonElement>) => void;
+    onPointerMove: (event: PointerEvent<HTMLButtonElement>) => void;
+    onPointerUp: (event: PointerEvent<HTMLButtonElement>) => void;
+    onPointerCancel: (event: PointerEvent<HTMLButtonElement>) => void;
+  };
 }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const collapsed = useUI((state) => state.collapsedFolders.includes(folder));
+  const toggleCollapsed = useUI((state) => state.toggleFolderCollapsed);
   const menuItems = useStore(
     workspaceStore,
     (state) => state.folderContextMenuItems,
@@ -539,8 +713,35 @@ function FolderGroup({
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <button
-            onClick={() => setCollapsed((c) => !c)}
-            className="flex w-full items-center gap-1.5 rounded-sm px-2 py-2 text-left text-sm text-muted hover:bg-surface-hover hover:text-foreground md:py-1.5"
+            data-folder-drop={folder}
+            onClick={() => toggleCollapsed(folder)}
+            onKeyDown={(event) => {
+              if (event.key === "ArrowLeft" && !collapsed) {
+                event.preventDefault();
+                toggleCollapsed(folder);
+              } else if (event.key === "ArrowRight" && collapsed) {
+                event.preventDefault();
+                toggleCollapsed(folder);
+              }
+            }}
+            onDragOver={(event) => {
+              event.preventDefault();
+              onDragOverFolder(folder);
+            }}
+            onDragLeave={() => onDragOverFolder(null)}
+            onDrop={(event) => {
+              event.preventDefault();
+              const path =
+                event.dataTransfer.getData("text/notable-note") || draggedPath;
+              if (path) onDropNote(path);
+              onDragEnd();
+            }}
+            className={cn(
+              "flex w-full items-center gap-1.5 rounded-sm px-2 py-2 text-left text-sm text-muted hover:bg-surface-hover hover:text-foreground md:py-1.5",
+              draggedPath &&
+                dragOverFolder === folder &&
+                "bg-accent-soft text-foreground ring-1 ring-accent",
+            )}
           >
             <AppIcon
               icon="chevron-down"
@@ -587,6 +788,9 @@ function FolderGroup({
               onContextMenu={() => onNoteContextMenu(note.path)}
               onRename={() => onRename(note)}
               onDelete={() => onDelete(note)}
+              onDragStart={() => onDragStart(note.path)}
+              onDragEnd={onDragEnd}
+              touchDragHandlers={touchDragHandlers(note.path)}
               hideFolder
             />
           ))}
@@ -659,6 +863,9 @@ function NoteRow({
   onContextMenu,
   onRename,
   onDelete,
+  onDragStart,
+  onDragEnd,
+  touchDragHandlers,
   hideFolder = false,
 }: {
   note: NoteMeta;
@@ -669,6 +876,14 @@ function NoteRow({
   onContextMenu?: () => void;
   onRename: () => void;
   onDelete: () => void;
+  onDragStart: () => void;
+  onDragEnd: () => void;
+  touchDragHandlers: {
+    onPointerDown: (event: PointerEvent<HTMLButtonElement>) => void;
+    onPointerMove: (event: PointerEvent<HTMLButtonElement>) => void;
+    onPointerUp: (event: PointerEvent<HTMLButtonElement>) => void;
+    onPointerCancel: (event: PointerEvent<HTMLButtonElement>) => void;
+  };
   hideFolder?: boolean;
 }) {
   const menuItems = useStore(
@@ -699,8 +914,44 @@ function NoteRow({
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <button
+            data-note-row
+            data-note-path={note.path}
+            draggable
             onClick={onClick}
             onContextMenu={onContextMenu}
+            onDragStart={(event) => {
+              event.dataTransfer.effectAllowed = "move";
+              event.dataTransfer.setData("text/notable-note", note.path);
+              onDragStart();
+            }}
+            onDragEnd={onDragEnd}
+            onKeyDown={(event: ReactKeyboardEvent<HTMLButtonElement>) => {
+              if (event.key === "F2") {
+                event.preventDefault();
+                onRename();
+              } else if (event.key === "Delete") {
+                event.preventDefault();
+                onDelete();
+              } else if (
+                event.key === "ArrowDown" ||
+                event.key === "ArrowUp"
+              ) {
+                event.preventDefault();
+                const rows = [
+                  ...(event.currentTarget
+                    .closest("nav")
+                    ?.querySelectorAll<HTMLButtonElement>("[data-note-row]") ??
+                    []),
+                ];
+                const index = rows.indexOf(event.currentTarget);
+                rows[
+                  event.key === "ArrowDown"
+                    ? Math.min(rows.length - 1, index + 1)
+                    : Math.max(0, index - 1)
+                ]?.focus();
+              }
+            }}
+            {...touchDragHandlers}
             className={cn(
               "flex w-full items-center gap-1.5 rounded-sm px-2 py-2 text-left text-sm transition-colors duration-100 md:py-1.5",
               active
@@ -785,6 +1036,16 @@ function RenameDialog({
     try {
       const meta = await rename(note.path, newPath);
       if (wasActive) openNote(meta.path);
+      notice(`Renamed to “${trimmed}”.`, {
+        duration: 6000,
+        action: {
+          label: "Undo",
+          run: async () => {
+            const restored = await rename(newPath, note.path);
+            if (wasActive) openNote(restored.path);
+          },
+        },
+      });
     } catch {
       notice("Rename failed — is the name taken?", { variant: "danger" });
     }
@@ -862,6 +1123,16 @@ function RenameFolderDialog({
       if (movingActive && activePath) {
         openNote(`${target}${activePath.slice(folder.length)}`);
       }
+      notice(`Renamed folder to “${target}”.`, {
+        duration: 6000,
+        action: {
+          label: "Undo",
+          run: async () => {
+            await renameFolder(target, folder);
+            if (movingActive && activePath) openNote(activePath);
+          },
+        },
+      });
     } catch {
       notice("Could not rename folder.", { variant: "danger" });
     }
@@ -887,44 +1158,6 @@ function RenameFolderDialog({
             </Button>
           </DialogFooter>
         </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function DeleteDialog({
-  note,
-  onClose,
-  activePath,
-}: {
-  note: NoteMeta | null;
-  onClose: () => void;
-  activePath: string | null;
-}) {
-  const trash = useNotesStore((s) => s.trash);
-  const navigate = useNavigate();
-
-  const handleDelete = async () => {
-    if (!note) return;
-    const wasActive = note.path === activePath;
-    onClose();
-    await trash(note.path);
-    if (wasActive) navigate("/");
-  };
-
-  return (
-    <Dialog open={note !== null} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent showClose={false}>
-        <DialogTitle>Delete “{note?.name}”?</DialogTitle>
-        <DialogDescription>
-          {note ? `“${note.path}” will be moved to Trash.` : ""}
-        </DialogDescription>
-        <DialogFooter>
-          <Button onClick={onClose}>Cancel</Button>
-          <Button variant="dangerSolid" onClick={handleDelete}>
-            Delete
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

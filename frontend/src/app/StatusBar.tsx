@@ -48,7 +48,7 @@ export function StatusBar() {
   const dirty = useSyncStatus((s) => s.dirty);
 
   return (
-    <footer className="m-0 flex h-[calc(1.75rem+env(safe-area-inset-bottom))] shrink-0 flex-col border-t border-border bg-surface text-xs text-muted">
+    <footer className="m-0 flex h-7 shrink-0 flex-col border-t border-border bg-surface p-0 text-xs text-muted">
       <div className="flex h-7 min-w-0 items-center gap-2 px-2">
         <SyncIndicator status={status} dirty={dirty} />
         <StatusBarItems />

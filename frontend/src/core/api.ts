@@ -179,8 +179,7 @@ export function createPluginAPI(
       },
     },
     ui: {
-      notice: (message, durationMs) =>
-        notice(message, { duration: durationMs }),
+      notice,
       confirm,
     },
     frontmatter: {

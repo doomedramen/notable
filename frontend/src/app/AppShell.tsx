@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Outlet, useMatch, useNavigate } from "react-router";
 import { useStore } from "zustand";
 import { SwipeBarProvider, useSwipeBarContext } from "@luciodale/swipe-bar";
@@ -20,8 +20,7 @@ import { useUI } from "../store/ui";
 import { AppIcon } from "../components/AppIcon";
 import { IconPicker } from "../components/IconPicker";
 import { useNotesStore } from "../store/notes-store";
-import * as vault from "../core/vault";
-import { notice } from "../components/ui/toast";
+import { MobileQuickNoteButton, QuickNote } from "./QuickNote";
 
 export function AppShell() {
   return (
@@ -65,6 +64,8 @@ function AppShellInner() {
           <StatusBar />
         </div>
         <CommandPalette />
+        <QuickNote />
+        <MobileQuickNoteButton />
         <SettingsDialog />
         <ConfirmHost />
         <InstallPrompt />
@@ -139,19 +140,7 @@ function RightPanel() {
 export function EmptyState() {
   const notes = useNotesStore((state) => state.notes);
   const loaded = useNotesStore((state) => state.loaded);
-  const [creating, setCreating] = useState(false);
   const hasNotes = loaded && notes.length > 0;
-
-  const createNote = async () => {
-    setCreating(true);
-    try {
-      const note = await vault.create();
-      openNote(note.path);
-    } catch {
-      notice("Could not create a note.", { variant: "danger" });
-      setCreating(false);
-    }
-  };
 
   return (
     <div className="flex flex-1 items-center justify-center overflow-y-auto px-5 py-10">
@@ -171,11 +160,10 @@ export function EmptyState() {
           <Button
             variant="primary"
             className="w-full sm:w-auto"
-            disabled={creating}
-            onClick={() => void createNote()}
+            onClick={() => useUI.getState().openQuickNote()}
           >
             <AppIcon icon="add" size={15} />
-            {creating ? "Creating…" : "New note"}
+            Quick note
           </Button>
           <Button
             className="w-full sm:w-auto"

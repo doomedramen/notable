@@ -1,6 +1,4 @@
 import { registerCommand } from "../core/commands";
-import { openNote } from "../core/navigation";
-import * as vault from "../core/vault";
 import { useUI } from "../store/ui";
 
 /* Core commands, registered through the same registry plugins use. */
@@ -20,11 +18,10 @@ export function registerBuiltinCommands(): void {
 
   registerCommand({
     id: "notes.new",
-    name: "New note",
+    name: "Quick Note",
     hotkey: "Mod-Alt-n",
-    run: () => {
-      void vault.create().then((meta) => openNote(meta.path));
-    },
+    icon: "add",
+    run: () => useUI.getState().openQuickNote(),
   });
 
   registerCommand({

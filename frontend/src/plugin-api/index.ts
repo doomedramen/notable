@@ -18,7 +18,7 @@ import type { Extension } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 
 /** Highest plugin API contract implemented by this Notable build. */
-export const CURRENT_PLUGIN_API_VERSION = 4;
+export const CURRENT_PLUGIN_API_VERSION = 5;
 
 export interface Disposable {
   dispose(): void;
@@ -300,6 +300,15 @@ export interface Command {
   run: () => void;
 }
 
+export interface NoticeOptions {
+  duration?: number;
+  variant?: "default" | "danger";
+  action?: {
+    label: string;
+    run: () => void | Promise<void>;
+  };
+}
+
 export interface PanelSpec {
   id: string;
   title: string;
@@ -552,7 +561,7 @@ export interface NotableAPI {
   };
 
   ui: {
-    notice(message: string, durationMs?: number): void;
+    notice(message: string, durationOrOptions?: number | NoticeOptions): void;
     confirm(message: string): Promise<boolean>;
   };
 

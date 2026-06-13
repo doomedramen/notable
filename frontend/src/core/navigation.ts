@@ -1,5 +1,6 @@
 import { emit } from "./events";
 import { encodePath } from "../store/notes";
+import { useUI } from "../store/ui";
 
 /* Bridges router-owned navigation into framework-agnostic core code.
    AppShell wires the real navigate function and route state in. */
@@ -14,6 +15,7 @@ export function setNavigator(fn: (to: string) => void): void {
 }
 
 export function openNote(path: string): void {
+  useUI.getState().recordRecentNote(path);
   navigateFn(`/note/${encodePath(path)}`);
 }
 

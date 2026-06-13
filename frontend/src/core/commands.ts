@@ -1,5 +1,6 @@
 import { createStore } from "zustand";
 import type { Command, Disposable } from "../plugin-api";
+import { useUI } from "../store/ui";
 
 /* Command registry. Lives outside React (vanilla store) so plugins can
    register commands before/without any component mounting; the palette
@@ -38,6 +39,7 @@ export function registerCommand(cmd: Command): Disposable {
 export function runCommand(id: string): boolean {
   const cmd = commandStore.getState().commands.get(id);
   if (!cmd || (cmd.when && !cmd.when())) return false;
+  useUI.getState().recordRecentCommand(id);
   cmd.run();
   return true;
 }

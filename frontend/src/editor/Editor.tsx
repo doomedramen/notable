@@ -14,7 +14,7 @@ import {
   indentOnInput,
   syntaxHighlighting,
 } from "@codemirror/language";
-import { Compartment, EditorState } from "@codemirror/state";
+import { Compartment, EditorSelection, EditorState } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
 import { GFM } from "@lezer/markdown";
 import { tags } from "@lezer/highlight";
@@ -63,6 +63,14 @@ const markdownHighlight = HighlightStyle.define([
   { tag: tags.contentSeparator, color: "var(--faint)" },
 ]);
 
+interface EditorMemory {
+  anchor: number;
+  head: number;
+  scrollTop: number;
+}
+
+const editorMemory = new Map<string, EditorMemory>();
+
 export function Editor({ notePath }: { notePath: string }) {
   const host = useRef<HTMLDivElement>(null);
   // Bumped when the connection discards local state (doc epoch change);
@@ -89,6 +97,10 @@ export function Editor({ notePath }: { notePath: string }) {
     // Plugin-contributed extensions live in a Compartment so enabling/
     // disabling a plugin reconfigures the live view without a remount.
     const pluginCompartment = new Compartment();
+    const memory = editorMemory.get(notePath);
+    const docLength = conn.text.length;
+    const anchor = Math.min(memory?.anchor ?? 0, docLength);
+    const head = Math.min(memory?.head ?? anchor, docLength);
 
     const view = new EditorView({
       parent: host.current,
@@ -98,6 +110,7 @@ export function Editor({ notePath }: { notePath: string }) {
         // conn.text (e.g. share-target pending content) must seed the
         // initial doc here.
         doc: conn.text.toString(),
+        selection: EditorSelection.single(anchor, head),
         // yCollab binds the editor buffer to conn.text bidirectionally;
         // we never set doc content manually beyond this initial seed.
         extensions: [
@@ -138,6 +151,11 @@ export function Editor({ notePath }: { notePath: string }) {
         ],
       }),
     });
+    if (memory) {
+      requestAnimationFrame(() => {
+        view.scrollDOM.scrollTop = memory.scrollTop;
+      });
+    }
 
     const unsubscribe = editorExtensionStore.subscribe((s) => {
       view.dispatch({
@@ -149,6 +167,12 @@ export function Editor({ notePath }: { notePath: string }) {
     emit("editor:ready", view);
 
     return () => {
+      const selection = view.state.selection.main;
+      editorMemory.set(notePath, {
+        anchor: selection.anchor,
+        head: selection.head,
+        scrollTop: view.scrollDOM.scrollTop,
+      });
       unsubscribe();
       emit("editor:destroy", view);
       setActiveView(null);
@@ -159,7 +183,7 @@ export function Editor({ notePath }: { notePath: string }) {
   }, [notePath, generation]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="ui-view flex min-h-0 flex-1 flex-col">
       <div className="mx-auto w-full max-w-[46rem] shrink-0 px-4 pt-4 md:px-6 md:pt-8">
         <EditableTitle notePath={notePath} />
       </div>
@@ -203,6 +227,16 @@ function EditableTitle({ notePath }: { notePath: string }) {
     try {
       const meta = await rename(notePath, newPath);
       openNote(meta.path);
+      notice(`Renamed to “${trimmed}”.`, {
+        duration: 6000,
+        action: {
+          label: "Undo",
+          run: async () => {
+            const restored = await rename(newPath, notePath);
+            openNote(restored.path);
+          },
+        },
+      });
     } catch {
       setValue(name);
       notice("Rename failed — is the name taken?", { variant: "danger" });

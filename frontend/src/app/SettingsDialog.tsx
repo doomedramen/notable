@@ -1,4 +1,9 @@
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { useStore } from "zustand";
 import {
   Dialog,
@@ -40,10 +45,48 @@ export function SettingsDialog() {
   const setOpen = useUI((s) => s.setSettingsOpen);
   const pluginTabs = useStore(workspaceStore, (s) => s.settingsTabs);
   const [active, setActive] = useState<string>("appearance");
+  const [sheetOffset, setSheetOffset] = useState(0);
+  const [draggingSheet, setDraggingSheet] = useState(false);
+  const sheetOffsetRef = useRef(0);
+  const sheetDrag = useRef<{ pointerId: number; startY: number } | null>(null);
 
   useEffect(() => {
-    if (open) void Promise.all([loadEnabledPlugins(), fetchPluginStore()]);
+    if (open) {
+      sheetOffsetRef.current = 0;
+      setSheetOffset(0);
+      void Promise.all([loadEnabledPlugins(), fetchPluginStore()]);
+    }
   }, [open]);
+
+  const startSheetDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (window.innerWidth >= 768) return;
+    sheetDrag.current = {
+      pointerId: event.pointerId,
+      startY: event.clientY - sheetOffset,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDraggingSheet(true);
+  };
+
+  const moveSheet = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = sheetDrag.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const offset = Math.max(0, event.clientY - drag.startY);
+    sheetOffsetRef.current = offset;
+    setSheetOffset(offset);
+  };
+
+  const finishSheetDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = sheetDrag.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    sheetDrag.current = null;
+    setDraggingSheet(false);
+    if (sheetOffsetRef.current > 110) setOpen(false);
+    else {
+      sheetOffsetRef.current = 0;
+      setSheetOffset(0);
+    }
+  };
 
   const tabs: { id: string; title: string; icon?: IconSource }[] = [
     { id: "appearance", title: "Appearance", icon: "appearance" },
@@ -59,11 +102,31 @@ export function SettingsDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       {/* Mobile-first: near-fullscreen sheet with horizontal tab strip;
           desktop: classic two-pane settings window. */}
-      <DialogContent className="flex h-[85dvh] w-[calc(100vw-1.5rem)] max-w-2xl flex-col gap-0 p-0 md:h-[26rem] md:flex-row">
+      <DialogContent
+        style={{
+          transform:
+            sheetOffset > 0 ? `translateY(${sheetOffset}px)` : undefined,
+          transition: draggingSheet
+            ? "none"
+            : "transform var(--motion-structural) var(--ease-emphasized)",
+        }}
+        className="bottom-0 top-auto left-0 flex h-[88dvh] w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-b-none p-0 md:top-1/2 md:left-1/2 md:h-[26rem] md:max-w-2xl md:-translate-x-1/2 md:-translate-y-1/2 md:flex-row md:rounded-md"
+      >
         <DialogTitle className="sr-only">Settings</DialogTitle>
         <DialogDescription className="sr-only">
           Customize Notable appearance, plugins, and extensions.
         </DialogDescription>
+        <div
+          className="flex h-6 shrink-0 touch-none items-center justify-center md:hidden"
+          data-testid="settings-sheet-handle"
+          aria-hidden
+          onPointerDown={startSheetDrag}
+          onPointerMove={moveSheet}
+          onPointerUp={finishSheetDrag}
+          onPointerCancel={finishSheetDrag}
+        >
+          <span className="h-1 w-9 rounded-full bg-border-strong" />
+        </div>
         <nav className="flex w-full shrink-0 gap-0.5 overflow-x-auto rounded-t-md border-b border-border bg-surface p-2 md:w-44 md:flex-col md:overflow-x-visible md:rounded-l-md md:rounded-tr-none md:border-r md:border-b-0">
           <div className="hidden px-2 pt-1 pb-3 text-sm font-semibold md:block">
             Settings

@@ -34,6 +34,18 @@ interface UIState {
   setPaletteOpen: (open: boolean) => void;
   settingsOpen: boolean;
   setSettingsOpen: (open: boolean) => void;
+  quickNoteOpen: boolean;
+  quickNoteFolder: string | null;
+  openQuickNote: (folder?: string) => void;
+  closeQuickNote: () => void;
+  lastQuickNoteFolder: string;
+  setLastQuickNoteFolder: (folder: string) => void;
+  collapsedFolders: string[];
+  toggleFolderCollapsed: (folder: string) => void;
+  recentNotePaths: string[];
+  recordRecentNote: (path: string) => void;
+  recentCommandIds: string[];
+  recordRecentCommand: (id: string) => void;
 }
 
 /** Mobile-first: the sidebar is an overlay drawer on small screens, so
@@ -70,6 +82,41 @@ export const useUI = create<UIState>()(
       setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
       settingsOpen: false,
       setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
+      quickNoteOpen: false,
+      quickNoteFolder: null,
+      openQuickNote: (quickNoteFolder) =>
+        set({
+          quickNoteOpen: true,
+          quickNoteFolder: quickNoteFolder ?? null,
+        }),
+      closeQuickNote: () =>
+        set({ quickNoteOpen: false, quickNoteFolder: null }),
+      lastQuickNoteFolder: "",
+      setLastQuickNoteFolder: (lastQuickNoteFolder) =>
+        set({ lastQuickNoteFolder }),
+      collapsedFolders: [],
+      toggleFolderCollapsed: (folder) =>
+        set((state) => ({
+          collapsedFolders: state.collapsedFolders.includes(folder)
+            ? state.collapsedFolders.filter((item) => item !== folder)
+            : [...state.collapsedFolders, folder],
+        })),
+      recentNotePaths: [],
+      recordRecentNote: (path) =>
+        set((state) => ({
+          recentNotePaths: [
+            path,
+            ...state.recentNotePaths.filter((item) => item !== path),
+          ].slice(0, 12),
+        })),
+      recentCommandIds: [],
+      recordRecentCommand: (id) =>
+        set((state) => ({
+          recentCommandIds: [
+            id,
+            ...state.recentCommandIds.filter((item) => item !== id),
+          ].slice(0, 12),
+        })),
     }),
     // Key is read by the pre-paint script in index.html — keep in sync.
     {
@@ -84,6 +131,10 @@ export const useUI = create<UIState>()(
         recentIcons: s.recentIcons,
         editorFontSize: s.editorFontSize,
         sidebarOpen: s.sidebarOpen,
+        lastQuickNoteFolder: s.lastQuickNoteFolder,
+        collapsedFolders: s.collapsedFolders,
+        recentNotePaths: s.recentNotePaths,
+        recentCommandIds: s.recentCommandIds,
       }),
     },
   ),

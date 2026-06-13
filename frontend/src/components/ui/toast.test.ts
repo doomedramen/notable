@@ -37,4 +37,16 @@ describe("toast store", () => {
     vi.advanceTimersByTime(1001);
     expect(toastStore.getState().toasts.map((t) => t.message)).toEqual(["two"]);
   });
+
+  it("supports the legacy numeric duration and structured actions", () => {
+    const run = vi.fn();
+    notice("legacy", 1000);
+    notice("moved", { duration: 6000, action: { label: "Undo", run } });
+
+    expect(toastStore.getState().toasts[0]!.message).toBe("legacy");
+    expect(toastStore.getState().toasts[1]!.action).toEqual({
+      label: "Undo",
+      run,
+    });
+  });
 });

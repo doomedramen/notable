@@ -79,6 +79,8 @@ export function CommandPalette() {
   const [searching, setSearching] = useState(false);
   const notes = useNotesStore((s) => s.notes);
   const commands = useStore(commandStore, (s) => s.commands);
+  const recentNotePaths = useUI((s) => s.recentNotePaths);
+  const recentCommandIds = useUI((s) => s.recentCommandIds);
   useStore(iconAssignmentStore, (s) => s.assignments);
 
   useEffect(() => {
@@ -120,18 +122,32 @@ export function CommandPalette() {
 
   // fuzzysort over titles/names; empty query shows recents/all commands.
   const noteResults = useMemo(() => {
-    if (!query) return notes.slice(0, 8);
+    if (!query) {
+      const byPath = new Map(notes.map((note) => [note.path, note]));
+      const recent = recentNotePaths
+        .map((path) => byPath.get(path))
+        .filter((note): note is (typeof notes)[number] => note !== undefined);
+      return [...recent, ...notes.filter((note) => !recentNotePaths.includes(note.path))]
+        .slice(0, 8);
+    }
     return fuzzysort
       .go(query, notes, { keys: ["name", "path"], limit: 8 })
       .map((r) => r.obj);
-  }, [query, notes]);
+  }, [query, notes, recentNotePaths]);
 
   const commandResults = useMemo(() => {
-    if (!query) return visibleCommands;
+    if (!query) {
+      const order = new Map(recentCommandIds.map((id, index) => [id, index]));
+      return [...visibleCommands].sort(
+        (a, b) =>
+          (order.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
+          (order.get(b.id) ?? Number.MAX_SAFE_INTEGER),
+      );
+    }
     return fuzzysort
       .go(query, visibleCommands, { key: "name", limit: 10 })
       .map((r) => r.obj);
-  }, [query, visibleCommands]);
+  }, [query, visibleCommands, recentCommandIds]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -157,7 +173,7 @@ export function CommandPalette() {
 
             {noteResults.length > 0 && (
               <Cmdk.Group
-                heading="Notes"
+                heading={query ? "Notes" : "Recent notes"}
                 className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-faint"
               >
                 {noteResults.map((note) => (
@@ -182,7 +198,7 @@ export function CommandPalette() {
                     <span className="truncate">{note.name}</span>
                     {note.folder && (
                       <span className="ml-auto truncate text-xs text-faint">
-                        {note.folder}
+                        {note.folder.replaceAll("/", "  /  ")}
                       </span>
                     )}
                   </Cmdk.Item>
@@ -226,7 +242,7 @@ export function CommandPalette() {
 
             {commandResults.length > 0 && (
               <Cmdk.Group
-                heading="Commands"
+                heading={query ? "Commands" : "Recent commands"}
                 className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-faint"
               >
                 {commandResults.map((cmd) => (

@@ -8,6 +8,18 @@ export interface ToastItem {
   id: number;
   message: string;
   variant: "default" | "danger";
+  action?: NoticeAction;
+}
+
+export interface NoticeAction {
+  label: string;
+  run: () => void | Promise<void>;
+}
+
+export interface NoticeOptions {
+  duration?: number;
+  variant?: "default" | "danger";
+  action?: NoticeAction;
 }
 
 interface ToastState {
@@ -26,12 +38,16 @@ export const toastStore = createStore<ToastState>((set) => ({
 /** Show a transient notification. Safe to call from anywhere. */
 export function notice(
   message: string,
-  opts: { duration?: number; variant?: "default" | "danger" } = {},
+  durationOrOptions: number | NoticeOptions = {},
 ): void {
+  const opts =
+    typeof durationOrOptions === "number"
+      ? { duration: durationOrOptions }
+      : durationOrOptions;
   const { duration = 4000, variant = "default" } = opts;
   const id = nextId++;
   toastStore.setState((s) => ({
-    toasts: [...s.toasts, { id, message, variant }],
+    toasts: [...s.toasts, { id, message, variant, action: opts.action }],
   }));
   if (duration > 0) {
     setTimeout(() => toastStore.getState().dismiss(id), duration);
@@ -59,6 +75,17 @@ export function Toaster() {
           >
             {t.message}
           </span>
+          {t.action && (
+            <button
+              onClick={() => {
+                dismiss(t.id);
+                void t.action?.run();
+              }}
+              className="rounded-sm px-1.5 py-0.5 font-medium text-accent transition-colors hover:bg-accent-soft"
+            >
+              {t.action.label}
+            </button>
+          )}
           <button
             onClick={() => dismiss(t.id)}
             className="rounded-sm p-0.5 text-faint hover:text-foreground"

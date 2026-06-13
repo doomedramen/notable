@@ -30,6 +30,7 @@ interface NotesState {
   touch: (path: string, modified?: number) => void;
   remove: (path: string) => Promise<void>;
   trash: (path: string) => Promise<void>;
+  restore: (path: string) => Promise<NoteMeta>;
   rename: (from: string, to: string) => Promise<NoteMeta>;
   renameFolder: (from: string, to: string) => Promise<void>;
   mkdir: (path: string) => Promise<void>;
@@ -67,6 +68,12 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     await trashNote(path);
     set({ notes: get().notes.filter((n) => n.path !== path) });
     emit("note:delete", path);
+  },
+  restore: async (path) => {
+    const meta = await renameNote(`.trash/${path}`, path);
+    set({ notes: [meta, ...get().notes.filter((n) => n.path !== path)] });
+    emit("note:create", meta);
+    return meta;
   },
   rename: async (from, to) => {
     const meta = await renameNote(from, to);
