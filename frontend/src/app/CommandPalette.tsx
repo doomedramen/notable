@@ -10,6 +10,12 @@ import { normalizeKey } from "../core/hotkeys";
 import { Skeleton } from "../components/ui/skeleton";
 import { AppIcon } from "../components/AppIcon";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "../components/ui/dialog";
+import {
   getIconAssignment,
   iconAssignmentStore,
 } from "../core/icon-assignments";
@@ -128,124 +134,129 @@ export function CommandPalette() {
   }, [query, visibleCommands]);
 
   return (
-    <Cmdk.Dialog
-      open={open}
-      onOpenChange={setOpen}
-      shouldFilter={false}
-      label="Command palette"
-      className="ui-dialog fixed top-[8%] left-1/2 z-50 w-[calc(100vw-1.5rem)] max-w-lg -translate-x-1/2 overflow-hidden rounded-md bg-background shadow-[var(--shadow-dialog)] md:top-[20%]"
-    >
-      <Cmdk.Input
-        value={query}
-        onValueChange={setQuery}
-        placeholder="Search notes and commands…"
-        className="h-11 w-full border-b border-border bg-transparent px-4 text-sm text-foreground outline-none placeholder:text-faint"
-      />
-      <Cmdk.List className="max-h-80 overflow-y-auto overscroll-contain p-1.5">
-        <Cmdk.Empty className="px-3 py-8 text-center text-sm text-faint">
-          No results.
-        </Cmdk.Empty>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent
+        showClose={false}
+        className="top-[8%] w-[calc(100vw-1.5rem)] max-w-lg translate-y-0 overflow-hidden p-0 md:top-[20%]"
+      >
+        <DialogTitle className="sr-only">Command palette</DialogTitle>
+        <DialogDescription className="sr-only">
+          Search notes by title or content and run application commands.
+        </DialogDescription>
+        <Cmdk shouldFilter={false} label="Command palette">
+          <Cmdk.Input
+            value={query}
+            onValueChange={setQuery}
+            placeholder="Search notes and commands…"
+            className="h-11 w-full border-b border-border bg-transparent px-4 text-sm text-foreground outline-none placeholder:text-faint"
+          />
+          <Cmdk.List className="max-h-80 overflow-y-auto overscroll-contain p-1.5">
+            <Cmdk.Empty className="px-3 py-8 text-center text-sm text-faint">
+              No results.
+            </Cmdk.Empty>
 
-        {noteResults.length > 0 && (
-          <Cmdk.Group
-            heading="Notes"
-            className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-faint"
-          >
-            {noteResults.map((note) => (
-              <Cmdk.Item
-                key={note.path}
-                value={`note-${note.path}`}
-                onSelect={() => {
-                  setOpen(false);
-                  openNote(note.path);
-                }}
-                className="flex cursor-default items-center gap-2 rounded-sm px-2 py-2 text-sm text-foreground select-none data-[selected=true]:bg-surface-hover"
+            {noteResults.length > 0 && (
+              <Cmdk.Group
+                heading="Notes"
+                className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-faint"
               >
-                <AppIcon
-                  icon={
-                    getIconAssignment({ kind: "note", path: note.path }) ??
-                    "note"
-                  }
-                  fallback="note"
-                  size={14}
-                  className="shrink-0 text-faint"
-                />
-                <span className="truncate">{note.name}</span>
-                {note.folder && (
-                  <span className="ml-auto truncate text-xs text-faint">
-                    {note.folder}
-                  </span>
-                )}
-              </Cmdk.Item>
-            ))}
-          </Cmdk.Group>
-        )}
+                {noteResults.map((note) => (
+                  <Cmdk.Item
+                    key={note.path}
+                    value={`note-${note.path}`}
+                    onSelect={() => {
+                      setOpen(false);
+                      openNote(note.path);
+                    }}
+                    className="flex cursor-default items-center gap-2 rounded-sm px-2 py-2 text-sm text-foreground select-none data-[selected=true]:bg-surface-hover"
+                  >
+                    <AppIcon
+                      icon={
+                        getIconAssignment({ kind: "note", path: note.path }) ??
+                        "note"
+                      }
+                      fallback="note"
+                      size={14}
+                      className="shrink-0 text-faint"
+                    />
+                    <span className="truncate">{note.name}</span>
+                    {note.folder && (
+                      <span className="ml-auto truncate text-xs text-faint">
+                        {note.folder}
+                      </span>
+                    )}
+                  </Cmdk.Item>
+                ))}
+              </Cmdk.Group>
+            )}
 
-        {searching && hits.length === 0 && (
-          <div className="space-y-1.5 px-2 py-1.5">
-            <Skeleton className="h-7 w-full" />
-            <Skeleton className="h-7 w-3/4" />
-          </div>
-        )}
+            {searching && hits.length === 0 && (
+              <div className="space-y-1.5 px-2 py-1.5">
+                <Skeleton className="h-7 w-full" />
+                <Skeleton className="h-7 w-3/4" />
+              </div>
+            )}
 
-        {hits.length > 0 && (
-          <Cmdk.Group
-            heading="Content"
-            className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-faint"
-          >
-            {hits.map((hit) => (
-              <Cmdk.Item
-                key={`s-${hit.path}`}
-                value={`search-${hit.path}`}
-                onSelect={() => {
-                  setOpen(false);
-                  openNote(hit.path);
-                }}
-                className="flex cursor-default items-center gap-2 rounded-sm px-2 py-2 text-sm text-foreground select-none data-[selected=true]:bg-surface-hover"
+            {hits.length > 0 && (
+              <Cmdk.Group
+                heading="Content"
+                className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-faint"
               >
-                <AppIcon
-                  icon="file-search"
-                  size={14}
-                  className="shrink-0 text-faint"
-                />
-                <span className="shrink-0">{hit.name}</span>
-                <Snippet text={hit.snippet} />
-              </Cmdk.Item>
-            ))}
-          </Cmdk.Group>
-        )}
+                {hits.map((hit) => (
+                  <Cmdk.Item
+                    key={`s-${hit.path}`}
+                    value={`search-${hit.path}`}
+                    onSelect={() => {
+                      setOpen(false);
+                      openNote(hit.path);
+                    }}
+                    className="flex cursor-default items-center gap-2 rounded-sm px-2 py-2 text-sm text-foreground select-none data-[selected=true]:bg-surface-hover"
+                  >
+                    <AppIcon
+                      icon="file-search"
+                      size={14}
+                      className="shrink-0 text-faint"
+                    />
+                    <span className="shrink-0">{hit.name}</span>
+                    <Snippet text={hit.snippet} />
+                  </Cmdk.Item>
+                ))}
+              </Cmdk.Group>
+            )}
 
-        {commandResults.length > 0 && (
-          <Cmdk.Group
-            heading="Commands"
-            className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-faint"
-          >
-            {commandResults.map((cmd) => (
-              <Cmdk.Item
-                key={cmd.id}
-                value={`cmd-${cmd.id}`}
-                onSelect={() => {
-                  setOpen(false);
-                  runCommand(cmd.id);
-                }}
-                className="flex cursor-default items-center gap-2 rounded-sm px-2 py-2 text-sm text-foreground select-none data-[selected=true]:bg-surface-hover"
+            {commandResults.length > 0 && (
+              <Cmdk.Group
+                heading="Commands"
+                className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-faint"
               >
-                <AppIcon
-                  icon={cmd.icon ?? "command"}
-                  size={14}
-                  className="shrink-0 text-faint"
-                />
-                <span className="flex-1 truncate">{cmd.name}</span>
-                {cmd.hotkey && (
-                  <kbd className="rounded-sm border border-border bg-surface px-1.5 py-0.5 font-sans text-xs text-muted">
-                    {prettyHotkey(cmd.hotkey)}
-                  </kbd>
-                )}
-              </Cmdk.Item>
-            ))}
-          </Cmdk.Group>
-        )}
-      </Cmdk.List>
-    </Cmdk.Dialog>
+                {commandResults.map((cmd) => (
+                  <Cmdk.Item
+                    key={cmd.id}
+                    value={`cmd-${cmd.id}`}
+                    onSelect={() => {
+                      setOpen(false);
+                      runCommand(cmd.id);
+                    }}
+                    className="flex cursor-default items-center gap-2 rounded-sm px-2 py-2 text-sm text-foreground select-none data-[selected=true]:bg-surface-hover"
+                  >
+                    <AppIcon
+                      icon={cmd.icon ?? "command"}
+                      size={14}
+                      className="shrink-0 text-faint"
+                    />
+                    <span className="flex-1 truncate">{cmd.name}</span>
+                    {cmd.hotkey && (
+                      <kbd className="rounded-sm border border-border bg-surface px-1.5 py-0.5 font-sans text-xs text-muted">
+                        {prettyHotkey(cmd.hotkey)}
+                      </kbd>
+                    )}
+                  </Cmdk.Item>
+                ))}
+              </Cmdk.Group>
+            )}
+          </Cmdk.List>
+        </Cmdk>
+      </DialogContent>
+    </Dialog>
   );
 }

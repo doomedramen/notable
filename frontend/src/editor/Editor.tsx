@@ -216,8 +216,15 @@ function EditableTitle({ notePath }: { notePath: string }) {
         />
       )}
       <h1
+        tabIndex={0}
         onClick={() => setEditing(true)}
-        className="-mx-1 cursor-text rounded-sm px-1 text-2xl font-bold tracking-tight hover:bg-surface-hover"
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            setEditing(true);
+          }
+        }}
+        className="-mx-1 min-w-0 flex-1 cursor-text truncate rounded-sm px-1 text-2xl font-bold tracking-tight hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         title="Click to rename"
       >
         {name}

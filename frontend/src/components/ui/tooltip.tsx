@@ -6,12 +6,16 @@ export const TooltipProvider = TooltipPrimitive.Provider;
 export function Tooltip({
   label,
   side = "bottom",
+  disabled = false,
   children,
 }: {
   label: ReactNode;
   side?: "top" | "bottom" | "left" | "right";
+  disabled?: boolean;
   children: ReactNode;
 }) {
+  if (disabled) return children;
+
   return (
     <TooltipPrimitive.Root>
       <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>

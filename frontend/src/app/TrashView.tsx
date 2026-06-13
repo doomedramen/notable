@@ -12,6 +12,7 @@ import { on } from "../core/events";
 import { EmptyState } from "../components/ui/empty-state";
 import { PageContainer, PageHeader } from "../components/ui/page-header";
 import { AppIcon } from "../components/AppIcon";
+import { Skeleton } from "../components/ui/skeleton";
 
 /** Lists notes sitting in `.trash/`, with restore / delete-forever (route: /trash). */
 export function TrashView() {
@@ -51,7 +52,13 @@ export function TrashView() {
   return (
     <PageContainer>
       <PageHeader icon="trash">Trash</PageHeader>
-      {loaded && items.length === 0 ? (
+      {!loaded ? (
+        <div className="mt-4 space-y-2 px-2">
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-8 w-4/5" />
+          <Skeleton className="h-8 w-2/3" />
+        </div>
+      ) : items.length === 0 ? (
         <EmptyState icon="trash" className="mt-4">
           Trash is empty.
         </EmptyState>

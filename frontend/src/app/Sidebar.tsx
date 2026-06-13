@@ -1,7 +1,14 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { useStore } from "zustand";
-import { SwipeBarLeft } from "@luciodale/swipe-bar";
+import { SwipeBarLeft, useSwipeBarContext } from "@luciodale/swipe-bar";
 import { useNotesStore, syncNotesList } from "../store/notes-store";
 import { useUI } from "../store/ui";
 import { workspaceStore } from "../core/workspace";
@@ -42,6 +49,11 @@ import {
   iconAssignmentStore,
 } from "../core/icon-assignments";
 
+const MOBILE_DRAWER_WIDTH = 288;
+const SWIPE_EDGE_WIDTH = 40;
+const SWIPE_ACTIVATION_DELTA = 20;
+const SWIPE_TRANSITION_MS = 200;
+
 /** Tracks the md breakpoint (768px) so sidebarBody is only mounted into
     whichever of the two wrappers (desktop aside / mobile drawer) is
     actually visible — otherwise both copies sit in the DOM and produce
@@ -57,6 +69,127 @@ function useIsMobile() {
     return () => mq.removeEventListener("change", onChange);
   }, []);
   return isMobile;
+}
+
+/** The drawer package only reveals its overlay after the open state settles.
+    This companion layer follows an edge drag so the page dims immediately,
+    then cross-fades into the package's clickable overlay. */
+function MobileSwipeBackdrop() {
+  const { leftSidebars } = useSwipeBarContext();
+  const drawerOpen = leftSidebars.sidebar?.isOpen ?? false;
+  const backdropRef = useRef<HTMLDivElement>(null);
+  const touchIdRef = useRef<number | null>(null);
+  const startXRef = useRef<number | null>(null);
+  const previousXRef = useRef<number | null>(null);
+  const lastXRef = useRef<number | null>(null);
+  const activatedRef = useRef(false);
+
+  const setOpacity = (opacity: number, animate: boolean) => {
+    const backdrop = backdropRef.current;
+    if (!backdrop) return;
+    backdrop.style.transition = animate
+      ? `opacity ${SWIPE_TRANSITION_MS}ms ease`
+      : "none";
+    backdrop.style.opacity = String(opacity);
+  };
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    // The built-in overlay starts fading in now. Cross-fade this drag layer
+    // out instead of dropping the dimming for a frame at handoff.
+    const frame = requestAnimationFrame(() => setOpacity(0, true));
+    return () => cancelAnimationFrame(frame);
+  }, [drawerOpen]);
+
+  useLayoutEffect(() => {
+    const findTouch = (touches: TouchList, id: number) => {
+      for (let index = 0; index < touches.length; index += 1) {
+        const touch = touches[index];
+        if (touch?.identifier === id) return touch;
+      }
+      return null;
+    };
+
+    const resetGesture = () => {
+      touchIdRef.current = null;
+      startXRef.current = null;
+      previousXRef.current = null;
+      lastXRef.current = null;
+      activatedRef.current = false;
+    };
+
+    const onTouchStart = (event: TouchEvent) => {
+      if (drawerOpen || event.changedTouches.length === 0) return;
+      const touch = event.changedTouches[0];
+      if (!touch || touch.clientX > SWIPE_EDGE_WIDTH) return;
+      touchIdRef.current = touch.identifier;
+      startXRef.current = touch.clientX;
+      previousXRef.current = touch.clientX;
+      lastXRef.current = touch.clientX;
+      activatedRef.current = false;
+      setOpacity(0, false);
+    };
+
+    const onTouchMove = (event: TouchEvent) => {
+      const touchId = touchIdRef.current;
+      const startX = startXRef.current;
+      if (touchId === null || startX === null) return;
+      const touch = findTouch(event.changedTouches, touchId);
+      if (!touch) return;
+      const delta = touch.clientX - startX;
+      if (
+        !activatedRef.current &&
+        Math.abs(delta) >= SWIPE_ACTIVATION_DELTA
+      ) {
+        activatedRef.current = true;
+      }
+      if (!activatedRef.current) return;
+      previousXRef.current = lastXRef.current;
+      lastXRef.current = touch.clientX;
+      const revealed = Math.max(
+        0,
+        delta - SWIPE_ACTIVATION_DELTA,
+      );
+      setOpacity(Math.min(1, revealed / MOBILE_DRAWER_WIDTH), false);
+    };
+
+    const onTouchEnd = () => {
+      const touchId = touchIdRef.current;
+      const startX = startXRef.current;
+      if (touchId === null || startX === null) return;
+      const currentX = lastXRef.current ?? startX;
+      const previousX = previousXRef.current ?? startX;
+      const willOpen =
+        activatedRef.current && currentX >= previousX;
+      setOpacity(willOpen ? 1 : 0, true);
+      resetGesture();
+    };
+
+    const onTouchCancel = () => {
+      setOpacity(0, true);
+      resetGesture();
+    };
+
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
+    window.addEventListener("touchend", onTouchEnd, { passive: true });
+    window.addEventListener("touchcancel", onTouchCancel, { passive: true });
+    return () => {
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onTouchEnd);
+      window.removeEventListener("touchcancel", onTouchCancel);
+    };
+  }, [drawerOpen]);
+
+  return (
+    <div
+      ref={backdropRef}
+      data-testid="sidebar-swipe-backdrop"
+      aria-hidden
+      className="pointer-events-none fixed inset-0 z-[30] bg-black/50 opacity-0 md:hidden"
+    />
+  );
 }
 
 export function Sidebar() {
@@ -132,7 +265,7 @@ export function Sidebar() {
         <span className="flex-1 text-sm font-semibold tracking-tight select-none">
           Notable
         </span>
-        <Tooltip label="Settings">
+        <Tooltip label="Settings" disabled={isMobile}>
           <Button
             variant="ghost"
             size="icon"
@@ -142,13 +275,13 @@ export function Sidebar() {
             <AppIcon icon="settings" size={15} />
           </Button>
         </Tooltip>
-        <Tooltip label="Hide sidebar">
+        <Tooltip label="Hide sidebar" disabled={isMobile}>
           <Button variant="ghost" size="icon" onClick={toggle} aria-label="Hide sidebar">
             <AppIcon icon="sidebar" size={15} />
           </Button>
         </Tooltip>
         <DropdownMenu>
-          <Tooltip label="New…">
+          <Tooltip label="New…" disabled={isMobile}>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" aria-label="New…">
                 <AppIcon icon="add" size={16} />
@@ -246,14 +379,15 @@ export function Sidebar() {
         </aside>
       )}
       {/* Mobile: off-canvas drawer with edge-swipe and live drag-to-open. */}
+      <MobileSwipeBackdrop />
       <SwipeBarLeft
         id="sidebar"
         ariaLabel="Sidebar"
         className="flex flex-col border-r border-border bg-surface pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] md:hidden"
-        sidebarWidthPx={288}
+        sidebarWidthPx={MOBILE_DRAWER_WIDTH}
         isAbsolute
         mediaQueryWidth={768}
-        transitionMs={200}
+        transitionMs={SWIPE_TRANSITION_MS}
         swipeBarZIndex={40}
         overlayZIndex={30}
         showToggle={false}

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Outlet, useMatch, useNavigate } from "react-router";
 import { useStore } from "zustand";
 import { SwipeBarProvider, useSwipeBarContext } from "@luciodale/swipe-bar";
@@ -14,11 +14,14 @@ import { ConfirmHost } from "../components/ui/confirm";
 import { TooltipProvider } from "../components/ui/tooltip";
 import { MountHost } from "../components/MountHost";
 import { Button } from "../components/ui/button";
-import { setActiveNoteId, setNavigator } from "../core/navigation";
+import { openNote, setActiveNoteId, setNavigator } from "../core/navigation";
 import { toggleRightPanel, workspaceStore } from "../core/workspace";
 import { useUI } from "../store/ui";
 import { AppIcon } from "../components/AppIcon";
 import { IconPicker } from "../components/IconPicker";
+import { useNotesStore } from "../store/notes-store";
+import * as vault from "../core/vault";
+import { notice } from "../components/ui/toast";
 
 export function AppShell() {
   return (
@@ -49,12 +52,7 @@ function AppShellInner() {
     <ThemeProvider>
       <TooltipProvider delayDuration={400}>
         <div
-          // Reserve the iOS home-indicator inset here, on the app background,
-          // rather than inside the StatusBar. That keeps the footer a slim bar
-          // sitting just above a background-coloured safe-area strip, instead
-          // of a tall surface-coloured block whose text floats up off the edge.
-          // (Drawers are position:fixed and handle their own insets.)
-          className="flex h-dvh flex-col bg-background text-foreground pb-[env(safe-area-inset-bottom)]"
+          className="flex h-dvh flex-col bg-background text-foreground"
         >
           <div className="relative flex min-h-0 flex-1">
             <Sidebar />
@@ -139,11 +137,79 @@ function RightPanel() {
 }
 
 export function EmptyState() {
+  const notes = useNotesStore((state) => state.notes);
+  const loaded = useNotesStore((state) => state.loaded);
+  const [creating, setCreating] = useState(false);
+  const hasNotes = loaded && notes.length > 0;
+
+  const createNote = async () => {
+    setCreating(true);
+    try {
+      const note = await vault.create();
+      openNote(note.path);
+    } catch {
+      notice("Could not create a note.", { variant: "danger" });
+      setCreating(false);
+    }
+  };
+
   return (
-    <div className="flex flex-1 items-center justify-center">
-      <p className="text-sm text-faint select-none">
-        Select a note or create one to start writing.
-      </p>
+    <div className="flex flex-1 items-center justify-center overflow-y-auto px-5 py-10">
+      <section className="w-full max-w-md text-center">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-accent-soft text-accent">
+          <AppIcon icon="note" size={23} strokeWidth={1.7} />
+        </div>
+        <h1 className="mt-4 text-xl font-semibold tracking-tight">
+          {hasNotes ? "Pick up where you left off" : "Create your first note"}
+        </h1>
+        <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted">
+          {hasNotes
+            ? "Open a note from the sidebar, find one by content, or start something new."
+            : "Notable keeps your writing in plain Markdown files that stay yours."}
+        </p>
+        <div className="mt-5 flex flex-col justify-center gap-2 sm:flex-row">
+          <Button
+            variant="primary"
+            className="w-full sm:w-auto"
+            disabled={creating}
+            onClick={() => void createNote()}
+          >
+            <AppIcon icon="add" size={15} />
+            {creating ? "Creating…" : "New note"}
+          </Button>
+          <Button
+            className="w-full sm:w-auto"
+            onClick={() => useUI.getState().setPaletteOpen(true)}
+          >
+            <AppIcon icon="search" size={15} />
+            Find a note
+          </Button>
+        </div>
+
+        {hasNotes && (
+          <div className="mt-8 border-t border-border pt-4 text-left">
+            <p className="px-2 text-xs font-medium text-faint">Quick access</p>
+            <div className="mt-1 space-y-0.5">
+              {notes.slice(0, 3).map((note) => (
+                <button
+                  key={note.path}
+                  type="button"
+                  onClick={() => openNote(note.path)}
+                  className="flex w-full items-center gap-2 rounded-sm px-2.5 py-2 text-left text-sm text-muted transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
+                >
+                  <AppIcon icon="note" size={14} className="shrink-0 text-faint" />
+                  <span className="truncate">{note.name}</span>
+                  {note.folder && (
+                    <span className="ml-auto max-w-[40%] truncate text-xs text-faint">
+                      {note.folder}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

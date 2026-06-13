@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { useStore } from "zustand";
-import { Dialog, DialogContent, DialogTitle } from "../components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "../components/ui/dialog";
 import { Switch } from "../components/ui/switch";
 import { Button } from "../components/ui/button";
 import { MountHost } from "../components/MountHost";
@@ -55,10 +60,14 @@ export function SettingsDialog() {
       {/* Mobile-first: near-fullscreen sheet with horizontal tab strip;
           desktop: classic two-pane settings window. */}
       <DialogContent className="flex h-[85dvh] w-[calc(100vw-1.5rem)] max-w-2xl flex-col gap-0 p-0 md:h-[26rem] md:flex-row">
+        <DialogTitle className="sr-only">Settings</DialogTitle>
+        <DialogDescription className="sr-only">
+          Customize Notable appearance, plugins, and extensions.
+        </DialogDescription>
         <nav className="flex w-full shrink-0 gap-0.5 overflow-x-auto rounded-t-md border-b border-border bg-surface p-2 md:w-44 md:flex-col md:overflow-x-visible md:rounded-l-md md:rounded-tr-none md:border-r md:border-b-0">
-          <DialogTitle className="hidden px-2 pt-1 pb-3 text-sm md:block">
+          <div className="hidden px-2 pt-1 pb-3 text-sm font-semibold md:block">
             Settings
-          </DialogTitle>
+          </div>
           {tabs.map((tab) => (
             <button
               key={tab.id}

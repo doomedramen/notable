@@ -97,6 +97,41 @@ async function swipe(page: import("@playwright/test").Page, x1: number, x2: numb
   );
 }
 
+async function dragWithoutRelease(
+  page: import("@playwright/test").Page,
+  x1: number,
+  x2: number,
+  y = 300,
+) {
+  await page.evaluate(
+    ([from, to, yPos]) => {
+      const steps = 6;
+      const touch = (x: number) =>
+        new Touch({ identifier: 1, target: document.body, clientX: x, clientY: yPos });
+      window.dispatchEvent(
+        new TouchEvent("touchstart", {
+          bubbles: true,
+          cancelable: true,
+          touches: [touch(from)],
+          changedTouches: [touch(from)],
+        }),
+      );
+      for (let i = 1; i <= steps; i++) {
+        const x = from + ((to - from) * i) / steps;
+        window.dispatchEvent(
+          new TouchEvent("touchmove", {
+            bubbles: true,
+            cancelable: true,
+            touches: [touch(x)],
+            changedTouches: [touch(x)],
+          }),
+        );
+      }
+    },
+    [x1, x2, y],
+  );
+}
+
 test("edge swipe opens the drawer, swipe left closes it", async ({ page }) => {
   await page.goto("/");
   const sidebar = page.getByRole("dialog", { name: "Sidebar" });
@@ -109,6 +144,55 @@ test("edge swipe opens the drawer, swipe left closes it", async ({ page }) => {
   // Swipe left anywhere -> closes the drawer.
   await swipe(page, 250, 50);
   await expect(sidebar).not.toBeInViewport();
+});
+
+test("swiping the drawer open does not trigger header tooltips", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const sidebar = page.getByRole("dialog", { name: "Sidebar" });
+
+  // Finish the drag where the Settings button lands. Moving drawer content
+  // under a mouse-like pointer must not be interpreted as a desktop hover.
+  await page.mouse.move(5, 28);
+  await page.mouse.down();
+  await page.mouse.move(184, 28, { steps: 6 });
+  await page.mouse.up();
+
+  await expect(sidebar).toBeInViewport();
+  await page.waitForTimeout(450);
+  await expect(page.getByRole("tooltip")).toHaveCount(0);
+});
+
+test("edge swipe dims the page while the drawer is moving", async ({ page }) => {
+  await page.goto("/");
+  const backdrop = page.getByTestId("sidebar-swipe-backdrop");
+  await expect(backdrop).toHaveCount(1);
+
+  await dragWithoutRelease(page, 5, 150);
+  const opacity = await backdrop.evaluate((element) =>
+    Number(getComputedStyle(element).opacity),
+  );
+  expect(opacity).toBeGreaterThan(0);
+  expect(opacity).toBeLessThan(1);
+
+  await page.evaluate(() => {
+    const touch = new Touch({
+      identifier: 1,
+      target: document.body,
+      clientX: 150,
+      clientY: 300,
+    });
+    window.dispatchEvent(
+      new TouchEvent("touchend", {
+        bubbles: true,
+        cancelable: true,
+        touches: [],
+        changedTouches: [touch],
+      }),
+    );
+  });
+  await expect(page.getByRole("dialog", { name: "Sidebar" })).toBeInViewport();
 });
 
 test("settings opens as a near-fullscreen sheet with tab strip", async ({

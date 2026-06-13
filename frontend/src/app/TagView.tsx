@@ -3,6 +3,7 @@ import { useParams } from "react-router";
 import { openNote } from "../core/navigation";
 import { EmptyState } from "../components/ui/empty-state";
 import { PageContainer, PageHeader } from "../components/ui/page-header";
+import { Skeleton } from "../components/ui/skeleton";
 
 interface TaggedNote {
   path: string;
@@ -14,24 +15,37 @@ export function TagView() {
   const params = useParams();
   const tag = params["*"] ?? "";
   const [notes, setNotes] = useState<TaggedNote[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     if (!tag) return;
     setNotes([]);
+    setLoaded(false);
     const ctrl = new AbortController();
     fetch(`/api/tags/${tag.split("/").map(encodeURIComponent).join("/")}`, {
       signal: ctrl.signal,
     })
       .then((res) => (res.ok ? res.json() : []))
       .then(setNotes)
-      .catch(() => {});
+      .catch(() => {
+        if (!ctrl.signal.aborted) setNotes([]);
+      })
+      .finally(() => {
+        if (!ctrl.signal.aborted) setLoaded(true);
+      });
     return () => ctrl.abort();
   }, [tag]);
 
   return (
     <PageContainer>
       <PageHeader icon="tag">{tag}</PageHeader>
-      {notes.length === 0 ? (
+      {!loaded ? (
+        <div className="mt-4 space-y-2 px-2">
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-8 w-4/5" />
+          <Skeleton className="h-8 w-2/3" />
+        </div>
+      ) : notes.length === 0 ? (
         <EmptyState icon="tag" className="mt-4">
           No notes tagged #{tag}.
         </EmptyState>
