@@ -21,6 +21,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Tooltip } from "../components/ui/tooltip";
 import { EmptyState } from "../components/ui/empty-state";
+import { Skeleton } from "../components/ui/skeleton";
 import { notice } from "../components/ui/toast";
 import { confirm } from "../components/ui/confirm";
 import {
@@ -48,6 +49,7 @@ import { cn } from "../lib/cn";
 export function Sidebar() {
   const notes = useNotesStore((s) => s.notes);
   const folders = useNotesStore((s) => s.folders);
+  const loaded = useNotesStore((s) => s.loaded);
   const create = useNotesStore((s) => s.create);
   const rmdir = useNotesStore((s) => s.rmdir);
   const open = useUI((s) => s.sidebarOpen);
@@ -169,7 +171,13 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 overflow-y-auto overscroll-contain px-1.5 pb-2">
-        {notes.length === 0 && groups.rest.length === 0 ? (
+        {!loaded ? (
+          <div className="space-y-1 px-2 py-2">
+            <Skeleton className="h-7 w-full" />
+            <Skeleton className="h-7 w-full" />
+            <Skeleton className="h-7 w-3/4" />
+          </div>
+        ) : notes.length === 0 && groups.rest.length === 0 ? (
           <EmptyState icon={FileText}>
             No notes yet. Create one to start writing.
           </EmptyState>
