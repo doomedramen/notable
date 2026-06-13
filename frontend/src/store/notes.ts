@@ -169,6 +169,44 @@ export async function renameNote(from: string, to: string): Promise<NoteMeta> {
   return meta;
 }
 
+export interface TrashedNote {
+  /** Path within ".trash/", e.g. ".trash/Projects/Foo.md". */
+  path: string;
+  /** Original vault-relative path it will be restored to. */
+  original_path: string;
+  name: string;
+  /** When it was trashed (file mtime), ms since epoch. */
+  deleted_at: number;
+}
+
+/** Soft-delete: move a note into `.trash/`, preserving its folder path. */
+export async function trashNote(path: string): Promise<void> {
+  await renameNote(path, `.trash/${path}`);
+}
+
+/** Restore a note from `.trash/` back to its original path. */
+export async function restoreFromTrash(note: TrashedNote): Promise<void> {
+  await renameNote(note.path, note.original_path);
+}
+
+export async function listTrash(): Promise<TrashedNote[]> {
+  try {
+    const res = await fetch("/api/trash");
+    if (!res.ok) throw new Error();
+    return await res.json();
+  } catch {
+    return [];
+  }
+}
+
+/** Permanently delete a note already sitting in `.trash/`. */
+export async function deleteFromTrash(path: string): Promise<void> {
+  const res = await fetch(`/api/notes/${encodePath(path)}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error();
+}
+
 export async function createFolder(path: string): Promise<void> {
   const cached = (await kvGet<VaultListing>("vault")) ?? EMPTY;
   if (!cached.folders.includes(path)) {

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { emit } from "../core/events";
 import {
   createFolder,
   createNote,
@@ -7,6 +8,7 @@ import {
   flushQueue,
   listVault,
   renameNote,
+  trashNote,
   type NoteMeta,
 } from "./notes";
 
@@ -20,6 +22,7 @@ interface NotesState {
   refresh: () => Promise<void>;
   create: (name?: string, folder?: string) => Promise<NoteMeta>;
   remove: (path: string) => Promise<void>;
+  trash: (path: string) => Promise<void>;
   rename: (from: string, to: string) => Promise<NoteMeta>;
   mkdir: (path: string) => Promise<void>;
   rmdir: (path: string) => Promise<void>;
@@ -41,6 +44,12 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   remove: async (path) => {
     set({ notes: get().notes.filter((n) => n.path !== path) });
     await deleteNote(path);
+    emit("note:delete", path);
+  },
+  trash: async (path) => {
+    set({ notes: get().notes.filter((n) => n.path !== path) });
+    await trashNote(path);
+    emit("note:delete", path);
   },
   rename: async (from, to) => {
     const meta = await renameNote(from, to);

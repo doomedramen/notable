@@ -109,6 +109,7 @@ async fn main() -> anyhow::Result<()> {
         )
         .route("/api/folders", post(vault::create_folder))
         .route("/api/folders/{*path}", delete(vault::delete_folder))
+        .route("/api/trash", get(vault::list_trash))
         // Sync: one WebSocket per note (Yjs update protocol)
         .route("/api/sync/{*path}", get(sync::ws_handler))
         // Bulk pull for offline catch-up: state vector -> missing updates

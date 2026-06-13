@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 import { useStore } from "zustand";
 import {
   ChevronDown,
@@ -9,6 +9,7 @@ import {
   PanelLeft,
   Plus,
   Settings,
+  Trash2,
 } from "lucide-react";
 import { useNotesStore, syncNotesList } from "../store/notes-store";
 import { useUI } from "../store/ui";
@@ -51,6 +52,8 @@ export function Sidebar() {
   const open = useUI((s) => s.sidebarOpen);
   const toggle = useUI((s) => s.toggleSidebar);
   const params = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
   const activePath = params["*"] ?? null;
   const [confirmDelete, setConfirmDelete] = useState<NoteMeta | null>(null);
   const [renaming, setRenaming] = useState<NoteMeta | null>(null);
@@ -200,6 +203,19 @@ export function Sidebar() {
       </nav>
 
       <SidebarPanels />
+
+      <div className="border-t border-border px-1.5 py-1.5">
+        <button
+          onClick={() => navigate("/trash")}
+          className={cn(
+            "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-[13px] text-muted hover:bg-surface-hover hover:text-foreground",
+            location.pathname === "/trash" && "bg-surface-hover text-foreground",
+          )}
+        >
+          <Trash2 size={14} className="text-muted" />
+          Trash
+        </button>
+      </div>
 
         <RenameDialog note={renaming} onClose={() => setRenaming(null)} activePath={activePath} />
         <DeleteDialog
@@ -449,14 +465,14 @@ function DeleteDialog({
   onClose: () => void;
   activePath: string | null;
 }) {
-  const remove = useNotesStore((s) => s.remove);
+  const trash = useNotesStore((s) => s.trash);
   const navigate = useNavigate();
 
   const handleDelete = async () => {
     if (!note) return;
     const wasActive = note.path === activePath;
     onClose();
-    await remove(note.path);
+    await trash(note.path);
     if (wasActive) navigate("/");
   };
 
@@ -465,7 +481,7 @@ function DeleteDialog({
       <DialogContent showClose={false}>
         <DialogTitle>Delete “{note?.name}”?</DialogTitle>
         <DialogDescription>
-          {note ? `“${note.path}” will be deleted from the vault.` : ""}
+          {note ? `“${note.path}” will be moved to Trash.` : ""}
         </DialogDescription>
         <DialogFooter>
           <Button onClick={onClose}>Cancel</Button>

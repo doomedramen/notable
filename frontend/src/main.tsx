@@ -6,6 +6,7 @@ import "./styles/globals.css";
 import { AppShell, EmptyState } from "./app/AppShell";
 import { EditorPane } from "./app/EditorPane";
 import { TagView } from "./app/TagView";
+import { TrashView } from "./app/TrashView";
 import { useSyncStatus } from "./store/sync-status";
 import { dirtyCount, DIRTY_EVENT } from "./sync/dirty";
 import { registerBuiltinCommands } from "./app/builtin-commands";
@@ -41,6 +42,7 @@ const router = createBrowserRouter([
       { index: true, element: <EmptyState /> },
       { path: "note/*", element: <EditorPane /> },
       { path: "tag/*", element: <TagView /> },
+      { path: "trash", element: <TrashView /> },
     ],
   },
 ]);

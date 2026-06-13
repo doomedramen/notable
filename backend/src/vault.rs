@@ -61,6 +61,28 @@ impl Vault {
         Ok(self.root.join(rel_path))
     }
 
+    /// Like `resolve_note`, but also allows paths rooted at `.trash/` —
+    /// the only hidden folder users can address, used to soft-delete and
+    /// restore notes (rename in/out of it).
+    pub fn resolve_note_or_trash(&self, rel: &str) -> Result<PathBuf, StatusCode> {
+        if !rel.ends_with(".md") {
+            return Err(StatusCode::BAD_REQUEST);
+        }
+        let rel_path = Path::new(rel);
+        for (i, comp) in rel_path.components().enumerate() {
+            match comp {
+                Component::Normal(seg) => {
+                    let s = seg.to_string_lossy();
+                    if s.starts_with('.') && !(i == 0 && s == ".trash") {
+                        return Err(StatusCode::BAD_REQUEST);
+                    }
+                }
+                _ => return Err(StatusCode::BAD_REQUEST),
+            }
+        }
+        Ok(self.root.join(rel_path))
+    }
+
     /// Read a note's text.
     pub fn read(&self, rel: &str) -> Result<String, StatusCode> {
         let abs = self.resolve_note(rel)?;
@@ -106,6 +128,11 @@ pub struct NoteMeta {
     pub folder: String,
     /// Last modified, ms since epoch.
     pub modified: u64,
+}
+
+fn name_of(path: &str) -> &str {
+    let file = path.rsplit('/').next().unwrap_or(path);
+    file.strip_suffix(".md").unwrap_or(file)
 }
 
 fn meta_for(rel: String, modified: SystemTime) -> NoteMeta {
@@ -237,14 +264,15 @@ pub struct RenameNote {
     pub new_path: String,
 }
 
-/// PATCH /api/notes/{*path} — rename/move a note.
+/// PATCH /api/notes/{*path} — rename/move a note. Also used for
+/// soft-delete (rename into `.trash/...`) and restore (rename out of it).
 pub async fn rename(
     AxumPath(path): AxumPath<String>,
     State(state): State<Arc<AppState>>,
     Json(req): Json<RenameNote>,
 ) -> Result<Json<NoteMeta>, StatusCode> {
-    let from = state.vault.resolve_note(&path)?;
-    let to = state.vault.resolve_note(&req.new_path)?;
+    let from = state.vault.resolve_note_or_trash(&path)?;
+    let to = state.vault.resolve_note_or_trash(&req.new_path)?;
     if !from.exists() {
         return Err(StatusCode::NOT_FOUND);
     }
@@ -260,12 +288,30 @@ pub async fn rename(
     crate::sync::flush_and_evict(&state, &path).await;
 
     std::fs::rename(&from, &to).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let _ = sqlx::query("UPDATE doc_cache SET path = ? WHERE path = ?")
-        .bind(&req.new_path)
-        .bind(&path)
-        .execute(&state.db)
-        .await;
-    crate::indexer::move_note(&state, &path, &req.new_path).await;
+
+    let entering_trash = req.new_path.starts_with(".trash/");
+    let leaving_trash = path.starts_with(".trash/");
+    if entering_trash {
+        // Trashed notes are excluded from search/links/tags until restored.
+        let _ = sqlx::query("DELETE FROM doc_cache WHERE path = ?")
+            .bind(&path)
+            .execute(&state.db)
+            .await;
+        crate::indexer::remove_note(&state, &path).await;
+    } else {
+        let _ = sqlx::query("UPDATE doc_cache SET path = ? WHERE path = ?")
+            .bind(&req.new_path)
+            .bind(&path)
+            .execute(&state.db)
+            .await;
+        if leaving_trash {
+            if let Ok(body) = state.vault.read(&req.new_path) {
+                crate::indexer::index_note(&state, &req.new_path, &body).await;
+            }
+        } else {
+            crate::indexer::move_note(&state, &path, &req.new_path).await;
+        }
+    }
 
     let modified = to
         .metadata()
@@ -274,12 +320,13 @@ pub async fn rename(
     Ok(Json(meta_for(req.new_path, modified)))
 }
 
-/// DELETE /api/notes/{*path}
+/// DELETE /api/notes/{*path} — permanently remove a note (including
+/// permanent deletion from `.trash/...`).
 pub async fn delete(
     AxumPath(path): AxumPath<String>,
     State(state): State<Arc<AppState>>,
 ) -> StatusCode {
-    let Ok(abs) = state.vault.resolve_note(&path) else {
+    let Ok(abs) = state.vault.resolve_note_or_trash(&path) else {
         return StatusCode::BAD_REQUEST;
     };
     crate::sync::evict(&state, &path);
@@ -293,6 +340,64 @@ pub async fn delete(
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => StatusCode::NO_CONTENT,
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
     }
+}
+
+#[derive(Serialize)]
+pub struct TrashedNote {
+    /// Path within `.trash/`, e.g. ".trash/Projects/Foo.md".
+    pub path: String,
+    /// Original vault-relative path it will be restored to.
+    pub original_path: String,
+    pub name: String,
+    /// When it was trashed (file mtime), ms since epoch.
+    pub deleted_at: u64,
+}
+
+/// GET /api/trash — list notes sitting in `.trash/`, newest first.
+pub async fn list_trash(State(state): State<Arc<AppState>>) -> Json<Vec<TrashedNote>> {
+    let vault = state.vault.clone();
+    let mut items = tokio::task::spawn_blocking(move || {
+        let trash_root = vault.root().join(".trash");
+        let mut items = Vec::new();
+        if !trash_root.is_dir() {
+            return items;
+        }
+        let walker = walkdir::WalkDir::new(&trash_root)
+            .follow_links(false)
+            .into_iter()
+            .flatten();
+        for entry in walker {
+            if !entry.file_type().is_file() {
+                continue;
+            }
+            let Some(rel) = vault.relativize(entry.path()) else {
+                continue;
+            };
+            if !rel.ends_with(".md") {
+                continue;
+            }
+            let original_path = rel.strip_prefix(".trash/").unwrap_or(&rel).to_string();
+            let name = name_of(&original_path).to_string();
+            let deleted_at = entry
+                .metadata()
+                .ok()
+                .and_then(|m| m.modified().ok())
+                .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
+                .map(|d| d.as_millis() as u64)
+                .unwrap_or(0);
+            items.push(TrashedNote {
+                path: rel,
+                original_path,
+                name,
+                deleted_at,
+            });
+        }
+        items
+    })
+    .await
+    .unwrap_or_default();
+    items.sort_by(|a, b| b.deleted_at.cmp(&a.deleted_at));
+    Json(items)
 }
 
 #[derive(Deserialize)]

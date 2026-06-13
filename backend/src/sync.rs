@@ -26,7 +26,7 @@ use axum::{
 };
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex as StdMutex};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime};
 use tokio::sync::broadcast;
 use yrs::{updates::decoder::Decode, GetString, ReadTxn, StateVector, Text, Transact, Update};
 
@@ -285,9 +285,20 @@ async fn handle_socket(mut socket: WebSocket, path: String, state: Arc<AppState>
     }
 }
 
-/// Background task: flush dirty rooms after idle, evict cold ones.
+/// How long a note sits in `.trash/` before it's permanently purged.
+const TRASH_TTL: Duration = Duration::from_secs(30 * 24 * 3600);
+
+/// Pure helper so the 30-day expiry rule is unit-testable without
+/// waiting 30 days.
+fn is_expired(modified: SystemTime, now: SystemTime, ttl: Duration) -> bool {
+    now.duration_since(modified).is_ok_and(|age| age > ttl)
+}
+
+/// Background task: flush dirty rooms after idle, evict cold ones, and
+/// (once an hour) purge notes that have sat in `.trash/` for 30+ days.
 pub async fn sweeper(state: Arc<AppState>) {
     let mut tick = tokio::time::interval(Duration::from_secs(1));
+    let mut ticks: u64 = 0;
     loop {
         tick.tick().await;
         let snapshot: Vec<(String, Arc<Room>)> = state
@@ -305,6 +316,49 @@ pub async fn sweeper(state: Arc<AppState>) {
                 state.rooms.remove(&path);
             }
         }
+
+        ticks += 1;
+        if ticks % 3600 == 0 {
+            purge_expired_trash(&state).await;
+        }
+    }
+}
+
+/// Permanently remove `.trash/**/*.md` files older than `TRASH_TTL`.
+async fn purge_expired_trash(state: &Arc<AppState>) {
+    let vault = state.vault.clone();
+    let expired = tokio::task::spawn_blocking(move || {
+        let trash_root = vault.root().join(".trash");
+        if !trash_root.is_dir() {
+            return Vec::new();
+        }
+        let now = SystemTime::now();
+        walkdir::WalkDir::new(&trash_root)
+            .follow_links(false)
+            .into_iter()
+            .flatten()
+            .filter(|e| e.file_type().is_file())
+            .filter_map(|e| {
+                let modified = e.metadata().ok()?.modified().ok()?;
+                if is_expired(modified, now, TRASH_TTL) {
+                    vault.relativize(e.path())
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>()
+    })
+    .await
+    .unwrap_or_default();
+
+    for path in expired {
+        if let Ok(abs) = state.vault.resolve_note_or_trash(&path) {
+            let _ = std::fs::remove_file(abs);
+        }
+        let _ = sqlx::query("DELETE FROM doc_cache WHERE path = ?")
+            .bind(&path)
+            .execute(&state.db)
+            .await;
     }
 }
 
@@ -438,4 +492,23 @@ pub async fn diff(
         update: B64.encode(update),
         guid: room.guid.clone(),
     }))
+}
+
+#[cfg(test)]
+mod trash_tests {
+    use super::*;
+
+    #[test]
+    fn not_expired_before_ttl() {
+        let now = SystemTime::now();
+        let modified = now - Duration::from_secs(29 * 24 * 3600);
+        assert!(!is_expired(modified, now, TRASH_TTL));
+    }
+
+    #[test]
+    fn expired_after_ttl() {
+        let now = SystemTime::now();
+        let modified = now - Duration::from_secs(31 * 24 * 3600);
+        assert!(is_expired(modified, now, TRASH_TTL));
+    }
 }

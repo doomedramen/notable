@@ -329,3 +329,179 @@ test("word-count plugin enables and disables live, without reload", async ({
   await page.getByLabel("Enable Word count").click();
   await expect(page.locator("footer")).not.toContainText("words");
 });
+
+test("wikilinks render as pills and Mod-click creates + opens the target", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await createNote(page);
+  await typeInEditor(page, "Link: [[Note B]]");
+
+  // Dismiss any autocomplete popup, then move the cursor off the line so
+  // the link decoration (hidden brackets, pill) takes effect.
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Enter");
+
+  const pill = page.locator(".cm-wikilink", { hasText: "Note B" });
+  await expect(pill).toBeVisible();
+  await expect(page.locator(".cm-content")).not.toContainText("[[");
+
+  // Mod-click an unresolved link: creates "Note B.md" and navigates to it.
+  await pill.click({ modifiers: ["Control"] });
+  await expect(page).toHaveURL(/Note%20B/);
+  await expect(page.locator("h1")).toContainText("Note B");
+});
+
+test("backlinks panel lists notes that link to the open note", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await createNote(page);
+  await typeInEditor(page, "See [[Note C]] for details");
+  await page.keyboard.press("Escape");
+  await expect(page.locator("footer")).toContainText("Synced");
+
+  // Follow the link: creates + opens "Note C.md".
+  await page.keyboard.press("Enter");
+  await page
+    .locator(".cm-wikilink", { hasText: "Note C" })
+    .click({ modifiers: ["Control"] });
+  await expect(page).toHaveURL(/Note%20C/);
+
+  await typeInEditor(page, "content");
+  await expect(page.locator("footer")).toContainText("Synced");
+
+  await page.getByLabel("Toggle backlinks panel").click();
+  await expect(page.locator("aside").filter({ hasText: "Backlinks" })).toBeVisible();
+
+  // Indexing + link backfill happens on the write-behind flush (~2s idle).
+  await expect(async () => {
+    const res = await page.request.get("/api/backlinks/Note%20C.md");
+    const hits = (await res.json()) as { source_path: string }[];
+    expect(hits.length).toBeGreaterThan(0);
+  }).toPass({ timeout: 15_000 });
+
+  // The panel re-fetches on note:open/editor:ready; reopen it to refresh.
+  await page.getByLabel("Toggle backlinks panel").click();
+  await page.getByLabel("Toggle backlinks panel").click();
+  await expect(page.locator("aside").filter({ hasText: "Backlinks" })).not.toContainText("No notes link here yet.");
+});
+
+test("tags: #tag chips in the editor, sidebar panel, and /tag view", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await createNote(page);
+  await typeInEditor(page, "Tagged with #project-x");
+  await page.keyboard.press("Enter");
+
+  const tagChip = page.locator(".cm-tag", { hasText: "#project-x" });
+  await expect(tagChip).toBeVisible();
+  await expect(page.locator("footer")).toContainText("Synced");
+
+  // Indexing happens on the write-behind flush (~2s idle).
+  await expect(async () => {
+    const res = await page.request.get("/api/tags");
+    const tags = (await res.json()) as { tag: string }[];
+    expect(tags.some((t) => t.tag === "project-x")).toBe(true);
+  }).toPass({ timeout: 15_000 });
+
+  // The sidebar panel fetched before the tag was indexed; collapse and
+  // re-expand to remount it and pick up the fresh list.
+  const tagsButton = page.getByRole("button", { name: "Tags", exact: true });
+  await tagsButton.click();
+  await tagsButton.click();
+  const chip = page.locator(".notable-tags-chip", { hasText: "project-x" });
+  await expect(chip).toBeVisible();
+  await chip.click();
+
+  await expect(page).toHaveURL(/\/tag\/project-x/);
+  await expect(page.locator("h1")).toContainText("project-x");
+  await page.locator("main li button").first().click();
+  await expect(page).toHaveURL(/\/note\//);
+});
+
+test("live preview hides markdown marks and renders task checkboxes", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await createNote(page);
+  await typeInEditor(page, "**bold**");
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Enter");
+
+  await expect(page.locator(".cm-hl-strong")).toHaveText("bold");
+  await expect(page.locator(".cm-content")).not.toContainText("**");
+
+  await typeInEditor(page, "- [ ] buy milk");
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Enter");
+
+  const checkbox = page.locator(".cm-task-checkbox");
+  await expect(checkbox).toBeVisible();
+  await expect(checkbox).not.toBeChecked();
+  await checkbox.click();
+  await expect(checkbox).toBeChecked();
+});
+
+test("soft-delete moves a note to .trash/, and it can be restored or purged", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const notePath = await createNote(page);
+  await typeInEditor(page, "trash me");
+  await page.keyboard.press("Escape");
+  await expect(page.locator("footer")).toContainText("Synced");
+
+  const noteName = notePath.replace(/\.md$/, "");
+
+  // Delete via the sidebar context menu — soft delete, not gone for good.
+  await page
+    .locator("nav")
+    .getByRole("button", { name: noteName, exact: true })
+    .click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Delete note" }).click();
+  await page.getByRole("button", { name: "Delete" }).click();
+
+  await expect(page.locator("nav")).not.toContainText(noteName);
+  await expect(page).toHaveURL("/");
+
+  await expect(async () => {
+    expect(fs.existsSync(path.join(VAULT, ".trash", notePath))).toBe(true);
+  }).toPass({ timeout: 5_000 });
+  expect(fs.existsSync(path.join(VAULT, notePath))).toBe(false);
+
+  // Trash view lists it, with restore and delete-forever actions.
+  await page.getByRole("button", { name: "Trash" }).click();
+  await expect(page).toHaveURL(/\/trash/);
+  const trashRow = page.locator("li", { hasText: noteName });
+  await expect(trashRow).toBeVisible();
+
+  // Restore brings it back to the sidebar and off disk from .trash/.
+  await trashRow.getByRole("button", { name: `Restore ${noteName}` }).click();
+  await expect(trashRow).not.toBeVisible();
+  await expect(async () => {
+    expect(fs.existsSync(path.join(VAULT, notePath))).toBe(true);
+    expect(fs.existsSync(path.join(VAULT, ".trash", notePath))).toBe(false);
+  }).toPass({ timeout: 5_000 });
+  await expect(page.locator("nav")).toContainText(noteName);
+
+  // Trash it again, then permanently delete it from the trash view.
+  await page
+    .locator("nav")
+    .getByRole("button", { name: noteName, exact: true })
+    .click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Delete note" }).click();
+  await page.getByRole("button", { name: "Delete" }).click();
+
+  await page.getByRole("button", { name: "Trash" }).click();
+  const trashRow2 = page.locator("li", { hasText: noteName });
+  await expect(trashRow2).toBeVisible();
+  await trashRow2.getByRole("button", { name: `Delete ${noteName} forever` }).click();
+  await page.getByRole("button", { name: "Confirm" }).click();
+  await expect(trashRow2).not.toBeVisible();
+
+  await expect(async () => {
+    expect(fs.existsSync(path.join(VAULT, ".trash", notePath))).toBe(false);
+  }).toPass({ timeout: 5_000 });
+});
