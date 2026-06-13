@@ -5,7 +5,7 @@ import type { LucideIcon } from "lucide-react";
     consistent padding so every full-page view aligns the same way. */
 export function PageContainer({ children }: { children: ReactNode }) {
   return (
-    <div className="mx-auto w-full max-w-[46rem] flex-1 overflow-y-auto px-4 pt-4 md:px-6 md:pt-8">
+    <div className="mx-auto w-full max-w-[46rem] flex-1 overflow-y-auto overscroll-contain px-4 pt-4 md:px-6 md:pt-8">
       {children}
     </div>
   );

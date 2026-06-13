@@ -152,7 +152,7 @@ function RightPanel() {
       <MountHost
         key={panel.id}
         mount={panel.mount}
-        className="min-h-0 flex-1 overflow-y-auto"
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
       />
     </aside>
   );

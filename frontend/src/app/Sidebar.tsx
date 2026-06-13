@@ -168,7 +168,7 @@ export function Sidebar() {
         </DropdownMenu>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-1.5 pb-2">
+      <nav className="flex-1 overflow-y-auto overscroll-contain px-1.5 pb-2">
         {notes.length === 0 && groups.rest.length === 0 ? (
           <EmptyState icon={FileText}>
             No notes yet. Create one to start writing.
@@ -502,7 +502,7 @@ function SidebarPanels() {
   if (panels.length === 0) return null;
 
   return (
-    <div className="shrink-0 overflow-y-auto border-t border-border">
+    <div className="shrink-0 overflow-y-auto overscroll-contain border-t border-border">
       {panels.map((panel) => (
         <section key={panel.id}>
           <button

@@ -136,7 +136,7 @@ export function CommandPalette() {
         placeholder="Search notes and commands…"
         className="h-11 w-full border-b border-border bg-transparent px-4 text-sm text-foreground outline-none placeholder:text-faint"
       />
-      <Cmdk.List className="max-h-80 overflow-y-auto p-1.5">
+      <Cmdk.List className="max-h-80 overflow-y-auto overscroll-contain p-1.5">
         <Cmdk.Empty className="px-3 py-8 text-center text-sm text-faint">
           No results.
         </Cmdk.Empty>

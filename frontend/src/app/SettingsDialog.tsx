@@ -71,7 +71,7 @@ export function SettingsDialog() {
             </button>
           ))}
         </nav>
-        <div className="min-w-0 flex-1 overflow-y-auto p-5">
+        <div className="min-w-0 flex-1 overflow-y-auto overscroll-contain p-5">
           {active === "appearance" && <AppearanceTab />}
           {active === "plugins" && <PluginsTab />}
           {pluginTabs.map(

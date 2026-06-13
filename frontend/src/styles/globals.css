@@ -43,6 +43,16 @@ body,
   height: 100%;
 }
 
+/* The app shell is a fixed-height layout (h-dvh) with its own scroll
+   regions (sidebar, editor, dialogs). The outer page itself should never
+   scroll — this stops the rubber-band bounce and the browser/PWA
+   pull-to-refresh gesture it triggers. */
+html,
+body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 body {
   margin: 0;
   font-family: var(--font-sans);
