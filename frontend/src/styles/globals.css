@@ -29,12 +29,12 @@
   --radius-sm: var(--radius-sm);
 
   /* Type scale: overrides Tailwind's defaults to match the app's
-     established sizes, so text-2xs/xs/sm/base replace the old
-     text-[10px]/[11px]/[13px]/[14px] arbitrary values. */
-  --text-2xs: 10px;
-  --text-xs: 11px;
-  --text-sm: 13px;
-  --text-base: 14px;
+     established sizes (text-2xs/xs/sm/base). Sized up for comfortable
+     on-device (mobile) readability of UI chrome. */
+  --text-2xs: 12px;
+  --text-xs: 14px;
+  --text-sm: 16px;
+  --text-base: 18px;
 }
 
 html,
