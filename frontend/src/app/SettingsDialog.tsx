@@ -452,7 +452,7 @@ function PluginsTab() {
               className="flex items-start gap-3 rounded-md border border-border p-3"
             >
               <div className="min-w-0 flex-1">
-                <div className="flex items-baseline gap-2">
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                   <span className="text-sm font-medium">{p.name}</span>
                   <span className="text-xs text-faint">v{p.version}</span>
                   <Badge>{p.source}</Badge>

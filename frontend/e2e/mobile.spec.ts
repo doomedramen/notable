@@ -11,7 +11,7 @@ test("sidebar is a drawer: closed on load, opens, closes on navigation", async (
   await page.goto("/");
 
   // Drawer starts closed on small screens; the top bar is visible.
-  const sidebar = page.getByTestId("sidebar");
+  const sidebar = page.getByRole("dialog", { name: "Sidebar" });
   const topBar = page.getByTestId("mobile-top-bar");
   await expect(topBar).toBeVisible();
   await expect(sidebar).not.toBeInViewport();
@@ -45,7 +45,7 @@ test("top bar search button opens the command palette", async ({ page }) => {
 test("backdrop tap closes the drawer", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("Open sidebar").click();
-  const sidebar = page.getByTestId("sidebar");
+  const sidebar = page.getByRole("dialog", { name: "Sidebar" });
   await expect(sidebar).toBeInViewport();
 
   // Tap the backdrop area right of the drawer.
@@ -54,20 +54,41 @@ test("backdrop tap closes the drawer", async ({ page }) => {
   await expect(sidebar).not.toBeInViewport();
 });
 
-/** Dispatch a synthetic horizontal swipe from (x1,y) to (x2,y). */
+/** Dispatch a synthetic horizontal drag swipe from (x1,y) to (x2,y).
+    swipe-bar listens on `window` and only activates dragging once a
+    touchmove crosses its ~20px activation threshold, so this dispatches
+    a touchstart followed by several incremental touchmoves before the
+    final touchend (a single touchstart+touchend jump is ignored). */
 async function swipe(page: import("@playwright/test").Page, x1: number, x2: number, y = 300) {
   await page.evaluate(
     ([from, to, yPos]) => {
-      const target = document.querySelector('[data-testid="mobile-top-bar"]')!;
+      const steps = 6;
       const touch = (x: number) =>
-        new Touch({ identifier: 1, target, clientX: x, clientY: yPos });
-      target.dispatchEvent(
-        new TouchEvent("touchstart", { bubbles: true, cancelable: true, touches: [touch(from)] }),
+        new Touch({ identifier: 1, target: document.body, clientX: x, clientY: yPos });
+      window.dispatchEvent(
+        new TouchEvent("touchstart", {
+          bubbles: true,
+          cancelable: true,
+          touches: [touch(from)],
+          changedTouches: [touch(from)],
+        }),
       );
-      target.dispatchEvent(
+      for (let i = 1; i <= steps; i++) {
+        const x = from + ((to - from) * i) / steps;
+        window.dispatchEvent(
+          new TouchEvent("touchmove", {
+            bubbles: true,
+            cancelable: true,
+            touches: [touch(x)],
+            changedTouches: [touch(x)],
+          }),
+        );
+      }
+      window.dispatchEvent(
         new TouchEvent("touchend", {
           bubbles: true,
           cancelable: true,
+          touches: [],
           changedTouches: [touch(to)],
         }),
       );
@@ -78,7 +99,7 @@ async function swipe(page: import("@playwright/test").Page, x1: number, x2: numb
 
 test("edge swipe opens the drawer, swipe left closes it", async ({ page }) => {
   await page.goto("/");
-  const sidebar = page.getByTestId("sidebar");
+  const sidebar = page.getByRole("dialog", { name: "Sidebar" });
   await expect(sidebar).not.toBeInViewport();
 
   // Swipe right starting near the left edge -> opens the drawer.

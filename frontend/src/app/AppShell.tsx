@@ -1,6 +1,7 @@
-import { useEffect, useRef, type TouchEvent } from "react";
+import { useEffect } from "react";
 import { Outlet, useMatch, useNavigate } from "react-router";
 import { useStore } from "zustand";
+import { SwipeBarProvider, useSwipeBarContext } from "@luciodale/swipe-bar";
 import { Sidebar } from "./Sidebar";
 import { StatusBar } from "./StatusBar";
 import { ThemeProvider } from "./ThemeProvider";
@@ -19,48 +20,30 @@ import { useUI } from "../store/ui";
 import { AppIcon } from "../components/AppIcon";
 import { IconPicker } from "../components/IconPicker";
 
-const isMobile = () => window.matchMedia("(max-width: 767px)").matches;
-
 export function AppShell() {
+  return (
+    <SwipeBarProvider>
+      <AppShellInner />
+    </SwipeBarProvider>
+  );
+}
+
+function AppShellInner() {
   const navigate = useNavigate();
   const noteMatch = useMatch("/note/*");
   const activePath = noteMatch?.params["*"] ?? null;
-  const sidebarOpen = useUI((s) => s.sidebarOpen);
+  const { closeSidebar, leftSidebars } = useSwipeBarContext();
+  const drawerOpen = leftSidebars.sidebar?.isOpen ?? false;
 
   // Bridge router state into framework-agnostic core (plugins use it).
   useEffect(() => setNavigator(navigate), [navigate]);
   useEffect(() => {
     setActiveNoteId(activePath);
     // Mobile: navigating to a note closes the drawer to reveal it.
-    if (activePath && isMobile() && useUI.getState().sidebarOpen) {
-      useUI.getState().toggleSidebar();
+    if (activePath && drawerOpen) {
+      closeSidebar("left", { id: "sidebar" });
     }
   }, [activePath]);
-
-  // Mobile edge-swipe: drag in from the left edge to open the drawer,
-  // swipe left anywhere to close it — matches native app conventions.
-  const touchStart = useRef<{ x: number; y: number } | null>(null);
-  const onTouchStart = (e: TouchEvent) => {
-    if (!isMobile()) return;
-    const t = e.touches[0];
-    touchStart.current = { x: t.clientX, y: t.clientY };
-  };
-  const onTouchEnd = (e: TouchEvent) => {
-    const start = touchStart.current;
-    touchStart.current = null;
-    if (!start || !isMobile()) return;
-    const t = e.changedTouches[0];
-    const dx = t.clientX - start.x;
-    const dy = t.clientY - start.y;
-    // Ignore mostly-vertical drags (scrolling) and short flicks.
-    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
-    const open = useUI.getState().sidebarOpen;
-    if (dx > 0 && !open && start.x < 32) {
-      useUI.getState().toggleSidebar();
-    } else if (dx < 0 && open) {
-      useUI.getState().toggleSidebar();
-    }
-  };
 
   return (
     <ThemeProvider>
@@ -72,18 +55,8 @@ export function AppShell() {
           // of a tall surface-coloured block whose text floats up off the edge.
           // (Drawers are position:fixed and handle their own insets.)
           className="flex h-dvh flex-col bg-background text-foreground pb-[env(safe-area-inset-bottom)]"
-          onTouchStart={onTouchStart}
-          onTouchEnd={onTouchEnd}
         >
           <div className="relative flex min-h-0 flex-1">
-            {/* Mobile: backdrop behind the drawer */}
-            {sidebarOpen && (
-              <div
-                className="fixed inset-0 z-30 bg-black/40 md:hidden"
-                onClick={() => useUI.getState().toggleSidebar()}
-                aria-hidden
-              />
-            )}
             <Sidebar />
             <main className="flex min-w-0 flex-1 flex-col">
               <MobileTopBar activePath={activePath} />
@@ -107,6 +80,7 @@ export function AppShell() {
 
 /** Small-screen header: drawer toggle, current note, search. */
 function MobileTopBar({ activePath }: { activePath: string | null }) {
+  const { openSidebar } = useSwipeBarContext();
   return (
     <header
       className="flex h-[calc(2.75rem+env(safe-area-inset-top))] shrink-0 items-center gap-1 border-b border-border px-2 pt-[env(safe-area-inset-top)] md:hidden"
@@ -117,7 +91,7 @@ function MobileTopBar({ activePath }: { activePath: string | null }) {
         variant="ghost"
         size="icon"
         aria-label="Open sidebar"
-        onClick={() => useUI.getState().toggleSidebar()}
+        onClick={() => openSidebar("left", { id: "sidebar" })}
       >
         <AppIcon icon="sidebar" size={16} />
       </Button>

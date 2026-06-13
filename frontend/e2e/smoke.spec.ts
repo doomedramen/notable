@@ -406,10 +406,9 @@ test("tags: #tag chips in the editor, sidebar panel, and /tag view", async ({
     expect(tags.some((t) => t.tag === "project-x")).toBe(true);
   }).toPass({ timeout: 15_000 });
 
-  // The sidebar panel fetched before the tag was indexed; collapse and
-  // re-expand to remount it and pick up the fresh list.
+  // The Tags panel starts collapsed and mounts (fetching the tag list) on
+  // first expand — by now the tag is indexed, so expanding shows it.
   const tagsButton = page.getByRole("button", { name: "Tags", exact: true });
-  await tagsButton.click();
   await tagsButton.click();
   const chip = page.locator(".notable-tags-chip", { hasText: "project-x" });
   await expect(chip).toBeVisible();

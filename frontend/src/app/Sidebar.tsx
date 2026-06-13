@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { useStore } from "zustand";
+import { SwipeBarLeft } from "@luciodale/swipe-bar";
 import { useNotesStore, syncNotesList } from "../store/notes-store";
 import { useUI } from "../store/ui";
 import { workspaceStore } from "../core/workspace";
@@ -41,6 +42,23 @@ import {
   iconAssignmentStore,
 } from "../core/icon-assignments";
 
+/** Tracks the md breakpoint (768px) so sidebarBody is only mounted into
+    whichever of the two wrappers (desktop aside / mobile drawer) is
+    actually visible — otherwise both copies sit in the DOM and produce
+    duplicate accessible elements (e.g. two `<nav>`s, two "New…" buttons). */
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(
+    () => window.matchMedia("(max-width: 767px)").matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const onChange = () => setIsMobile(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return isMobile;
+}
+
 export function Sidebar() {
   const notes = useNotesStore((s) => s.notes);
   const folders = useNotesStore((s) => s.folders);
@@ -55,7 +73,9 @@ export function Sidebar() {
   const activePath = params["*"] ?? null;
   const [confirmDelete, setConfirmDelete] = useState<NoteMeta | null>(null);
   const [renaming, setRenaming] = useState<NoteMeta | null>(null);
+  const [renamingFolder, setRenamingFolder] = useState<string | null>(null);
   const [newFolderOpen, setNewFolderOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   // Group notes by folder; include empty folders from the listing.
   const groups = useMemo(() => {
@@ -104,27 +124,10 @@ export function Sidebar() {
     }
   };
 
-  return (
-    <>
-      {/* Desktop collapsed rail (mobile uses the top-bar hamburger). */}
-      {!open && (
-        <div className="hidden shrink-0 flex-col border-r border-border bg-surface p-1.5 md:flex">
-          <Tooltip label="Show sidebar" side="right">
-            <Button variant="ghost" size="icon" onClick={toggle} aria-label="Show sidebar">
-              <AppIcon icon="sidebar" size={15} />
-            </Button>
-          </Tooltip>
-        </div>
-      )}
-      {/* Mobile: off-canvas drawer. Desktop: static panel. */}
-      <aside
-        className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-72 max-w-[85vw] shrink-0 flex-col border-r border-border bg-surface pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] transition-transform duration-200 md:static md:z-auto md:w-60 md:max-w-none md:pt-0 md:pb-0 md:transition-none",
-          open ? "translate-x-0" : "-translate-x-full",
-          !open && "md:hidden",
-        )}
-        data-testid="sidebar"
-      >
+  // Shared sidebar contents, rendered into both the desktop static panel
+  // and the mobile swipe-bar drawer below.
+  const sidebarBody = (
+    <div className="flex h-full min-h-0 flex-1 flex-col">
       <div className="flex items-center gap-1.5 px-3 pt-3 pb-2">
         <span className="flex-1 text-sm font-semibold tracking-tight select-none">
           Notable
@@ -199,6 +202,7 @@ export function Sidebar() {
                 onCreateNote={() => void handleCreate(folder)}
                 onRename={setRenaming}
                 onDelete={setConfirmDelete}
+                onRenameFolder={() => setRenamingFolder(folder)}
                 onDeleteFolder={() => void handleDeleteFolder(folder)}
               />
             ))}
@@ -220,15 +224,55 @@ export function Sidebar() {
           Trash
         </button>
       </div>
+    </div>
+  );
 
-        <RenameDialog note={renaming} onClose={() => setRenaming(null)} activePath={activePath} />
-        <DeleteDialog
-          note={confirmDelete}
-          onClose={() => setConfirmDelete(null)}
-          activePath={activePath}
-        />
-        <NewFolderDialog open={newFolderOpen} onClose={() => setNewFolderOpen(false)} />
-      </aside>
+  return (
+    <>
+      {/* Desktop collapsed rail (mobile uses the top-bar hamburger). */}
+      {!open && (
+        <div className="hidden shrink-0 flex-col border-r border-border bg-surface p-1.5 md:flex">
+          <Tooltip label="Show sidebar" side="right">
+            <Button variant="ghost" size="icon" onClick={toggle} aria-label="Show sidebar">
+              <AppIcon icon="sidebar" size={15} />
+            </Button>
+          </Tooltip>
+        </div>
+      )}
+      {/* Desktop: static panel, only rendered while expanded. */}
+      {open && (
+        <aside className="hidden shrink-0 flex-col border-r border-border bg-surface md:flex md:w-60">
+          {!isMobile && sidebarBody}
+        </aside>
+      )}
+      {/* Mobile: off-canvas drawer with edge-swipe and live drag-to-open. */}
+      <SwipeBarLeft
+        id="sidebar"
+        ariaLabel="Sidebar"
+        className="flex flex-col border-r border-border bg-surface pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] md:hidden"
+        sidebarWidthPx={288}
+        isAbsolute
+        mediaQueryWidth={768}
+        transitionMs={200}
+        swipeBarZIndex={40}
+        overlayZIndex={30}
+        showToggle={false}
+      >
+        {isMobile ? sidebarBody : <></>}
+      </SwipeBarLeft>
+
+      <RenameDialog note={renaming} onClose={() => setRenaming(null)} activePath={activePath} />
+      <RenameFolderDialog
+        folder={renamingFolder}
+        onClose={() => setRenamingFolder(null)}
+        activePath={activePath}
+      />
+      <DeleteDialog
+        note={confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        activePath={activePath}
+      />
+      <NewFolderDialog open={newFolderOpen} onClose={() => setNewFolderOpen(false)} />
     </>
   );
 }
@@ -240,6 +284,7 @@ function FolderGroup({
   onCreateNote,
   onRename,
   onDelete,
+  onRenameFolder,
   onDeleteFolder,
 }: {
   folder: string;
@@ -248,6 +293,7 @@ function FolderGroup({
   onCreateNote: () => void;
   onRename: (n: NoteMeta) => void;
   onDelete: (n: NoteMeta) => void;
+  onRenameFolder: () => void;
   onDeleteFolder: () => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -285,6 +331,7 @@ function FolderGroup({
         </ContextMenuTrigger>
         <ContextMenuContent>
           <ContextMenuItem onSelect={onCreateNote}>New note here</ContextMenuItem>
+          <ContextMenuItem onSelect={onRenameFolder}>Rename folder…</ContextMenuItem>
           {contributed.map((item) => (
             <ContextMenuItem
               key={item.id}
@@ -510,6 +557,83 @@ function RenameDialog({
   );
 }
 
+function RenameFolderDialog({
+  folder,
+  onClose,
+  activePath,
+}: {
+  folder: string | null;
+  onClose: () => void;
+  activePath: string | null;
+}) {
+  const renameFolder = useNotesStore((s) => s.renameFolder);
+  const folders = useNotesStore((s) => s.folders);
+  const [name, setName] = useState("");
+
+  useEffect(() => {
+    if (folder) setName(folder.split("/").pop() ?? folder);
+  }, [folder]);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!folder) return;
+    // Rename the leaf segment only — keep the folder where it is.
+    const leaf = name.trim().replace(/^\/+|\/+$/g, "");
+    const parent = folder.includes("/")
+      ? folder.slice(0, folder.lastIndexOf("/"))
+      : "";
+    const target = parent ? `${parent}/${leaf}` : leaf;
+    if (!leaf || target === folder) {
+      onClose();
+      return;
+    }
+    if (leaf.includes("/")) {
+      notice("Folder names can’t contain “/”.", { variant: "danger" });
+      return;
+    }
+    if (folders.includes(target)) {
+      notice("A folder with that name already exists.", { variant: "danger" });
+      return;
+    }
+    const movingActive =
+      activePath === folder || activePath?.startsWith(`${folder}/`);
+    onClose();
+    try {
+      await renameFolder(folder, target);
+      // Follow the open note to its new path so it stays selected.
+      if (movingActive && activePath) {
+        openNote(`${target}${activePath.slice(folder.length)}`);
+      }
+    } catch {
+      notice("Could not rename folder.", { variant: "danger" });
+    }
+  };
+
+  return (
+    <Dialog open={folder !== null} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent showClose={false}>
+        <DialogTitle>Rename folder</DialogTitle>
+        <form onSubmit={submit}>
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="mt-4"
+            autoFocus
+            onFocus={(e) => e.target.select()}
+            aria-label="New folder name"
+          />
+          <DialogFooter>
+            <Button onClick={onClose}>Cancel</Button>
+            <Button variant="primary" type="submit">
+              Rename
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function DeleteDialog({
   note,
   onClose,
@@ -551,34 +675,34 @@ function DeleteDialog({
 /** Plugin-registered sidebar panels, collapsible below the note list. */
 function SidebarPanels() {
   const panels = useStore(workspaceStore, (s) => s.sidebarPanels);
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  // Panels (e.g. Tags) start collapsed; the user expands the ones they want.
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   if (panels.length === 0) return null;
 
   return (
     <div className="shrink-0 overflow-y-auto overscroll-contain border-t border-border">
-      {panels.map((panel) => (
-        <section key={panel.id}>
-          <button
-            onClick={() =>
-              setCollapsed((c) => ({ ...c, [panel.id]: !c[panel.id] }))
-            }
-            className="flex w-full items-center gap-1.5 px-3 py-2 text-xs font-medium text-muted hover:text-foreground"
-          >
-            <AppIcon
-              icon="chevron-down"
-              size={12}
-              className={cn(
-                "transition-transform duration-200",
-                collapsed[panel.id] && "-rotate-90",
-              )}
-            />
-            {panel.title}
-          </button>
-          {!collapsed[panel.id] && (
-            <MountHost mount={panel.mount} className="px-1.5 pb-2" />
-          )}
-        </section>
-      ))}
+      {panels.map((panel) => {
+        const open = expanded[panel.id] ?? false;
+        return (
+          <section key={panel.id}>
+            <button
+              onClick={() => setExpanded((e) => ({ ...e, [panel.id]: !open }))}
+              className="flex w-full items-center gap-1.5 px-3 py-2 text-xs font-medium text-muted hover:text-foreground"
+            >
+              <AppIcon
+                icon="chevron-down"
+                size={12}
+                className={cn(
+                  "transition-transform duration-200",
+                  !open && "-rotate-90",
+                )}
+              />
+              {panel.title}
+            </button>
+            {open && <MountHost mount={panel.mount} className="px-1.5 pb-2" />}
+          </section>
+        );
+      })}
     </div>
   );
 }
