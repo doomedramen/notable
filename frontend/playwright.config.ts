@@ -20,7 +20,7 @@ export default defineConfig({
       // Mobile-first is a product requirement: phone PWA is a primary
       // target. Drawer/sheet behavior lives in mobile.spec.ts.
       name: "mobile",
-      testMatch: /mobile\.spec\.ts/,
+      testMatch: /mobile.*\.spec\.ts/,
       use: { ...devices["iPhone 14"], browserName: "chromium" },
     },
     {

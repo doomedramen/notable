@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Outlet, useMatch, useNavigate } from "react-router";
 import { useStore } from "zustand";
 import { Sidebar } from "./Sidebar";
@@ -29,19 +29,26 @@ function AppShellInner() {
   const navigate = useNavigate();
   const noteMatch = useMatch("/note/*");
   const activePath = noteMatch?.params["*"] ?? null;
-  const drawerOpen = useUI((state) => state.mobileSidebarOpen);
   const setDrawerOpen = useUI((state) => state.setMobileSidebarOpen);
+  const previousActivePath = useRef(activePath);
 
   // Bridge router state into framework-agnostic core (plugins use it).
   useEffect(() => setNavigator(navigate), [navigate]);
   useEffect(() => {
     setActiveNoteId(activePath);
     if (activePath) useUI.getState().recordRecentNote(activePath);
-    // Mobile: navigating to a note closes the drawer to reveal it.
-    if (activePath && drawerOpen) {
+    // Mobile: navigating to a note closes the drawer to reveal it. Only do
+    // this when the active note actually changed — not whenever the drawer
+    // is opened while a note is already active.
+    if (
+      activePath &&
+      activePath !== previousActivePath.current &&
+      useUI.getState().mobileSidebarOpen
+    ) {
       setDrawerOpen(false);
     }
-  }, [activePath, drawerOpen, setDrawerOpen]);
+    previousActivePath.current = activePath;
+  }, [activePath, setDrawerOpen]);
 
   return (
     <ThemeProvider>

@@ -13,7 +13,7 @@ export default defineConfig({
   projects: [
     {
       name: "desktop",
-      testMatch: /smoke\.spec\.ts/,
+      testMatch: /smoke.*\.spec\.ts/,
       use: { ...devices["Desktop Chrome"] },
     },
     {

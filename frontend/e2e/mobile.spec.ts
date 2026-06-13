@@ -369,3 +369,112 @@ test("edge swipe is ignored while settings is open", async ({ page }) => {
   await swipe(page, 5, 200);
   await expect(page.getByTestId("mobile-sidebar")).toHaveCount(0);
 });
+
+/** Reads the path of the note currently open from the URL. */
+function currentNoteName(page: Page): string {
+  const path = decodeURIComponent(
+    new URL(page.url()).pathname.replace(/^\/note\//, ""),
+  );
+  return path.replace(/\.md$/, "").split("/").pop()!;
+}
+
+test("long-press dragging a note onto a folder moves it", async ({ page }) => {
+  await page.goto("/");
+  const sidebar = page.getByRole("dialog", { name: "Sidebar" });
+
+  await page.getByLabel("Open sidebar").click();
+  await expect(sidebar).toBeInViewport();
+  await page.getByLabel("New…").click();
+  await page.getByRole("menuitem", { name: "New folder" }).click();
+  const folder = `Touch drop ${Date.now()}`;
+  await page.getByLabel("Folder name").fill(folder);
+  await page.getByRole("button", { name: "Create" }).click();
+  await expect(sidebar).toBeInViewport();
+
+  await page.getByLabel("New…").click();
+  await page.getByRole("menuitem", { name: "New note" }).click();
+  await expect(page).toHaveURL(/\/note\//);
+  await expect(page.getByRole("dialog", { name: "Rename note" })).toBeVisible();
+  await page.getByRole("button", { name: "Cancel" }).click();
+  const noteName = currentNoteName(page);
+
+  await page.getByLabel("Open sidebar").click();
+  await expect(sidebar).toBeInViewport();
+  const row = sidebar.getByRole("button", { name: noteName, exact: true });
+  const target = sidebar.getByRole("button", { name: folder, exact: true });
+  await expect.poll(async () => (await row.boundingBox())?.x).toBeGreaterThanOrEqual(0);
+  const rowBox = (await row.boundingBox())!;
+  const targetBox = (await target.boundingBox())!;
+
+  // Long-press (> 280ms) before moving so the drag activates, then drag
+  // over the folder and release — mirrors the desktop dragTo test but via
+  // the touch long-press gesture.
+  const client = await page.context().newCDPSession(page);
+  const x1 = rowBox.x + rowBox.width / 2;
+  const y1 = rowBox.y + rowBox.height / 2;
+  await client.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [{ x: x1, y: y1 }],
+  });
+  await page.waitForTimeout(320);
+  const x2 = targetBox.x + targetBox.width / 2;
+  const y2 = targetBox.y + targetBox.height / 2;
+  const steps = 6;
+  for (let index = 1; index <= steps; index += 1) {
+    await client.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [
+        {
+          x: x1 + ((x2 - x1) * index) / steps,
+          y: y1 + ((y2 - y1) * index) / steps,
+        },
+      ],
+    });
+  }
+  await client.send("Input.dispatchTouchEvent", {
+    type: "touchEnd",
+    touchPoints: [],
+  });
+  await client.detach();
+
+  await expect(page).toHaveURL(
+    new RegExp(`/note/${encodeURIComponent(folder)}/`),
+  );
+});
+
+test("a quick swipe starting on a note row closes the drawer instead of dragging", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const sidebar = page.getByRole("dialog", { name: "Sidebar" });
+
+  await page.getByLabel("Open sidebar").click();
+  await expect(sidebar).toBeInViewport();
+  await page.getByLabel("New…").click();
+  await page.getByRole("menuitem", { name: "New note" }).click();
+  await expect(page).toHaveURL(/\/note\//);
+  await expect(page.getByRole("dialog", { name: "Rename note" })).toBeVisible();
+  await page.getByRole("button", { name: "Cancel" }).click();
+  const noteName = currentNoteName(page);
+
+  await page.getByLabel("Open sidebar").click();
+  await expect(sidebar).toBeInViewport();
+
+  const row = sidebar.getByRole("button", { name: noteName, exact: true });
+  const box = (await row.boundingBox())!;
+
+  // A short swipe left, starting on a note row, should be interpreted as
+  // the drawer-close gesture, not a long-press note drag.
+  await touchDrag(
+    page,
+    box.x + box.width / 2,
+    box.y + box.height / 2,
+    box.x - 200,
+    box.y + box.height / 2,
+  );
+
+  await expect(sidebar).not.toBeInViewport();
+  await expect(page).toHaveURL(
+    new RegExp(`/note/${encodeURIComponent(noteName)}`),
+  );
+});
