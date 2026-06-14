@@ -241,6 +241,7 @@ test("edge swipe opens the drawer, swipe left closes it", async ({ page }) => {
 test("drawer commitment threshold emits feedback once", async ({ page }) => {
   await mockHaptics(page);
   await page.goto("/");
+  await expect(page.getByTestId("mobile-top-bar")).toBeVisible();
 
   const client = await dragWithoutRelease(page, 5, 150);
 
