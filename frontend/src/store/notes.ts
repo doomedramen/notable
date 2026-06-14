@@ -12,7 +12,7 @@ import {
   clearPendingContent,
   peekPendingContent,
 } from "@/core/pending-content";
-import { dirtyContent, moveDirty } from "@/sync/dirty";
+import { dirtyContent, isDirty, moveDirty } from "@/sync/dirty";
 import {
   getKV,
   getStagedContent,
@@ -674,9 +674,16 @@ async function processOperation(operation: Pending): Promise<boolean> {
       if (!created.ok) throw new Error(`create failed (${created.status})`);
       await markServerCreated(operation.id);
 
-      const staged = await peekPendingContent(
+      let staged = await peekPendingContent(
         operation.contentKey ?? operation.path,
       );
+      if (
+        staged === null &&
+        operation.content !== undefined &&
+        !isDirty(operation.path)
+      ) {
+        staged = operation.content;
+      }
       if (staged !== null) {
         const written = await fetch(
           `/api/documents/${encodePath(operation.path)}`,

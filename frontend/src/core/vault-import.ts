@@ -306,6 +306,14 @@ function commonZipRoot(paths: readonly string[]): string | null {
 }
 
 export async function previewZip(file: File): Promise<ImportPreview> {
+  if (file.size > MAX_IMPORT_BYTES) {
+    return finalizePreview(
+      zipRootName(file.name),
+      [],
+      new Set(),
+      [{ path: file.name, reason: "import-too-large" }],
+    );
+  }
   const compressed = new Uint8Array(await file.arrayBuffer());
   const rawEntries: ImportEntry[] = [];
   const rawFolders = new Set<string>();

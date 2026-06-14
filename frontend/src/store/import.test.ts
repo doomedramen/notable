@@ -4,7 +4,7 @@ import {
   stageImport,
   type VaultListing,
 } from "./notes";
-import { getKV, getStagedContent } from "./vault-db";
+import { getKV, getStagedContent, setKV } from "./vault-db";
 
 function deleteDatabase(): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -112,5 +112,40 @@ describe("offline import staging and replay", () => {
     ]);
     expect(requests).toEqual(["Vault/Plan 1.md"]);
     expect(await getStagedContent("Vault/Plan.md")).toBeUndefined();
+  });
+
+  it("replays legacy inline create content when it was never opened", async () => {
+    await setKV("vault", {
+      notes: [
+        {
+          path: "Legacy.md",
+          name: "Legacy",
+          folder: "",
+          modified: 1,
+        },
+      ],
+      folders: [],
+    });
+    await setKV("queue", [
+      { kind: "create", path: "Legacy.md", content: "legacy body" },
+    ]);
+    const writes: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (!init?.method) return json({ notes: [], folders: [] });
+        if (url === "/api/notes") return json({}, 201);
+        if (url.includes("/api/documents/")) {
+          writes.push(JSON.parse(String(init.body)).text);
+        }
+        return json({});
+      }),
+    );
+
+    const result = await flushQueue();
+
+    expect(result.remaining).toBe(0);
+    expect(writes).toEqual(["legacy body"]);
   });
 });
