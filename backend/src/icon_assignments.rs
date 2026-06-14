@@ -1,12 +1,7 @@
 //! Vault-wide note and folder icon assignments.
 
 use crate::AppState;
-use axum::{
-    extract::State,
-    http::StatusCode,
-    response::IntoResponse,
-    Json,
-};
+use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -170,7 +165,9 @@ fn validate_path(path: &str) -> Result<(), (StatusCode, String)> {
     if path.trim().is_empty()
         || path.starts_with('/')
         || path.contains('\\')
-        || path.split('/').any(|part| part.is_empty() || part == "." || part == "..")
+        || path
+            .split('/')
+            .any(|part| part.is_empty() || part == "." || part == "..")
     {
         return Err((StatusCode::BAD_REQUEST, "invalid assignment path".into()));
     }
@@ -181,8 +178,7 @@ fn validate_identifier(value: &str, name: &str) -> Result<(), (StatusCode, Strin
     if value.is_empty()
         || value.len() > 160
         || !value.chars().all(|character| {
-            character.is_ascii_alphanumeric()
-                || matches!(character, '-' | '_' | ':' | '.')
+            character.is_ascii_alphanumeric() || matches!(character, '-' | '_' | ':' | '.')
         })
     {
         return Err((StatusCode::BAD_REQUEST, format!("invalid {name}")));

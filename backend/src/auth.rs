@@ -64,19 +64,14 @@ fn cookie_value(headers: &header::HeaderMap) -> Option<String> {
 }
 
 /// Guards `/api/*` (except `/api/login`) when `auth_password` is configured.
-pub async fn guard(
-    State(state): State<Arc<AppState>>,
-    req: Request<Body>,
-    next: Next,
-) -> Response {
+pub async fn guard(State(state): State<Arc<AppState>>, req: Request<Body>, next: Next) -> Response {
     let Some(password) = &state.auth_password else {
         return next.run(req).await;
     };
     if req.uri().path() == "/api/login" {
         return next.run(req).await;
     }
-    let authorized = cookie_value(req.headers())
-        .is_some_and(|token| verify(password, &token));
+    let authorized = cookie_value(req.headers()).is_some_and(|token| verify(password, &token));
     if authorized {
         next.run(req).await
     } else {
@@ -90,10 +85,7 @@ pub struct LoginRequest {
 }
 
 /// POST /api/login - exchange the shared password for a session cookie.
-pub async fn login(
-    State(state): State<Arc<AppState>>,
-    Json(body): Json<LoginRequest>,
-) -> Response {
+pub async fn login(State(state): State<Arc<AppState>>, Json(body): Json<LoginRequest>) -> Response {
     let Some(password) = &state.auth_password else {
         return StatusCode::NOT_FOUND.into_response();
     };

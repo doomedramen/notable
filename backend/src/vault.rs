@@ -12,9 +12,11 @@ use axum::{
     Json,
 };
 use serde::{Deserialize, Serialize};
+use std::io::{Cursor, Write};
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 use std::time::SystemTime;
+use zip::write::FileOptions;
 
 #[derive(Clone)]
 pub struct Vault {
@@ -360,9 +362,7 @@ pub async fn delete(
     crate::indexer::remove_note(&state, &path).await;
     let status = match std::fs::remove_file(abs) {
         Ok(_) => StatusCode::NO_CONTENT,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            StatusCode::NO_CONTENT
-        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => StatusCode::NO_CONTENT,
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
     };
     if status == StatusCode::NO_CONTENT {
@@ -479,9 +479,7 @@ pub async fn delete_folder(
     }
     match std::fs::remove_dir_all(&abs) {
         Ok(_) => {
-            if let Err(error) =
-                crate::icon_assignments::remove_folder_tree(&state, &path).await
-            {
+            if let Err(error) = crate::icon_assignments::remove_folder_tree(&state, &path).await {
                 tracing::warn!("could not remove folder icon assignments: {error}");
             }
             StatusCode::NO_CONTENT
@@ -513,6 +511,84 @@ fn sanitize_name(name: &str) -> Result<String, StatusCode> {
         return Err(StatusCode::BAD_REQUEST);
     }
     Ok(cleaned)
+}
+
+/// GET /api/download/{*path} — download a file or a folder (as ZIP).
+pub async fn download(
+    AxumPath(path): AxumPath<String>,
+    State(state): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let abs = state.vault.resolve(&path)?;
+    if !abs.exists() {
+        return Err(StatusCode::NOT_FOUND);
+    }
+
+    if abs.is_file() {
+        let content = std::fs::read(&abs).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        let filename = abs.file_name().unwrap_or_default().to_string_lossy();
+        Ok((
+            [
+                (header::CONTENT_TYPE, "application/octet-stream"),
+                (
+                    header::CONTENT_DISPOSITION,
+                    &format!("attachment; filename=\"{}\"", filename),
+                ),
+            ],
+            content,
+        )
+            .into_response())
+    } else if abs.is_dir() {
+        let mut buf = Vec::new();
+        {
+            let mut zip = zip::ZipWriter::new(Cursor::new(&mut buf));
+            let options = FileOptions::<()>::default()
+                .compression_method(zip::CompressionMethod::Deflated)
+                .unix_permissions(0o755);
+
+            let walker = walkdir::WalkDir::new(&abs)
+                .into_iter()
+                .filter_entry(|e| !e.file_name().to_string_lossy().starts_with('.'));
+            for entry in walker.flatten() {
+                let path = entry.path();
+                let name = path
+                    .strip_prefix(&abs)
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                let name_str = name.to_string_lossy().replace('\\', "/");
+
+                if name_str.is_empty() {
+                    continue;
+                }
+
+                if path.is_file() {
+                    zip.start_file(name_str, options)
+                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                    let content =
+                        std::fs::read(path).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                    zip.write_all(&content)
+                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                } else if path.is_dir() {
+                    zip.add_directory(name_str, options)
+                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                }
+            }
+            zip.finish().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        }
+
+        let folder_name = abs.file_name().unwrap_or_default().to_string_lossy();
+        Ok((
+            [
+                (header::CONTENT_TYPE, "application/zip"),
+                (
+                    header::CONTENT_DISPOSITION,
+                    &format!("attachment; filename=\"{}.zip\"", folder_name),
+                ),
+            ],
+            buf,
+        )
+            .into_response())
+    } else {
+        Err(StatusCode::BAD_REQUEST)
+    }
 }
 
 #[cfg(test)]
@@ -566,8 +642,71 @@ mod tests {
             res.headers().get(axum::http::header::CONTENT_TYPE).unwrap(),
             "text/markdown; charset=utf-8"
         );
-        
+
         let body = axum::body::to_bytes(res.into_body(), 1024).await.unwrap();
         assert_eq!(body, "hello world");
+    }
+
+    #[tokio::test]
+    async fn test_download_file() {
+        let state = test_state().await;
+        let app = axum::Router::new()
+            .route("/api/download/{*path}", axum::routing::get(download))
+            .with_state(state);
+
+        let res = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/download/test.md")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(res.status(), StatusCode::OK);
+        assert_eq!(
+            res.headers().get(axum::http::header::CONTENT_TYPE).unwrap(),
+            "application/octet-stream"
+        );
+        assert_eq!(
+            res.headers()
+                .get(axum::http::header::CONTENT_DISPOSITION)
+                .unwrap(),
+            "attachment; filename=\"test.md\""
+        );
+    }
+
+    #[tokio::test]
+    async fn test_download_folder() {
+        let state = test_state().await;
+        std::fs::create_dir_all(state.vault.root().join("subdir")).unwrap();
+        state.vault.write("subdir/inner.md", "inner content").unwrap();
+
+        let app = axum::Router::new()
+            .route("/api/download/{*path}", axum::routing::get(download))
+            .with_state(state);
+
+        let res = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/download/subdir")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(res.status(), StatusCode::OK);
+        assert_eq!(
+            res.headers().get(axum::http::header::CONTENT_TYPE).unwrap(),
+            "application/zip"
+        );
+        assert_eq!(
+            res.headers()
+                .get(axum::http::header::CONTENT_DISPOSITION)
+                .unwrap(),
+            "attachment; filename=\"subdir.zip\""
+        );
     }
 }

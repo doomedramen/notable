@@ -13,7 +13,7 @@ import { useNotesStore, syncNotesList } from "@/store/notes-store";
 import { useUI } from "@/store/ui";
 import { workspaceStore } from "@/core/workspace";
 import { openNote } from "@/core/navigation";
-import type { NoteMeta } from "@/store/notes";
+import { encodePath, type NoteMeta } from "@/store/notes";
 import type { IconSource } from "@/plugin-api";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -277,6 +277,16 @@ export function Sidebar() {
     }
   };
 
+  const handleDownload = (path: string) => {
+    const url = `/api/download/${encodePath(path)}`;
+    const a = document.createElement("a");
+    a.href = url;
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
   // Shared sidebar contents, rendered into either the desktop static panel
   // or the mobile Radix sheet.
   const sidebarBody = (
@@ -371,6 +381,7 @@ export function Sidebar() {
                   onContextMenu={() => ensureSelected(note.path)}
                   onRename={() => setRenaming(note)}
                   onDelete={() => void handleTrash(selectionFor(note.path))}
+                  onDownload={() => handleDownload(note.path)}
                   dragHandlers={getNoteDragHandlers(note.path)}
                 />
               ))}
@@ -391,6 +402,8 @@ export function Sidebar() {
                 }
                 onRenameFolder={() => setRenamingFolder(node.path)}
                 onDeleteFolder={() => void handleDeleteFolder(node.path)}
+                onDownload={() => handleDownload(node.path)}
+                handleDownload={handleDownload}
                 draggedPath={draggedPath}
                 dragOverFolder={dragOverFolder}
                 getNoteDragHandlers={getNoteDragHandlers}
@@ -492,6 +505,8 @@ function FolderGroup({
   onDelete,
   onRenameFolder,
   onDeleteFolder,
+  onDownload,
+  handleDownload,
   draggedPath,
   dragOverFolder,
   getNoteDragHandlers,
@@ -513,6 +528,8 @@ function FolderGroup({
   onDelete: (n: NoteMeta) => void;
   onRenameFolder: () => void;
   onDeleteFolder: () => void;
+  onDownload: () => void;
+  handleDownload: (path: string) => void;
   draggedPath: string | null;
   dragOverFolder: string | null;
   getNoteDragHandlers: (path: string) => ItemDragHandlers;
@@ -579,6 +596,7 @@ function FolderGroup({
         <ContextMenuContent>
           <ContextMenuItem onSelect={onCreateNote}>New note here</ContextMenuItem>
           <ContextMenuItem onSelect={onRenameFolder}>Rename folder…</ContextMenuItem>
+          <ContextMenuItem onSelect={onDownload}>Download as ZIP</ContextMenuItem>
           {contributed.map((item) => (
             <ContextMenuItem
               key={item.id}
@@ -614,6 +632,7 @@ function FolderGroup({
                 onContextMenu={() => onNoteContextMenu(note.path)}
                 onRename={() => onRename(note)}
                 onDelete={() => onDelete(note)}
+                onDownload={() => handleDownload(note.path)}
                 dragHandlers={getNoteDragHandlers(note.path)}
                 hideFolder
               />
@@ -632,6 +651,8 @@ function FolderGroup({
                 onDelete={onDelete}
                 onRenameFolder={() => setRenamingFolder(child.path)}
                 onDeleteFolder={() => void handleDeleteFolder(child.path)}
+                onDownload={() => handleDownload(child.path)}
+                handleDownload={handleDownload}
                 draggedPath={draggedPath}
                 dragOverFolder={dragOverFolder}
                 getNoteDragHandlers={getNoteDragHandlers}
@@ -659,6 +680,7 @@ function NoteRow({
   onContextMenu,
   onRename,
   onDelete,
+  onDownload,
   dragHandlers,
   hideFolder = false,
 }: {
@@ -670,6 +692,7 @@ function NoteRow({
   onContextMenu?: () => void;
   onRename: () => void;
   onDelete: () => void;
+  onDownload: () => void;
   dragHandlers: ItemDragHandlers;
   hideFolder?: boolean;
 }) {
@@ -768,6 +791,7 @@ function NoteRow({
         </ContextMenuTrigger>
         <ContextMenuContent>
           <ContextMenuItem onSelect={onRename}>Rename…</ContextMenuItem>
+          <ContextMenuItem onSelect={onDownload}>Download</ContextMenuItem>
           {contributed.map((item) => (
             <ContextMenuItem
               key={item.id}

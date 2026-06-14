@@ -59,7 +59,7 @@ const markdownHighlight = HighlightStyle.define([
   { tag: tags.link, color: "var(--accent)" },
   { tag: tags.url, color: "var(--faint)" },
   {
-    tag: [tags.monospace, tags.codeBlock, tags.fencedCode],
+    tag: [tags.monospace],
     fontFamily: "var(--font-mono)",
     fontSize: "0.88em",
   },
@@ -125,7 +125,7 @@ export function Editor({ notePath }: { notePath: string }) {
             drawSelection(),
             dropCursor(),
             indentOnInput(),
-            markdown({ base: GFM, codeLanguages: languages }),
+            markdown({ extensions: [GFM], codeLanguages: languages }),
             syntaxHighlighting(markdownHighlight),
             syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
             EditorView.lineWrapping,

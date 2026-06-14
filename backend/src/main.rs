@@ -120,6 +120,7 @@ async fn main() -> anyhow::Result<()> {
         )
         .route("/api/folders", post(vault::create_folder))
         .route("/api/folders/{*path}", delete(vault::delete_folder))
+        .route("/api/download/{*path}", get(vault::download))
         .route("/api/trash", get(vault::list_trash))
         // Sync: one WebSocket per note (Yjs update protocol)
         .route("/api/sync/{*path}", get(sync::ws_handler))
@@ -154,7 +155,10 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/themes/{file}", get(themes::serve_file))
         // Generic settings KV (also used for per-plugin settings)
         .route("/api/settings/{key}", get(settings::get).put(settings::put))
-        .route_layer(axum::middleware::from_fn_with_state(state.clone(), auth::guard));
+        .route_layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            auth::guard,
+        ));
 
     let app = Router::new()
         .merge(api)

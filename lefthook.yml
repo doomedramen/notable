@@ -1,0 +1,28 @@
+pre-commit:
+  parallel: true
+  commands:
+    backend-fmt:
+      root: backend/
+      glob: "*.rs"
+      run: cargo fmt --check
+    backend-clippy:
+      root: backend/
+      glob: "*.rs"
+      run: cargo clippy -- -D warnings
+    frontend-typecheck:
+      root: frontend/
+      glob: "*.{ts,tsx}"
+      run: npx tsc --noEmit
+    core-plugins-typecheck:
+      root: core-plugins/
+      glob: "*.ts"
+      run: npm run typecheck
+
+pre-push:
+  commands:
+    backend-test:
+      root: backend/
+      run: cargo test
+    frontend-test:
+      root: frontend/
+      run: npm test

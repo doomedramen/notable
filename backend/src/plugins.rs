@@ -449,7 +449,11 @@ fn validate_manifest(manifest: &PluginManifest) -> ApiResult<()> {
     if manifest.api_version == 0 || manifest.api_version > CURRENT_API_VERSION {
         return Err(bad_request("manifest requires an unsupported API version"));
     }
-    if manifest.categories.iter().any(|category| !valid_category(category)) {
+    if manifest
+        .categories
+        .iter()
+        .any(|category| !valid_category(category))
+    {
         return Err(bad_request("manifest contains an invalid category"));
     }
     if !safe_relative_path(Path::new(&manifest.entry)) {
@@ -467,7 +471,11 @@ fn validate_store_plugin(plugin: &StorePlugin) -> ApiResult<()> {
     if plugin.api_version == 0 {
         return Err(bad_request("registry plugin API version must be positive"));
     }
-    if plugin.categories.iter().any(|category| !valid_category(category)) {
+    if plugin
+        .categories
+        .iter()
+        .any(|category| !valid_category(category))
+    {
         return Err(bad_request("registry plugin contains an invalid category"));
     }
     Ok(())
@@ -487,9 +495,7 @@ fn valid_category(category: &str) -> bool {
     !category.is_empty()
         && category.len() <= 32
         && category.chars().all(|character| {
-            character.is_ascii_lowercase()
-                || character.is_ascii_digit()
-                || character == '-'
+            character.is_ascii_lowercase() || character.is_ascii_digit() || character == '-'
         })
 }
 

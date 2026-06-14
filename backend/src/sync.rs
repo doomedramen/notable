@@ -429,7 +429,7 @@ pub async fn sweeper(state: Arc<AppState>) {
         }
 
         ticks += 1;
-        if ticks % 3600 == 0 {
+        if ticks.is_multiple_of(3600) {
             purge_expired_trash(&state).await;
         }
     }
