@@ -161,15 +161,12 @@ test("offline ZIP import survives reload and syncs on reconnect", async ({
 }) => {
   await page.goto("/");
   await page.evaluate(async () => {
-    await navigator.serviceWorker.ready;
-    if (!navigator.serviceWorker.controller) {
-      await new Promise<void>((resolve) => {
-        navigator.serviceWorker.addEventListener("controllerchange", () => resolve(), {
-          once: true,
-        });
-      });
-    }
+    await navigator.serviceWorker.register("/sw.js");
   });
+  await page.reload();
+  await expect
+    .poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller)))
+    .toBe(true);
 
   await context.setOffline(true);
   await chooseZip(page, "offline-notes.zip", {
