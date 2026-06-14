@@ -211,6 +211,13 @@ export function useMobileSidebarGesture({
             ? "horizontal"
             : "vertical";
         if (gesture.axis === "horizontal") {
+          // Set the dragged transform in the same update as opening the
+          // sheet, so it never renders at Radix's default open position
+          // (transform: translateX(0)) before our touch-tracking kicks in —
+          // that frame is what causes the open/close "jump" on iOS.
+          const initialProgress = clamp(deltaX / width);
+          pendingProgressRef.current = initialProgress;
+          setVisual({ active: true, dragging: true, progress: initialProgress });
           setOpen(true);
           openRef.current = true;
         }
