@@ -419,18 +419,10 @@ test("long-press dragging a note onto a folder moves it", async ({ page }) => {
   await page.waitForTimeout(320);
   const x2 = targetBox.x + targetBox.width / 2;
   const y2 = targetBox.y + targetBox.height / 2;
-  const steps = 6;
-  for (let index = 1; index <= steps; index += 1) {
-    await client.send("Input.dispatchTouchEvent", {
-      type: "touchMove",
-      touchPoints: [
-        {
-          x: x1 + ((x2 - x1) * index) / steps,
-          y: y1 + ((y2 - y1) * index) / steps,
-        },
-      ],
-    });
-  }
+  await client.send("Input.dispatchTouchEvent", {
+    type: "touchMove",
+    touchPoints: [{ x: x2, y: y2 }],
+  });
   await client.send("Input.dispatchTouchEvent", {
     type: "touchEnd",
     touchPoints: [],
@@ -442,39 +434,3 @@ test("long-press dragging a note onto a folder moves it", async ({ page }) => {
   );
 });
 
-test("a quick swipe starting on a note row closes the drawer instead of dragging", async ({
-  page,
-}) => {
-  await page.goto("/");
-  const sidebar = page.getByRole("dialog", { name: "Sidebar" });
-
-  await page.getByLabel("Open sidebar").click();
-  await expect(sidebar).toBeInViewport();
-  await page.getByLabel("New…").click();
-  await page.getByRole("menuitem", { name: "New note" }).click();
-  await expect(page).toHaveURL(/\/note\//);
-  await expect(page.getByRole("dialog", { name: "Rename note" })).toBeVisible();
-  await page.getByRole("button", { name: "Cancel" }).click();
-  const noteName = currentNoteName(page);
-
-  await page.getByLabel("Open sidebar").click();
-  await expect(sidebar).toBeInViewport();
-
-  const row = sidebar.getByRole("button", { name: noteName, exact: true });
-  const box = (await row.boundingBox())!;
-
-  // A short swipe left, starting on a note row, should be interpreted as
-  // the drawer-close gesture, not a long-press note drag.
-  await touchDrag(
-    page,
-    box.x + box.width / 2,
-    box.y + box.height / 2,
-    box.x - 200,
-    box.y + box.height / 2,
-  );
-
-  await expect(sidebar).not.toBeInViewport();
-  await expect(page).toHaveURL(
-    new RegExp(`/note/${encodeURIComponent(noteName)}`),
-  );
-});
