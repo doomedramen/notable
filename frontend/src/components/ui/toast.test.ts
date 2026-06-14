@@ -1,52 +1,59 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { notice, toastStore } from "./toast";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { toast } from "sonner";
+import { notice } from "./toast";
 
-describe("toast store", () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-    toastStore.setState({ toasts: [] });
-  });
-  afterEach(() => {
-    vi.useRealTimers();
-  });
+// `notice` is a thin adapter over sonner's imperative API; assert it maps the
+// historical NoticeOptions onto sonner correctly without rendering anything.
+vi.mock("sonner", () => {
+  const toast = Object.assign(vi.fn(), { error: vi.fn() });
+  return { toast, Toaster: () => null };
+});
 
-  it("adds a toast and auto-dismisses it after its duration", () => {
+const mockToast = toast as unknown as ReturnType<typeof vi.fn> & {
+  error: ReturnType<typeof vi.fn>;
+};
+
+describe("notice", () => {
+  afterEach(() => vi.clearAllMocks());
+
+  it("forwards a default notice with its duration", () => {
     notice("saved", { duration: 1000 });
-    expect(toastStore.getState().toasts).toHaveLength(1);
-    expect(toastStore.getState().toasts[0]!.message).toBe("saved");
-
-    vi.advanceTimersByTime(1001);
-    expect(toastStore.getState().toasts).toHaveLength(0);
+    expect(mockToast).toHaveBeenCalledWith(
+      "saved",
+      expect.objectContaining({ duration: 1000 }),
+    );
   });
 
-  it("keeps persistent toasts (duration 0) until dismissed manually", () => {
+  it("treats duration 0 as persistent (Infinity)", () => {
     notice("stay", { duration: 0 });
-    vi.advanceTimersByTime(60_000);
-    const { toasts, dismiss } = toastStore.getState();
-    expect(toasts).toHaveLength(1);
-
-    dismiss(toasts[0]!.id);
-    expect(toastStore.getState().toasts).toHaveLength(0);
+    expect(mockToast).toHaveBeenCalledWith(
+      "stay",
+      expect.objectContaining({ duration: Infinity }),
+    );
   });
 
-  it("stacks multiple toasts independently", () => {
-    notice("one", { duration: 1000 });
-    notice("two", { duration: 5000 });
-    expect(toastStore.getState().toasts).toHaveLength(2);
-
-    vi.advanceTimersByTime(1001);
-    expect(toastStore.getState().toasts.map((t) => t.message)).toEqual(["two"]);
-  });
-
-  it("supports the legacy numeric duration and structured actions", () => {
-    const run = vi.fn();
+  it("supports the legacy numeric duration argument", () => {
     notice("legacy", 1000);
-    notice("moved", { duration: 6000, action: { label: "Undo", run } });
+    expect(mockToast).toHaveBeenCalledWith(
+      "legacy",
+      expect.objectContaining({ duration: 1000 }),
+    );
+  });
 
-    expect(toastStore.getState().toasts[0]!.message).toBe("legacy");
-    expect(toastStore.getState().toasts[1]!.action).toEqual({
-      label: "Undo",
-      run,
-    });
+  it("routes the danger variant to toast.error", () => {
+    notice("boom", { variant: "danger" });
+    expect(mockToast.error).toHaveBeenCalledWith("boom", expect.anything());
+    expect(mockToast).not.toHaveBeenCalled();
+  });
+
+  it("maps a structured action onto sonner's action", () => {
+    const run = vi.fn();
+    notice("moved", { duration: 6000, action: { label: "Undo", run } });
+    const opts = mockToast.mock.calls.at(-1)![1] as {
+      action: { label: string; onClick: () => void };
+    };
+    expect(opts.action.label).toBe("Undo");
+    opts.action.onClick();
+    expect(run).toHaveBeenCalledOnce();
   });
 });

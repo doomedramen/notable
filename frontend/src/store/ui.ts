@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { IconRef } from "@/plugin-api";
+import { isMobileViewport } from "@/lib/viewport";
 
 export type ThemePref = "system" | "light" | "dark";
 
@@ -49,9 +50,7 @@ interface UIState {
 
 /** Mobile-first: the sidebar is an overlay drawer on small screens, so
     it starts closed there; on desktop it starts open. */
-const startOpen =
-  typeof window === "undefined" ||
-  window.matchMedia("(min-width: 768px)").matches;
+const startOpen = !isMobileViewport();
 
 export const useUI = create<UIState>()(
   persist(

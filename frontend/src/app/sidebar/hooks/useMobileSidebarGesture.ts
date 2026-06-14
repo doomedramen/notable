@@ -174,6 +174,11 @@ export function useMobileSidebarGesture({
       }
       const touch = event.changedTouches[0];
       if (!touch || touch.clientX > EDGE_WIDTH) return;
+      // Block iOS's edge-swipe-back navigation gesture from hijacking this
+      // touch before our own horizontal-drag detection (in onTouchMove) can
+      // call preventDefault — by then Safari has already started its
+      // back-navigation transition.
+      event.preventDefault();
       clearSettleTimer();
       gestureRef.current = {
         kind: "opening",
@@ -281,7 +286,7 @@ export function useMobileSidebarGesture({
       setVisual({ active: false, dragging: false, progress: 0 });
     };
 
-    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchstart", onTouchStart, { passive: false });
     window.addEventListener("touchmove", onTouchMove, { passive: false });
     window.addEventListener("touchend", onTouchEnd, { passive: true });
     window.addEventListener("touchcancel", onTouchCancel, { passive: true });

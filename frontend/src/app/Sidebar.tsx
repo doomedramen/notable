@@ -41,7 +41,7 @@ import {
   SheetPortal,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/cn";
-import { MOBILE_MEDIA_QUERY, isMobileViewport } from "@/lib/viewport";
+import { useIsMobile } from "@/lib/viewport";
 import { AppIcon } from "@/components/AppIcon";
 import { useMobileSidebarGesture } from "./sidebar/hooks/useMobileSidebarGesture";
 import { useSidebarSelection } from "./sidebar/hooks/useSidebarSelection";
@@ -61,20 +61,10 @@ import { RenameFolderDialog } from "./sidebar/dialogs/RenameFolderDialog";
 
 const MOBILE_DRAWER_WIDTH = 288;
 
-/** Tracks the md breakpoint (768px) so sidebarBody is only mounted into
-    whichever of the two wrappers (desktop aside / mobile drawer) is
-    actually visible — otherwise both copies sit in the DOM and produce
-    duplicate accessible elements (e.g. two `<nav>`s, two "New…" buttons). */
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(isMobileViewport);
-  useEffect(() => {
-    const mq = window.matchMedia(MOBILE_MEDIA_QUERY);
-    const onChange = () => setIsMobile(mq.matches);
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, []);
-  return isMobile;
-}
+// `useIsMobile` tracks the md breakpoint (768px) so sidebarBody is only
+// mounted into whichever of the two wrappers (desktop aside / mobile drawer)
+// is actually visible — otherwise both copies sit in the DOM and produce
+// duplicate accessible elements (e.g. two `<nav>`s, two "New…" buttons).
 
 export function Sidebar() {
   const notes = useNotesStore((s) => s.notes);
