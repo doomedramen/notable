@@ -213,6 +213,26 @@ test("edge swipe opens the drawer, swipe left closes it", async ({ page }) => {
     .poll(async () => (await sidebar.boundingBox())?.x)
     .toBeCloseTo(0, 0);
 
+  // The gesture/CSS handoff must not replay the sheet's open keyframe after
+  // the custom settle transition finishes.
+  const settledPositions = await sidebar.evaluate(
+    (element) =>
+      new Promise<number[]>((resolve) => {
+        const positions: number[] = [];
+        const started = performance.now();
+        const sample = () => {
+          positions.push(element.getBoundingClientRect().x);
+          if (performance.now() - started < 400) {
+            requestAnimationFrame(sample);
+          } else {
+            resolve(positions);
+          }
+        };
+        requestAnimationFrame(sample);
+      }),
+  );
+  expect(Math.min(...settledPositions)).toBeGreaterThan(-1);
+
   // Swipe left anywhere -> closes the drawer.
   await swipe(page, 250, 50);
   await expect(sidebar).not.toBeInViewport();
@@ -433,4 +453,3 @@ test("long-press dragging a note onto a folder moves it", async ({ page }) => {
     new RegExp(`/note/${encodeURIComponent(folder)}/`),
   );
 });
-

@@ -140,7 +140,10 @@ export function useMobileSidebarGesture({
           );
           return;
         }
-        setVisual({ active: false, dragging: false, progress: 1 });
+        // Keep the gesture-owned styles while the sheet remains open.
+        // Removing `animation: none` here would restart the CSS open keyframe
+        // from translateX(-100%), making the drawer close and open a second time.
+        setVisual({ active: true, dragging: false, progress: 1 });
         contentRef.current?.focus({ preventScroll: true });
       }, TRANSITION_MS);
     },
