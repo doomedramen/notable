@@ -701,7 +701,7 @@ function NoteRow({
             className={cn(
               "flex w-full items-center gap-1.5 rounded-sm px-2 py-2 text-left text-sm transition-[color,background-color,box-shadow,transform] md:py-1.5",
               active
-                ? "bg-accent-soft text-foreground shadow-[inset_2px_0_0_var(--accent)]"
+                ? "bg-accent-soft text-foreground"
                 : selected
                   ? "bg-surface-hover text-foreground"
                   : "text-muted hover:bg-surface-hover hover:text-foreground",
