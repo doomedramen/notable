@@ -39,6 +39,12 @@ export function registerBuiltinCommands(): void {
   });
 
   registerCommand({
+    id: "vault.import",
+    name: "Import folder or ZIP",
+    run: () => useUI.getState().setImportOpen(true),
+  });
+
+  registerCommand({
     id: "theme.cycle",
     name: "Cycle theme (light / dark / system)",
     run: () => {

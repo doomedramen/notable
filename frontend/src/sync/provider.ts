@@ -35,6 +35,7 @@ const BACKOFF_MS = [1000, 2000, 5000, 10000, 30000];
 export class NoteConnection {
   readonly doc: Y.Doc;
   readonly text: Y.Text;
+  readonly ready: Promise<void>;
   private idb: IndexeddbPersistence;
   private ws: WebSocket | null = null;
   private retries = 0;
@@ -46,7 +47,10 @@ export class NoteConnection {
   /** Local CRDT state was discarded (doc epoch changed) — remount me. */
   onReset: () => void = () => {};
 
-  constructor(public readonly path: string) {
+  constructor(
+    public readonly path: string,
+    initialContent: Promise<string | null> = Promise.resolve(null),
+  ) {
     this.doc = new Y.Doc();
     this.text = this.doc.getText("content");
 
@@ -70,7 +74,11 @@ export class NoteConnection {
     };
     this.doc.on("update", this.updateHandler);
 
-    this.idb.whenSynced.then(() => {
+    this.ready = this.idb.whenSynced.then(async () => {
+      const pending = await initialContent;
+      if (pending && this.text.length === 0) {
+        this.text.insert(0, pending);
+      }
       this.restoreDirtyContent();
       this.connect();
     });

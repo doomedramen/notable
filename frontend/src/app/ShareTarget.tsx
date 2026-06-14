@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Navigate } from "react-router";
 import { useNotesStore } from "@/store/notes-store";
 import { encodePath } from "@/store/notes";
-import { setPendingContent } from "@/core/pending-content";
 
 const MAX_TITLE_LENGTH = 80;
 
@@ -36,8 +35,7 @@ export function ShareTarget() {
     const url = params.get("url") ?? "";
     const content = contentFrom(title, text, url);
 
-    void create(titleFrom(title, text, url)).then((meta) => {
-      if (content) setPendingContent(meta.path, content);
+    void create(titleFrom(title, text, url), "", content).then((meta) => {
       setTarget(`/note/${encodePath(meta.path)}`);
     });
   }, [create]);

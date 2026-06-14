@@ -21,6 +21,7 @@ import { useKeyboardInset } from "@/lib/useKeyboardInset";
 import { AppIcon } from "@/components/AppIcon";
 import { IconPicker } from "@/components/IconPicker";
 import { useNotesStore } from "@/store/notes-store";
+import { ImportVaultDialog } from "./ImportVaultDialog";
 
 export function AppShell() {
   return <AppShellInner />;
@@ -54,6 +55,23 @@ function AppShellInner() {
     previousActivePath.current = activePath;
   }, [activePath, setDrawerOpen]);
 
+  useEffect(() => {
+    const handlePendingRename = (event: Event) => {
+      const { from, to } = (event as CustomEvent<{ from: string; to: string }>)
+        .detail;
+      if (activePath === from) openNote(to);
+    };
+    window.addEventListener(
+      "notable:pending-path-renamed",
+      handlePendingRename,
+    );
+    return () =>
+      window.removeEventListener(
+        "notable:pending-path-renamed",
+        handlePendingRename,
+      );
+  }, [activePath]);
+
   return (
     <ThemeProvider>
       <TooltipProvider delayDuration={400}>
@@ -72,6 +90,7 @@ function AppShellInner() {
         </div>
         <CommandPalette />
         <SettingsDialog />
+        <ImportVaultDialog />
         <ConfirmHost />
         <ModalHost />
         <InstallPrompt />

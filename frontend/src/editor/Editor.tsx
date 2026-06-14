@@ -84,119 +84,130 @@ export function Editor({ notePath }: { notePath: string }) {
   useEffect(() => {
     if (!host.current) return;
 
-    const conn = new NoteConnection(notePath);
-    conn.onStatus = (s) => useSyncStatus.getState().setStatus(s);
-    conn.onReset = () => setGeneration((g) => g + 1);
+    let connection: NoteConnection | null = null;
+    let view: EditorView | null = null;
+    let unsubscribe: (() => void) | null = null;
+    let rememberScroll: (() => void) | null = null;
+    let latestScrollTop = 0;
+    let cancelled = false;
 
-    // A note created via a shortcut/share-target arrives with content
-    // staged for its first open (e.g. the OS share sheet's text/url).
-    const pending = takePendingContent(notePath);
-    if (pending && conn.text.length === 0) {
-      conn.text.insert(0, pending);
-    }
+    void (async () => {
+      connection = new NoteConnection(
+        notePath,
+        takePendingContent(notePath),
+      );
+      connection.onStatus = (status) =>
+        useSyncStatus.getState().setStatus(status);
+      connection.onReset = () => setGeneration((value) => value + 1);
+      await connection.ready;
+      if (cancelled || !host.current) {
+        connection.destroy();
+        connection = null;
+        return;
+      }
 
-    // Yjs-aware undo: only local edits are undoable, remote ops survive.
-    const undoManager = new Y.UndoManager(conn.text);
+      const undoManager = new Y.UndoManager(connection.text);
+      const pluginCompartment = new Compartment();
+      const memory = editorMemory.get(notePath);
+      const docLength = connection.text.length;
+      const anchor = Math.min(memory?.anchor ?? 0, docLength);
+      const head = Math.min(memory?.head ?? anchor, docLength);
+      const shouldRestoreFocus = consumeEditorFocusRestore();
 
-    // Plugin-contributed extensions live in a Compartment so enabling/
-    // disabling a plugin reconfigures the live view without a remount.
-    const pluginCompartment = new Compartment();
-    const memory = editorMemory.get(notePath);
-    const docLength = conn.text.length;
-    const anchor = Math.min(memory?.anchor ?? 0, docLength);
-    const head = Math.min(memory?.head ?? anchor, docLength);
-    const shouldRestoreFocus = consumeEditorFocusRestore();
-
-    const view = new EditorView({
-      parent: host.current,
-      state: EditorState.create({
-        // yCollab's ySync plugin only mirrors *future* ytext changes (it
-        // observes from construction time), so any content already in
-        // conn.text (e.g. share-target pending content) must seed the
-        // initial doc here.
-        doc: conn.text.toString(),
-        selection: EditorSelection.single(anchor, head),
-        // yCollab binds the editor buffer to conn.text bidirectionally;
-        // we never set doc content manually beyond this initial seed.
-        extensions: [
-          highlightSpecialChars(),
-          drawSelection(),
-          dropCursor(),
-          indentOnInput(),
-          markdown({ extensions: [GFM] }),
-          syntaxHighlighting(markdownHighlight),
-          syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
-          EditorView.lineWrapping,
-          placeholder("Start writing…"),
-          EditorView.updateListener.of((update) => {
-            if (update.docChanged) {
-              useNotesStore.getState().touch(notePath);
-              const source = update.transactions.some(
-                (transaction) =>
-                  transaction.annotation(pluginDocumentChange) === true,
-              )
-                ? "plugin"
-                : "editor";
-              emit("note:change", { path: notePath, source });
-            }
-            if (update.selectionSet) {
-              const selection = update.state.selection.main;
-              emit("editor:selection-change", {
-                path: notePath,
-                anchor: selection.anchor,
-                head: selection.head,
-                from: selection.from,
-                to: selection.to,
-              });
-            }
-          }),
-          keymap.of([...yUndoManagerKeymap, ...defaultKeymap, indentWithTab]),
-          yCollab(conn.text, null, { undoManager }),
-          pluginCompartment.of([...editorExtensionStore.getState().extensions]),
-        ],
-      }),
-    });
-    let latestScrollTop = memory?.scrollTop ?? 0;
-    const rememberScroll = () => {
-      latestScrollTop = view.scrollDOM.scrollTop;
-    };
-    view.scrollDOM.addEventListener("scroll", rememberScroll, {
-      passive: true,
-    });
-    if (memory || shouldRestoreFocus) {
-      requestAnimationFrame(() => {
-        if (shouldRestoreFocus) view.focus();
-        if (memory) {
-          requestAnimationFrame(() => {
-            view.scrollDOM.scrollTop = memory.scrollTop;
-            latestScrollTop = memory.scrollTop;
-          });
-        }
+      view = new EditorView({
+        parent: host.current,
+        state: EditorState.create({
+          doc: connection.text.toString(),
+          selection: EditorSelection.single(anchor, head),
+          extensions: [
+            highlightSpecialChars(),
+            drawSelection(),
+            dropCursor(),
+            indentOnInput(),
+            markdown({ extensions: [GFM] }),
+            syntaxHighlighting(markdownHighlight),
+            syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+            EditorView.lineWrapping,
+            placeholder("Start writing…"),
+            EditorView.updateListener.of((update) => {
+              if (update.docChanged) {
+                useNotesStore.getState().touch(notePath);
+                const source = update.transactions.some(
+                  (transaction) =>
+                    transaction.annotation(pluginDocumentChange) === true,
+                )
+                  ? "plugin"
+                  : "editor";
+                emit("note:change", { path: notePath, source });
+              }
+              if (update.selectionSet) {
+                const selection = update.state.selection.main;
+                emit("editor:selection-change", {
+                  path: notePath,
+                  anchor: selection.anchor,
+                  head: selection.head,
+                  from: selection.from,
+                  to: selection.to,
+                });
+              }
+            }),
+            keymap.of([...yUndoManagerKeymap, ...defaultKeymap, indentWithTab]),
+            yCollab(connection.text, null, { undoManager }),
+            pluginCompartment.of([
+              ...editorExtensionStore.getState().extensions,
+            ]),
+          ],
+        }),
       });
-    }
-
-    const unsubscribe = editorExtensionStore.subscribe((s) => {
-      view.dispatch({
-        effects: pluginCompartment.reconfigure([...s.extensions]),
+      latestScrollTop = memory?.scrollTop ?? 0;
+      rememberScroll = () => {
+        latestScrollTop = view?.scrollDOM.scrollTop ?? latestScrollTop;
+      };
+      view.scrollDOM.addEventListener("scroll", rememberScroll, {
+        passive: true,
       });
-    });
+      if (memory || shouldRestoreFocus) {
+        requestAnimationFrame(() => {
+          if (!view) return;
+          if (shouldRestoreFocus) view.focus();
+          if (memory) {
+            requestAnimationFrame(() => {
+              if (!view) return;
+              view.scrollDOM.scrollTop = memory.scrollTop;
+              latestScrollTop = memory.scrollTop;
+            });
+          }
+        });
+      }
 
-    setActiveView(view);
-    emit("editor:ready", view);
+      unsubscribe = editorExtensionStore.subscribe((state) => {
+        view?.dispatch({
+          effects: pluginCompartment.reconfigure([...state.extensions]),
+        });
+      });
+
+      setActiveView(view);
+      emit("editor:ready", view);
+    })();
 
     return () => {
-      const selection = view.state.selection.main;
-      editorMemory.set(notePath, {
-        anchor: selection.anchor,
-        head: selection.head,
-        scrollTop: latestScrollTop,
-      });
-      view.scrollDOM.removeEventListener("scroll", rememberScroll);
-      unsubscribe();
-      emit("editor:destroy", view);
+      cancelled = true;
+      if (view) {
+        const selection = view.state.selection.main;
+        editorMemory.set(notePath, {
+          anchor: selection.anchor,
+          head: selection.head,
+          scrollTop: latestScrollTop,
+        });
+        if (rememberScroll) {
+          view.scrollDOM.removeEventListener("scroll", rememberScroll);
+        }
+        emit("editor:destroy", view);
+        view.destroy();
+      }
+      unsubscribe?.();
       setActiveView(null);
-      view.destroy();
-      conn.destroy();
+      connection?.destroy();
       useSyncStatus.getState().setStatus(null);
     };
   }, [notePath, generation]);

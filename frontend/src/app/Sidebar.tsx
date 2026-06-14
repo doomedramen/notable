@@ -82,6 +82,7 @@ export function Sidebar() {
   const setMobileOpen = useUI((s) => s.setMobileSidebarOpen);
   const settingsOpen = useUI((s) => s.settingsOpen);
   const paletteOpen = useUI((s) => s.paletteOpen);
+  const importOpen = useUI((s) => s.importOpen);
   const params = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -93,7 +94,7 @@ export function Sidebar() {
   const mobileSidebarRef = useRef<HTMLDivElement>(null);
   const noteDragActiveRef = useRef(false);
   const isMobile = useIsMobile();
-  const modalOpen = settingsOpen || paletteOpen;
+  const modalOpen = settingsOpen || paletteOpen || importOpen;
   const {
     contentStyle,
     overlayStyle,
@@ -303,16 +304,18 @@ export function Sidebar() {
             <AppIcon icon="settings" size={15} />
           </Button>
         </Tooltip>
-        <Tooltip label="Hide sidebar" disabled={isMobile}>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={isMobile ? () => setMobileOpen(false) : toggle}
-            aria-label="Hide sidebar"
-          >
-            <AppIcon icon="sidebar" size={15} />
-          </Button>
-        </Tooltip>
+        {!isMobile && (
+          <Tooltip label="Hide sidebar">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggle}
+              aria-label="Hide sidebar"
+            >
+              <AppIcon icon="sidebar" size={15} />
+            </Button>
+          </Tooltip>
+        )}
         <DropdownMenu>
           <Tooltip label="New…" disabled={isMobile}>
             <DropdownMenuTrigger asChild>
@@ -329,6 +332,15 @@ export function Sidebar() {
             <DropdownMenuItem onSelect={() => setNewFolderOpen(true)}>
               <AppIcon icon="folder-add" size={14} className="text-muted" />
               New folder
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => {
+                setMobileOpen(false);
+                useUI.getState().setImportOpen(true);
+              }}
+            >
+              <AppIcon icon="folder" size={14} className="text-muted" />
+              Import folder or ZIP…
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -749,4 +761,3 @@ function NoteRow({
     </li>
   );
 }
-

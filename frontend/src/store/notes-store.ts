@@ -8,8 +8,12 @@ import {
   flushQueue,
   listVault,
   renameNote,
+  stageImport,
   trashNote,
+  type FlushResult,
   type NoteMeta,
+  type StageImportResult,
+  type StagedImportEntry,
 } from "./notes";
 
 /* Reactive wrapper around the offline-first metadata layer (store/notes.ts)
@@ -35,6 +39,10 @@ interface NotesState {
   renameFolder: (from: string, to: string) => Promise<void>;
   mkdir: (path: string) => Promise<void>;
   rmdir: (path: string) => Promise<void>;
+  importEntries: (
+    entries: readonly StagedImportEntry[],
+    folders: readonly string[],
+  ) => Promise<StageImportResult>;
 }
 
 export const useNotesStore = create<NotesState>((set, get) => ({
@@ -129,10 +137,19 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     });
     emit("folder:delete", path);
   },
+  importEntries: async (entries, folders) => {
+    const result = await stageImport(entries, folders);
+    set(result.listing);
+    for (const folder of result.folders) emit("folder:create", folder);
+    for (const note of result.notes) emit("note:create", note);
+    emit("vault:refresh", result.listing);
+    return result;
+  },
 }));
 
 /** Replay offline mutations and reload. Call on startup and `online`. */
-export async function syncNotesList(): Promise<void> {
-  await flushQueue();
+export async function syncNotesList(): Promise<FlushResult> {
+  const result = await flushQueue();
   await useNotesStore.getState().refresh();
+  return result;
 }

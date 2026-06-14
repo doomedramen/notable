@@ -1,24 +1,33 @@
-const PREFIX = "notable-pending-content:";
+import {
+  deleteStagedContent,
+  getStagedContent,
+  putStagedContent,
+} from "@/store/vault-db";
 
-/** One-shot handoff for content a freshly-created note should start with
-    (e.g. from the share target), consumed by the editor on first mount.
-    localStorage keeps offline-created content across an app restart. */
-export function setPendingContent(path: string, content: string): void {
-  localStorage.setItem(PREFIX + path, content);
+const LEGACY_PREFIX = "notable-pending-content:";
+
+/** Stage initial text without relying on localStorage's small quota. */
+export async function setPendingContent(
+  path: string,
+  content: string,
+): Promise<void> {
+  await putStagedContent(path, content);
 }
 
 /** Inspect a handoff without consuming it (used by offline queue replay). */
-export function peekPendingContent(path: string): string | null {
-  return localStorage.getItem(PREFIX + path);
+export async function peekPendingContent(path: string): Promise<string | null> {
+  const staged = await getStagedContent(path);
+  if (staged !== undefined) return staged;
+  return localStorage.getItem(LEGACY_PREFIX + path);
 }
 
-export function clearPendingContent(path: string): void {
-  localStorage.removeItem(PREFIX + path);
+export async function clearPendingContent(path: string): Promise<void> {
+  await deleteStagedContent(path);
+  localStorage.removeItem(LEGACY_PREFIX + path);
 }
 
-export function takePendingContent(path: string): string | null {
-  const key = PREFIX + path;
-  const content = localStorage.getItem(key);
-  if (content !== null) localStorage.removeItem(key);
+export async function takePendingContent(path: string): Promise<string | null> {
+  const content = await peekPendingContent(path);
+  if (content !== null) await clearPendingContent(path);
   return content;
 }

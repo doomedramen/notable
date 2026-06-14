@@ -58,3 +58,14 @@ export function isDirty(noteId: string): boolean {
 export function dirtyContent(noteId: string): string | null {
   return localStorage.getItem(contentKey(noteId));
 }
+
+export function moveDirty(from: string, to: string): void {
+  const ids = read();
+  const content = dirtyContent(from);
+  localStorage.removeItem(contentKey(from));
+  if (content !== null) {
+    localStorage.setItem(contentKey(to), content);
+  }
+  if (ids.delete(from)) ids.add(to);
+  write(ids);
+}

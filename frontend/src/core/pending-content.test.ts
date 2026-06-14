@@ -7,13 +7,13 @@ import {
 } from "./pending-content";
 
 describe("pending note content", () => {
-  afterEach(() => clearPendingContent("Offline.md"));
+  afterEach(async () => clearPendingContent("Offline.md"));
 
-  it("persists until the editor consumes it exactly once", () => {
-    setPendingContent("Offline.md", "draft");
+  it("persists until the editor consumes it exactly once", async () => {
+    await setPendingContent("Offline.md", "draft");
 
-    expect(peekPendingContent("Offline.md")).toBe("draft");
-    expect(takePendingContent("Offline.md")).toBe("draft");
-    expect(takePendingContent("Offline.md")).toBeNull();
+    expect(await peekPendingContent("Offline.md")).toBe("draft");
+    expect(await takePendingContent("Offline.md")).toBe("draft");
+    expect(await takePendingContent("Offline.md")).toBeNull();
   });
 });

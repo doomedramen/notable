@@ -238,6 +238,48 @@ test("edge swipe opens the drawer, swipe left closes it", async ({ page }) => {
   await expect(sidebar).not.toBeInViewport();
 });
 
+test("interactive sidebar hides its toggle and reopens after backdrop close", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(page.getByTestId("mobile-top-bar")).toBeVisible();
+  const sidebar = page.getByRole("dialog", { name: "Sidebar" });
+
+  await swipe(page, 5, 200);
+  await expect(sidebar).toBeInViewport();
+  await page.waitForTimeout(400);
+  await expect(page.getByLabel("Hide sidebar")).toHaveCount(0);
+
+  await page.evaluate(() => {
+    const target = window as Window & { __sidebarAnimations?: string[] };
+    target.__sidebarAnimations = [];
+    document.addEventListener("animationstart", (event) => {
+      if (
+        event.target instanceof HTMLElement &&
+        event.target.dataset.testid === "mobile-sidebar"
+      ) {
+        target.__sidebarAnimations?.push(event.animationName);
+      }
+    });
+  });
+
+  const viewport = page.viewportSize()!;
+  await page.mouse.click(viewport.width - 10, viewport.height / 2);
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as Window & { __sidebarAnimations?: string[] })
+            .__sidebarAnimations ?? [],
+      ),
+    )
+    .toContain("ui-sheet-left-out");
+  await expect(sidebar).not.toBeInViewport();
+
+  await page.getByLabel("Open sidebar").click();
+  await expect(sidebar).toBeInViewport();
+});
+
 test("drawer commitment threshold emits feedback once", async ({ page }) => {
   await mockHaptics(page);
   await page.goto("/");

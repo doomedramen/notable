@@ -431,7 +431,15 @@ export function useMobileSidebarGesture({
     finishVisual(commit ? 0 : 1, commit);
   };
 
-  const contentStyle: CSSProperties | undefined = visual.active
+  // A programmatic close (button, backdrop, navigation) starts from the fully
+  // open position, so let Radix's closed keyframe take over. A gesture close
+  // has already moved the drawer off-screen and must keep its inline styles
+  // until unmount, otherwise the closed keyframe would snap it open first.
+  const handoffToCloseAnimation =
+    !open && visual.active && !visual.dragging && visual.progress === 1;
+  const useVisualStyles = visual.active && !handoffToCloseAnimation;
+
+  const contentStyle: CSSProperties | undefined = useVisualStyles
     ? {
         animation: "none",
         transform: `translateX(${(visual.progress - 1) * width}px)`,
@@ -440,7 +448,7 @@ export function useMobileSidebarGesture({
           : `transform ${TRANSITION_MS}ms var(--ease-emphasized)`,
       }
     : undefined;
-  const overlayStyle: CSSProperties | undefined = visual.active
+  const overlayStyle: CSSProperties | undefined = useVisualStyles
     ? {
         animation: "none",
         opacity: visual.progress,

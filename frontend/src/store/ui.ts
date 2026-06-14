@@ -40,6 +40,8 @@ interface UIState {
   setPaletteOpen: (open: boolean) => void;
   settingsOpen: boolean;
   setSettingsOpen: (open: boolean) => void;
+  importOpen: boolean;
+  setImportOpen: (open: boolean) => void;
   collapsedFolders: string[];
   toggleFolderCollapsed: (folder: string) => void;
   recentNotePaths: string[];
@@ -88,6 +90,8 @@ export const useUI = create<UIState>()(
       setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
       settingsOpen: false,
       setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
+      importOpen: false,
+      setImportOpen: (importOpen) => set({ importOpen }),
       collapsedFolders: [],
       toggleFolderCollapsed: (folder) =>
         set((state) => ({

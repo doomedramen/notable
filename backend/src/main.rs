@@ -8,6 +8,7 @@ mod themes;
 mod vault;
 
 use axum::{
+    extract::DefaultBodyLimit,
     http::{header, StatusCode, Uri},
     response::{IntoResponse, Response},
     routing::{delete, get, post, put},
@@ -162,6 +163,9 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/logout", post(auth::logout))
         .with_state(state)
         .fallback(static_handler)
+        // Imported notes are capped at 10 MiB in the frontend. Axum's
+        // default 2 MiB JSON limit would otherwise reject valid replays.
+        .layer(DefaultBodyLimit::max(64 * 1024 * 1024))
         .layer(tower_http::trace::TraceLayer::new_for_http())
         .layer(tower_http::compression::CompressionLayer::new());
 

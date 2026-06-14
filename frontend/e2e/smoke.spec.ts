@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { zipSync } from "fflate";
 
 const VAULT = "/tmp/notable-e2e-vault";
 const DATABASE = "/tmp/notable-e2e.db";
@@ -54,6 +55,28 @@ async function typeInEditor(page: Page, text: string) {
   await page.keyboard.type(text);
 }
 
+async function chooseZip(
+  page: Page,
+  name: string,
+  files: Record<string, string>,
+) {
+  await page.getByLabel("New…").click();
+  await page.getByRole("menuitem", { name: "Import folder or ZIP…" }).click();
+  const archive = zipSync(
+    Object.fromEntries(
+      Object.entries(files).map(([file, content]) => [
+        file,
+        new TextEncoder().encode(content),
+      ]),
+    ),
+  );
+  await page.locator('input[accept*=".zip"]').setInputFiles({
+    name,
+    mimeType: "application/zip",
+    buffer: Buffer.from(archive),
+  });
+}
+
 async function mockHaptics(page: Page) {
   await page.addInitScript(() => {
     const target = window as Window & { __hapticCalls?: unknown[] };
@@ -86,6 +109,98 @@ test("create a note, type, persists across reload — and is a real file", async
   await expect(async () => {
     expect(fs.readFileSync(file, "utf8")).toContain("hello world");
   }).toPass({ timeout: 10_000 });
+});
+
+test("imports a ZIP and auto-renames duplicate notes", async ({ page }) => {
+  await page.goto("/");
+  const files = {
+    "Imported/Plan.md": "# Imported plan",
+    "Imported/Nested/Idea.MD": "nested idea",
+    "Imported/image.png": "ignored",
+  };
+
+  await chooseZip(page, "notes.zip", files);
+  await expect(page.getByRole("dialog", { name: "Import into vault" })).toContainText(
+    "2",
+  );
+  await page.getByRole("button", { name: "Import 2 notes" }).click();
+  await expect(page.getByRole("dialog")).toContainText(
+    "Everything is synced to the vault.",
+  );
+  await page.getByRole("button", { name: "Done" }).click();
+
+  await expect(page.locator("nav")).toContainText("Plan");
+  await expect(async () => {
+    expect(
+      fs.readFileSync(path.join(VAULT, "Imported/Plan.md"), "utf8"),
+    ).toContain("Imported plan");
+    expect(
+      fs.readFileSync(path.join(VAULT, "Imported/Nested/Idea.md"), "utf8"),
+    ).toContain("nested idea");
+  }).toPass({ timeout: 10_000 });
+
+  await chooseZip(page, "notes.zip", files);
+  await expect(page.getByRole("dialog")).toContainText(
+    "Conflicting notes will be renamed",
+  );
+  await page.getByRole("button", { name: "Import 2 notes" }).click();
+  await expect(page.getByRole("dialog")).toContainText("2 renamed");
+  await page.getByRole("button", { name: "Done" }).click();
+
+  await expect(async () => {
+    expect(fs.existsSync(path.join(VAULT, "Imported/Plan 1.md"))).toBe(true);
+    expect(
+      fs.existsSync(path.join(VAULT, "Imported/Nested/Idea 1.md")),
+    ).toBe(true);
+  }).toPass({ timeout: 10_000 });
+});
+
+test("offline ZIP import survives reload and syncs on reconnect", async ({
+  page,
+  context,
+}) => {
+  await page.goto("/");
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+    if (!navigator.serviceWorker.controller) {
+      await new Promise<void>((resolve) => {
+        navigator.serviceWorker.addEventListener("controllerchange", () => resolve(), {
+          once: true,
+        });
+      });
+    }
+  });
+
+  await context.setOffline(true);
+  await chooseZip(page, "offline-notes.zip", {
+    "Offline Import/Local.md": "# Local-only import",
+  });
+  await page.getByRole("button", { name: "Import 1 notes" }).click();
+  await expect(page.getByRole("dialog")).toContainText(
+    "will sync when the server is reachable",
+  );
+  await page.getByRole("button", { name: "Done" }).click();
+
+  await page.reload();
+  await expect(page.locator("nav")).toContainText("Local");
+  await page
+    .locator("nav")
+    .getByRole("button", { name: "Local", exact: true })
+    .click();
+  await expect(page.locator(".cm-content")).toContainText("Local-only import");
+
+  await context.setOffline(false);
+  await expect(page.locator("footer")).toContainText("Synced", {
+    timeout: 15_000,
+  });
+  await expect(async () => {
+    expect(
+      fs.readFileSync(
+        path.join(VAULT, "Offline Import/Local.md"),
+        "utf8",
+      ),
+    ).toContain("Local-only import");
+  }).toPass({ timeout: 15_000 });
 });
 
 test("offline edits are flagged and recover on reconnect", async ({
