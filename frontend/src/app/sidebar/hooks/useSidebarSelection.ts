@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type MouseEvent } from "react";
 import { openNote } from "@/core/navigation";
+import { useUI } from "@/store/ui";
 import type { NoteMeta } from "@/store/notes";
 
 /**
@@ -42,6 +43,11 @@ export function useSidebarSelection(noteOrder: string[]) {
       setSelected(new Set());
       setSelectionAnchor(note.path);
       openNote(note.path);
+      // On mobile, selecting a note should reveal it. Navigation closes the
+      // drawer when the active note *changes*, but tapping the already-open
+      // note doesn't navigate — close it here so the tap isn't a no-op.
+      const ui = useUI.getState();
+      if (ui.mobileSidebarOpen) ui.setMobileSidebarOpen(false);
     },
     [noteOrder, selectionAnchor],
   );
@@ -73,6 +79,23 @@ export function useSidebarSelection(noteOrder: string[]) {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [selected.size, clearSelection]);
+
+  // Drop selected paths (and a stale anchor) once their notes disappear —
+  // e.g. after a trash, move, or rename — so selection can't dangle.
+  useEffect(() => {
+    const valid = new Set(noteOrder);
+    setSelected((prev) => {
+      if (prev.size === 0) return prev;
+      let changed = false;
+      const next = new Set<string>();
+      for (const path of prev) {
+        if (valid.has(path)) next.add(path);
+        else changed = true;
+      }
+      return changed ? next : prev;
+    });
+    setSelectionAnchor((prev) => (prev === null || valid.has(prev) ? prev : null));
+  }, [noteOrder]);
 
   return {
     selected,

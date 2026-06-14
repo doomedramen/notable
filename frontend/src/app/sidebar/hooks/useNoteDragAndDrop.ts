@@ -2,6 +2,7 @@ import {
   useRef,
   useState,
   type DragEvent,
+  type MouseEvent,
   type PointerEvent,
   type RefObject,
 } from "react";
@@ -25,6 +26,7 @@ interface TouchDragState {
 
 export interface ItemDragHandlers {
   draggable: true;
+  onClickCapture: (event: MouseEvent<HTMLButtonElement>) => void;
   onDragStart: (event: DragEvent<HTMLButtonElement>) => void;
   onDragEnd: () => void;
   onPointerDown: (event: PointerEvent<HTMLButtonElement>) => void;
@@ -82,6 +84,9 @@ export function useNoteDragAndDrop({
   const [draggedKind, setDraggedKind] = useState<DragKind | null>(null);
   const [dragOverFolder, setDragOverFolder] = useState<string | null>(null);
   const touchDragRef = useRef<TouchDragState | null>(null);
+  // Set when a touch drag ends so the click the browser synthesizes from the
+  // same pointer sequence can be swallowed instead of opening the note.
+  const suppressNextClickRef = useRef(false);
 
   const dragged = draggedPath && draggedKind ? { kind: draggedKind, path: draggedPath } : null;
 
@@ -96,6 +101,7 @@ export function useNoteDragAndDrop({
     if (!drag) return;
     clearTimeout(drag.timer);
     if (drag.active) {
+      suppressNextClickRef.current = true;
       event.preventDefault();
       event.stopPropagation();
       if (drag.targetFolder !== null) {
@@ -110,6 +116,12 @@ export function useNoteDragAndDrop({
 
   const getDragHandlers = (kind: DragKind, path: string): ItemDragHandlers => ({
     draggable: true,
+    onClickCapture: (event) => {
+      if (!suppressNextClickRef.current) return;
+      suppressNextClickRef.current = false;
+      event.preventDefault();
+      event.stopPropagation();
+    },
     onDragStart: (event) => {
       event.dataTransfer.effectAllowed = "move";
       event.dataTransfer.setData(kind === "folder" ? FOLDER_MIME : NOTE_MIME, path);
@@ -118,6 +130,8 @@ export function useNoteDragAndDrop({
     },
     onDragEnd: endDrag,
     onPointerDown: (event) => {
+      // A fresh interaction starts; never carry a stale suppress flag into it.
+      suppressNextClickRef.current = false;
       preserveEditorFocusForNavigation();
       if (event.pointerType !== "touch") return;
       const drag: TouchDragState = {

@@ -18,6 +18,28 @@ async function createNote(page: Page): Promise<string> {
   );
 }
 
+/** Create a folder and a named note inside it via the "+" / context menus. */
+async function createFolderWithNote(
+  page: Page,
+  folder: string,
+  noteName: string,
+) {
+  await page.getByLabel("New…").click();
+  await page.getByRole("menuitem", { name: "New folder" }).click();
+  await page.getByLabel("Folder name").fill(folder);
+  await page.getByRole("button", { name: "Create" }).click();
+  const nav = page.locator("nav");
+  await nav
+    .getByRole("button", { name: folder, exact: true })
+    .click({ button: "right" });
+  await page.getByRole("menuitem", { name: "New note here" }).click();
+  await page
+    .getByRole("dialog", { name: "Rename note" })
+    .getByLabel("New name")
+    .fill(noteName);
+  await page.getByRole("button", { name: "Rename", exact: true }).click();
+}
+
 /** Quick Note ships disabled by default; enable it via Settings → Plugins. */
 async function enableQuickNote(page: Page) {
   await page.getByLabel("Settings").click();
@@ -788,4 +810,31 @@ test("/share-target creates a note from shared text and url", async ({ page }) =
   await expect(page.locator(".cm-content")).toContainText("# Shared page");
   await expect(page.locator(".cm-content")).toContainText("Worth a read");
   await expect(page.locator(".cm-content")).toContainText("https://example.com/");
+});
+
+test("arrow keys skip notes inside collapsed folders", async ({ page }) => {
+  await page.goto("/");
+  const stamp = Date.now();
+  const nav = page.locator("nav");
+
+  // Three folders that sort contiguously at the end of the tree (the shared
+  // e2e vault accumulates notes, so "zzz*" keeps these adjacent regardless of
+  // what earlier tests created). The middle one gets collapsed.
+  await createFolderWithNote(page, `zzza-${stamp}`, `From ${stamp}`);
+  await createFolderWithNote(page, `zzzb-${stamp}`, `Hidden ${stamp}`);
+  await createFolderWithNote(page, `zzzc-${stamp}`, `To ${stamp}`);
+
+  // Collapse the middle folder: its note stays in the DOM but becomes inert.
+  await nav.getByRole("button", { name: `zzzb-${stamp}`, exact: true }).click();
+
+  const fromRow = nav.getByRole("button", { name: `From ${stamp}`, exact: true });
+  const toRow = nav.getByRole("button", { name: `To ${stamp}`, exact: true });
+
+  // ArrowDown from the first folder's note must reach the third folder's note,
+  // skipping the inert (collapsed) note between them. Without the skip, focus
+  // would stick on the From row because focus() on an inert element is a no-op.
+  await fromRow.click();
+  await expect(fromRow).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(toRow).toBeFocused();
 });

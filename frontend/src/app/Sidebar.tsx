@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -40,6 +41,7 @@ import {
   SheetPortal,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/cn";
+import { MOBILE_MEDIA_QUERY, isMobileViewport } from "@/lib/viewport";
 import { AppIcon } from "@/components/AppIcon";
 import { useMobileSidebarGesture } from "./sidebar/hooks/useMobileSidebarGesture";
 import { useSidebarSelection } from "./sidebar/hooks/useSidebarSelection";
@@ -64,11 +66,9 @@ const MOBILE_DRAWER_WIDTH = 288;
     actually visible — otherwise both copies sit in the DOM and produce
     duplicate accessible elements (e.g. two `<nav>`s, two "New…" buttons). */
 function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(
-    () => window.matchMedia("(max-width: 767px)").matches,
-  );
+  const [isMobile, setIsMobile] = useState(isMobileViewport);
   useEffect(() => {
-    const mq = window.matchMedia("(max-width: 767px)");
+    const mq = window.matchMedia(MOBILE_MEDIA_QUERY);
     const onChange = () => setIsMobile(mq.matches);
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
@@ -176,12 +176,19 @@ export function Sidebar() {
     // (the two differ for self-hosted servers on a home network).
     window.addEventListener("online", onReachable);
     window.addEventListener("notable:server-reachable", onReachable);
+    // Catch up immediately when the tab is brought back to the foreground.
+    const onVisible = () => {
+      if (!document.hidden) onReachable();
+    };
+    document.addEventListener("visibilitychange", onVisible);
     // Periodic sweep: retries queued mutations even if no editor is
-    // open to probe the server, and keeps the list fresh.
-    const interval = setInterval(onReachable, 30_000);
+    // open to probe the server, and keeps the list fresh. Skip while the
+    // tab is hidden — a backgrounded tab has nothing to refresh for.
+    const interval = setInterval(onVisible, 30_000);
     return () => {
       window.removeEventListener("online", onReachable);
       window.removeEventListener("notable:server-reachable", onReachable);
+      document.removeEventListener("visibilitychange", onVisible);
       clearInterval(interval);
     };
   }, []);
@@ -516,6 +523,7 @@ function FolderGroup({
 }) {
   const collapsed = useUI((state) => state.collapsedFolders.includes(folder));
   const toggleCollapsed = useUI((state) => state.toggleFolderCollapsed);
+  const revealId = useId();
   const menuItems = useStore(
     workspaceStore,
     (state) => state.folderContextMenuItems,
@@ -531,6 +539,8 @@ function FolderGroup({
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <button
+            aria-expanded={!collapsed}
+            aria-controls={revealId}
             onClick={() => toggleCollapsed(folder)}
             onKeyDown={(event) => {
               if (event.key === "ArrowLeft" && !collapsed) {
@@ -583,6 +593,7 @@ function FolderGroup({
         </ContextMenuContent>
       </ContextMenu>
       <div
+        id={revealId}
         className="ui-folder-reveal"
         data-collapsed={collapsed}
         aria-hidden={collapsed}
@@ -679,12 +690,15 @@ function NoteRow({
                 event.key === "ArrowUp"
               ) {
                 event.preventDefault();
+                // Skip rows inside collapsed folders: they're `inert`, so
+                // focus() on them is a no-op and arrow nav would silently
+                // stick. This keeps arrow movement in step with Tab order.
                 const rows = [
                   ...(event.currentTarget
                     .closest("nav")
                     ?.querySelectorAll<HTMLButtonElement>("[data-note-row]") ??
                     []),
-                ];
+                ].filter((row) => !row.closest("[inert]"));
                 const index = rows.indexOf(event.currentTarget);
                 rows[
                   event.key === "ArrowDown"

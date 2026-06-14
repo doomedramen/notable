@@ -1,5 +1,6 @@
 import { registerCommand } from "@/core/commands";
 import { useUI } from "@/store/ui";
+import { isMobileViewport } from "@/lib/viewport";
 
 /* Core commands, registered through the same registry plugins use. */
 
@@ -22,7 +23,7 @@ export function registerBuiltinCommands(): void {
     hotkey: "Mod-\\",
     run: () => {
       const state = useUI.getState();
-      if (window.matchMedia("(max-width: 767px)").matches) {
+      if (isMobileViewport()) {
         state.toggleMobileSidebar();
       } else {
         state.toggleSidebar();
