@@ -58,6 +58,7 @@ import { SidebarPanels } from "./sidebar/SidebarPanels";
 import { NewFolderDialog } from "./sidebar/dialogs/NewFolderDialog";
 import { RenameNoteDialog } from "./sidebar/dialogs/RenameNoteDialog";
 import { RenameFolderDialog } from "./sidebar/dialogs/RenameFolderDialog";
+import { useFolderTree, type FolderNode } from "./sidebar/hooks/useFolderTree";
 
 const MOBILE_DRAWER_WIDTH = 288;
 
@@ -114,34 +115,24 @@ export function Sidebar() {
     (state) => state.sidebarSortComparators,
   );
 
-  // Group notes by folder; include empty folders from the listing.
-  const groups = useMemo(() => {
-    const map = new Map<string, NoteMeta[]>();
-    for (const f of folders) map.set(f, []);
-    for (const n of notes) {
-      const list = map.get(n.folder);
-      if (list) list.push(n);
-      else map.set(n.folder, [n]);
-    }
-    const root = map.get("") ?? [];
-    map.delete("");
-    const rest = [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
-    const compare = sidebarSortComparators[sidebarSortComparators.length - 1];
-    if (compare) {
-      root.sort(compare);
-      for (const [, folderNotes] of rest) folderNotes.sort(compare);
-    }
-    return { root, rest };
-  }, [notes, folders, sidebarSortComparators]);
+  const tree = useFolderTree(
+    notes,
+    folders,
+    sidebarSortComparators[sidebarSortComparators.length - 1],
+  );
 
   // Display order of note paths, used for shift-click range selection.
-  const noteOrder = useMemo(
-    () => [
-      ...groups.root.map((n) => n.path),
-      ...groups.rest.flatMap(([, folderNotes]) => folderNotes.map((n) => n.path)),
-    ],
-    [groups],
-  );
+  const noteOrder = useMemo(() => {
+    const order: string[] = [];
+    const walk = (node: FolderNode) => {
+      order.push(...node.notes.map((n) => n.path));
+      for (const child of node.children) {
+        walk(child);
+      }
+    };
+    walk(tree);
+    return order;
+  }, [tree]);
 
   const { selected, selectionFor, handleNoteClick, ensureSelected, clearSelection } =
     useSidebarSelection(noteOrder);
@@ -356,7 +347,7 @@ export function Sidebar() {
             <Skeleton className="h-7 w-full" />
             <Skeleton className="h-7 w-3/4" />
           </div>
-        ) : notes.length === 0 && groups.rest.length === 0 ? (
+        ) : notes.length === 0 && folders.length === 0 ? (
           <EmptyState icon="note">
             No notes yet. Create one to start writing.
           </EmptyState>
@@ -369,7 +360,7 @@ export function Sidebar() {
                 draggedPath && dragOverFolder === "" && "bg-accent-soft",
               )}
             >
-              {groups.root.map((note) => (
+              {tree.notes.map((note) => (
                 <NoteRow
                   key={note.path}
                   note={note}
@@ -384,28 +375,31 @@ export function Sidebar() {
                 />
               ))}
             </ul>
-            {groups.rest.map(([folder, folderNotes]) => (
+            {tree.children.map((node) => (
               <FolderGroup
-                key={folder}
-                folder={folder}
-                notes={folderNotes}
+                key={node.path}
+                node={node}
                 activePath={activePath}
                 selected={selected}
                 selectionFor={selectionFor}
                 onNoteClick={handleNoteClick}
                 onNoteContextMenu={ensureSelected}
-                onCreateNote={() => void handleCreate(folder)}
+                onCreateNote={() => void handleCreate(node.path)}
                 onRename={setRenaming}
                 onDelete={(note) =>
                   void handleTrash(selectionFor(note.path))
                 }
-                onRenameFolder={() => setRenamingFolder(folder)}
-                onDeleteFolder={() => void handleDeleteFolder(folder)}
+                onRenameFolder={() => setRenamingFolder(node.path)}
+                onDeleteFolder={() => void handleDeleteFolder(node.path)}
                 draggedPath={draggedPath}
                 dragOverFolder={dragOverFolder}
                 getNoteDragHandlers={getNoteDragHandlers}
                 getFolderDragHandlers={getFolderDragHandlers}
                 getFolderDropHandlers={getFolderDropHandlers}
+                handleCreate={handleCreate}
+                handleTrash={handleTrash}
+                handleDeleteFolder={handleDeleteFolder}
+                setRenamingFolder={setRenamingFolder}
               />
             ))}
           </>
@@ -487,8 +481,7 @@ export function Sidebar() {
 }
 
 function FolderGroup({
-  folder,
-  notes,
+  node,
   activePath,
   selected,
   selectionFor,
@@ -504,9 +497,12 @@ function FolderGroup({
   getNoteDragHandlers,
   getFolderDragHandlers,
   getFolderDropHandlers,
+  handleCreate,
+  handleTrash,
+  handleDeleteFolder,
+  setRenamingFolder,
 }: {
-  folder: string;
-  notes: NoteMeta[];
+  node: FolderNode;
   activePath: string | null;
   selected: ReadonlySet<string>;
   selectionFor: (path: string) => string[];
@@ -522,8 +518,12 @@ function FolderGroup({
   getNoteDragHandlers: (path: string) => ItemDragHandlers;
   getFolderDragHandlers: (path: string) => ItemDragHandlers;
   getFolderDropHandlers: (folder: string) => FolderDropHandlers;
+  handleCreate: (folder?: string) => Promise<void>;
+  handleTrash: (paths: string[]) => Promise<void>;
+  handleDeleteFolder: (folder: string) => Promise<void>;
+  setRenamingFolder: (folder: string | null) => void;
 }) {
-  const collapsed = useUI((state) => state.collapsedFolders.includes(folder));
+  const collapsed = useUI((state) => state.collapsedFolders.includes(node.path));
   const toggleCollapsed = useUI((state) => state.toggleFolderCollapsed);
   const revealId = useId();
   const menuItems = useStore(
@@ -531,9 +531,9 @@ function FolderGroup({
     (state) => state.folderContextMenuItems,
   );
   useStore(iconAssignmentStore, (state) => state.assignments);
-  const icon = getIconAssignment({ kind: "folder", path: folder }) ?? "folder";
+  const icon = getIconAssignment({ kind: "folder", path: node.path }) ?? "folder";
   const contributed = menuItems.filter(
-    (item) => !item.when || item.when(folder, [folder]),
+    (item) => !item.when || item.when(node.path, [node.path]),
   );
 
   return (
@@ -543,22 +543,22 @@ function FolderGroup({
           <button
             aria-expanded={!collapsed}
             aria-controls={revealId}
-            onClick={() => toggleCollapsed(folder)}
+            onClick={() => toggleCollapsed(node.path)}
             onKeyDown={(event) => {
               if (event.key === "ArrowLeft" && !collapsed) {
                 event.preventDefault();
-                toggleCollapsed(folder);
+                toggleCollapsed(node.path);
               } else if (event.key === "ArrowRight" && collapsed) {
                 event.preventDefault();
-                toggleCollapsed(folder);
+                toggleCollapsed(node.path);
               }
             }}
-            {...getFolderDragHandlers(folder)}
-            {...getFolderDropHandlers(folder)}
+            {...getFolderDragHandlers(node.path)}
+            {...getFolderDropHandlers(node.path)}
             className={cn(
               "flex w-full items-center gap-1.5 rounded-sm px-2 py-2 text-left text-sm text-muted hover:bg-surface-hover hover:text-foreground md:py-1.5",
               draggedPath &&
-                dragOverFolder === folder &&
+                dragOverFolder === node.path &&
                 "bg-accent-soft text-foreground ring-1 ring-accent",
             )}
           >
@@ -573,7 +573,7 @@ function FolderGroup({
               size={14}
               className="shrink-0 text-faint"
             />
-            <span className="truncate font-medium">{folder}</span>
+            <span className="truncate font-medium">{node.name}</span>
           </button>
         </ContextMenuTrigger>
         <ContextMenuContent>
@@ -582,7 +582,7 @@ function FolderGroup({
           {contributed.map((item) => (
             <ContextMenuItem
               key={item.id}
-              onSelect={() => item.run(folder, [folder])}
+              onSelect={() => item.run(node.path, [node.path])}
             >
               {item.icon && <AppIcon icon={item.icon} size={14} />}
               {item.label}
@@ -603,7 +603,7 @@ function FolderGroup({
       >
         <div className="min-h-0 overflow-hidden">
           <ul className="ml-3 border-l border-border pl-1">
-            {notes.map((note) => (
+            {node.notes.map((note) => (
               <NoteRow
                 key={note.path}
                 note={note}
@@ -616,6 +616,31 @@ function FolderGroup({
                 onDelete={() => onDelete(note)}
                 dragHandlers={getNoteDragHandlers(note.path)}
                 hideFolder
+              />
+            ))}
+            {node.children.map((child) => (
+              <FolderGroup
+                key={child.path}
+                node={child}
+                activePath={activePath}
+                selected={selected}
+                selectionFor={selectionFor}
+                onNoteClick={onNoteClick}
+                onNoteContextMenu={onNoteContextMenu}
+                onCreateNote={() => void handleCreate(child.path)}
+                onRename={onRename}
+                onDelete={onDelete}
+                onRenameFolder={() => setRenamingFolder(child.path)}
+                onDeleteFolder={() => void handleDeleteFolder(child.path)}
+                draggedPath={draggedPath}
+                dragOverFolder={dragOverFolder}
+                getNoteDragHandlers={getNoteDragHandlers}
+                getFolderDragHandlers={getFolderDragHandlers}
+                getFolderDropHandlers={getFolderDropHandlers}
+                handleCreate={handleCreate}
+                handleTrash={handleTrash}
+                handleDeleteFolder={handleDeleteFolder}
+                setRenamingFolder={setRenamingFolder}
               />
             ))}
           </ul>
