@@ -18,7 +18,10 @@ export function DialogContent({
       <DialogPrimitive.Overlay className="ui-overlay fixed inset-0 z-50 bg-black/40" />
       <DialogPrimitive.Content
         className={cn(
-          "ui-dialog fixed top-1/2 left-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2",
+          // Centered, but shifted up by half the keyboard overlap so the
+          // dialog re-centers within the *visible* area on iOS rather than
+          // hiding behind the keyboard. transitions smoothly as it opens/hides.
+          "ui-dialog fixed top-1/2 left-1/2 z-50 w-full max-w-md -translate-x-1/2 translate-y-[calc(-50%-var(--keyboard-inset,0px)/2)] transition-[translate] duration-200 ease-[var(--ease-standard)]",
           "rounded-md bg-background p-5 shadow-[var(--shadow-dialog)]",
           "focus:outline-none",
           className,

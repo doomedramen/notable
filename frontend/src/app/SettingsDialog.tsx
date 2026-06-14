@@ -128,7 +128,7 @@ export function SettingsDialog() {
             ? "none"
             : "transform var(--motion-structural) var(--ease-emphasized)",
         }}
-        className="settings-sheet bottom-0 top-auto left-0 flex h-[88dvh] w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-b-none p-0 md:top-1/2 md:left-1/2 md:h-[26rem] md:max-w-2xl md:-translate-x-1/2 md:-translate-y-1/2 md:flex-row md:rounded-md"
+        className="settings-sheet bottom-[var(--keyboard-inset,0px)] top-auto left-0 flex h-[88dvh] max-h-[calc(100dvh-var(--keyboard-inset,0px))] w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-b-none p-0 md:top-1/2 md:left-1/2 md:h-[26rem] md:max-w-2xl md:-translate-x-1/2 md:-translate-y-1/2 md:flex-row md:rounded-md"
       >
         <DialogTitle className="sr-only">Settings</DialogTitle>
         <DialogDescription className="sr-only">

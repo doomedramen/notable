@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { openNote, setActiveNoteId, setNavigator } from "@/core/navigation";
 import { toggleRightPanel, workspaceStore } from "@/core/workspace";
 import { useUI } from "@/store/ui";
+import { useKeyboardInset } from "@/lib/useKeyboardInset";
 import { AppIcon } from "@/components/AppIcon";
 import { IconPicker } from "@/components/IconPicker";
 import { useNotesStore } from "@/store/notes-store";
@@ -31,6 +32,9 @@ function AppShellInner() {
   const activePath = noteMatch?.params["*"] ?? null;
   const setDrawerOpen = useUI((state) => state.setMobileSidebarOpen);
   const previousActivePath = useRef(activePath);
+
+  // Track the software keyboard so dialogs / editor lift above it (iOS PWA).
+  useKeyboardInset();
 
   // Bridge router state into framework-agnostic core (plugins use it).
   useEffect(() => setNavigator(navigate), [navigate]);
@@ -58,7 +62,7 @@ function AppShellInner() {
         >
           <div className="relative flex min-h-0 flex-1">
             <Sidebar />
-            <main className="flex min-w-0 flex-1 flex-col">
+            <main className="flex min-w-0 flex-1 flex-col pb-[var(--keyboard-inset,0px)]">
               <MobileTopBar activePath={activePath} />
               <Outlet />
             </main>
