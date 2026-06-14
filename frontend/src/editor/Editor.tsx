@@ -16,6 +16,7 @@ import {
 } from "@codemirror/language";
 import { Compartment, EditorSelection, EditorState } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
+import { languages } from "@codemirror/language-data";
 import { GFM } from "@lezer/markdown";
 import { tags } from "@lezer/highlight";
 import * as Y from "yjs";
@@ -58,7 +59,7 @@ const markdownHighlight = HighlightStyle.define([
   { tag: tags.link, color: "var(--accent)" },
   { tag: tags.url, color: "var(--faint)" },
   {
-    tag: tags.monospace,
+    tag: [tags.monospace, tags.codeBlock, tags.fencedCode],
     fontFamily: "var(--font-mono)",
     fontSize: "0.88em",
   },
@@ -124,7 +125,7 @@ export function Editor({ notePath }: { notePath: string }) {
             drawSelection(),
             dropCursor(),
             indentOnInput(),
-            markdown({ extensions: [GFM] }),
+            markdown({ base: GFM, codeLanguages: languages }),
             syntaxHighlighting(markdownHighlight),
             syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
             EditorView.lineWrapping,

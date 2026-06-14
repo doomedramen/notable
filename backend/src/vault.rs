@@ -7,7 +7,8 @@
 use crate::AppState;
 use axum::{
     extract::{Path as AxumPath, State},
-    http::StatusCode,
+    http::{header, StatusCode},
+    response::IntoResponse,
     Json,
 };
 use serde::{Deserialize, Serialize};
@@ -259,6 +260,18 @@ pub async fn read(
     state.vault.read(&path)
 }
 
+/// GET /raw/{*path} — serve the file with its native MIME type (markdown).
+pub async fn read_raw(
+    AxumPath(path): AxumPath<String>,
+    State(state): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let content = state.vault.read(&path)?;
+    Ok((
+        [(header::CONTENT_TYPE, "text/markdown; charset=utf-8")],
+        content,
+    ))
+}
+
 #[derive(Deserialize)]
 pub struct RenameNote {
     pub new_path: String,
@@ -500,4 +513,61 @@ fn sanitize_name(name: &str) -> Result<String, StatusCode> {
         return Err(StatusCode::BAD_REQUEST);
     }
     Ok(cleaned)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use axum::http::Request;
+    use tower::ServiceExt;
+
+    async fn test_state() -> Arc<crate::AppState> {
+        let db = sqlx::sqlite::SqlitePoolOptions::new()
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+        sqlx::migrate!("./migrations").run(&db).await.unwrap();
+        let dir = std::env::temp_dir().join(format!("notable-vault-test-{}", uuid::Uuid::new_v4()));
+        let vault = Vault::new(dir.clone()).unwrap();
+        vault.write("test.md", "hello world").unwrap();
+
+        Arc::new(crate::AppState {
+            db,
+            vault,
+            rooms: dashmap::DashMap::new(),
+            core_plugins_dir: "/nonexistent".into(),
+            plugins_dir: "/nonexistent".into(),
+            plugin_registry_url: String::new(),
+            themes_dir: "/nonexistent".into(),
+            auth_password: None,
+        })
+    }
+
+    #[tokio::test]
+    async fn test_read_raw_returns_markdown_content_type() {
+        let state = test_state().await;
+        let app = axum::Router::new()
+            .route("/raw/{*path}", axum::routing::get(read_raw))
+            .with_state(state);
+
+        let res = app
+            .oneshot(
+                Request::builder()
+                    .uri("/raw/test.md")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(res.status(), StatusCode::OK);
+        assert_eq!(
+            res.headers().get(axum::http::header::CONTENT_TYPE).unwrap(),
+            "text/markdown; charset=utf-8"
+        );
+        
+        let body = axum::body::to_bytes(res.into_body(), 1024).await.unwrap();
+        assert_eq!(body, "hello world");
+    }
 }

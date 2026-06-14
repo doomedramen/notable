@@ -37,6 +37,20 @@ function injectStyles() {
       padding: 0.05em 0.3em;
       font-size: 0.9em;
     }
+    .cm-hl-code-block {
+      background: var(--surface-hover);
+      font-family: var(--font-mono, monospace);
+    }
+    .cm-hl-code-block-start {
+      border-top-left-radius: 0.25rem;
+      border-top-right-radius: 0.25rem;
+      padding-top: 0.5rem;
+    }
+    .cm-hl-code-block-end {
+      border-bottom-left-radius: 0.25rem;
+      border-bottom-right-radius: 0.25rem;
+      padding-bottom: 0.5rem;
+    }
     .cm-task-checkbox {
       margin: 0 0.4em 0 0;
       vertical-align: middle;
@@ -163,6 +177,33 @@ const plugin: NotablePlugin = {
                   Decoration.mark({ class: contentClass }),
                 );
                 builder.add(close.from, close.to, Decoration.replace({}));
+                return;
+              }
+              case "FencedCode": {
+                const line = state.doc.lineAt(node.from);
+                const active = lineIsActive(node.from, node.to);
+
+                // Add background class to all lines in the block
+                const startLine = state.doc.lineAt(node.from).number;
+                const endLine = state.doc.lineAt(node.to).number;
+                for (let i = startLine; i <= endLine; i++) {
+                  const line = state.doc.line(i);
+                  let className = "cm-hl-code-block";
+                  if (i === startLine) className += " cm-hl-code-block-start";
+                  if (i === endLine) className += " cm-hl-code-block-end";
+                  builder.add(line.from, line.from, Decoration.line({ class: className }));
+                }
+
+                if (!active) {
+                  const marks = node.node.getChildren("CodeMark");
+                  const info = node.node.getChild("CodeInfo");
+                  if (marks.length >= 2) {
+                    const open = marks[0];
+                    const close = marks[marks.length - 1];
+                    builder.add(open.from, info ? info.to : open.to, Decoration.replace({}));
+                    builder.add(close.from, close.to, Decoration.replace({}));
+                  }
+                }
                 return;
               }
               case "TaskMarker": {

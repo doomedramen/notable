@@ -158,6 +158,7 @@ async fn main() -> anyhow::Result<()> {
 
     let app = Router::new()
         .merge(api)
+        .route("/raw/{*path}", get(vault::read_raw))
         // Login/logout are exempt from the auth guard above.
         .route("/api/login", post(auth::login))
         .route("/api/logout", post(auth::logout))
