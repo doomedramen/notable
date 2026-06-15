@@ -3,12 +3,7 @@ import { useStore } from "zustand";
 import { iconsStore, finishIconPick } from "@/core/icons";
 import { useUI } from "@/store/ui";
 import type { IconRef } from "@/plugin-api";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "./ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { AppIcon } from "./AppIcon";
 
@@ -50,16 +45,11 @@ export function IconPicker() {
   if (!picker) return null;
 
   const focusChoice = (index: number) => {
-    const buttons = document.querySelectorAll<HTMLButtonElement>(
-      "[data-icon-choice]",
-    );
+    const buttons = document.querySelectorAll<HTMLButtonElement>("[data-icon-choice]");
     buttons[index]?.focus();
   };
 
-  const onChoiceKeyDown = (
-    event: KeyboardEvent<HTMLButtonElement>,
-    index: number,
-  ) => {
+  const onChoiceKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
     const moves: Record<string, number> = {
       ArrowLeft: -1,
       ArrowRight: 1,
@@ -73,9 +63,7 @@ export function IconPicker() {
   };
 
   const validRecent = recent.filter((icon) =>
-    packs.some(
-      (pack) => pack.id === icon.packId && pack.icons[icon.iconId] !== undefined,
-    ),
+    packs.some((pack) => pack.id === icon.packId && pack.icons[icon.iconId] !== undefined),
   );
 
   return (
@@ -135,9 +123,7 @@ export function IconPicker() {
 
         <div className="mt-4 min-h-0 flex-1 overflow-y-auto">
           {choices.length === 0 ? (
-            <p className="py-8 text-center text-sm text-faint">
-              No matching icons.
-            </p>
+            <p className="py-8 text-center text-sm text-faint">No matching icons.</p>
           ) : (
             <div className="grid grid-cols-6 gap-1 sm:grid-cols-8">
               {choices.map((choice, index) => (

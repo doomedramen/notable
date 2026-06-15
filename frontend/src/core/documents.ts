@@ -1,17 +1,9 @@
-import type {
-  DocumentSnapshot,
-  DocumentTextEdit,
-  DocumentWriteOptions,
-} from "@/plugin-api";
+import type { DocumentSnapshot, DocumentTextEdit, DocumentWriteOptions } from "@/plugin-api";
 import { Annotation } from "@codemirror/state";
 import { activeView } from "./editor";
 import { emit } from "./events";
 import { activeNoteId } from "./navigation";
-import {
-  pluginAPIError,
-  requestError,
-  responseError,
-} from "./plugin-api-error";
+import { pluginAPIError, requestError, responseError } from "./plugin-api-error";
 import { encodePath } from "@/store/notes";
 import { useNotesStore } from "@/store/notes-store";
 
@@ -23,9 +15,7 @@ async function revision(text: string): Promise<string> {
   if (globalThis.crypto?.subtle) {
     const bytes = new TextEncoder().encode(text);
     const digest = await globalThis.crypto.subtle.digest("SHA-256", bytes);
-    return [...new Uint8Array(digest)]
-      .map((byte) => byte.toString(16).padStart(2, "0"))
-      .join("");
+    return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
   }
 
   // Web Crypto may be unavailable on non-secure LAN origins. This fallback is
@@ -51,28 +41,14 @@ async function activeSnapshot(path: string): Promise<DocumentSnapshot | null> {
   return { path, text, revision: await revision(text) };
 }
 
-function assertExpected(
-  snapshot: DocumentSnapshot,
-  options?: DocumentWriteOptions,
-): void {
-  if (
-    options?.expectedRevision !== undefined &&
-    options.expectedRevision !== snapshot.revision
-  ) {
-    throw pluginAPIError(
-      "CONFLICT",
-      `Document "${snapshot.path}" changed after it was read.`,
-      409,
-    );
+function assertExpected(snapshot: DocumentSnapshot, options?: DocumentWriteOptions): void {
+  if (options?.expectedRevision !== undefined && options.expectedRevision !== snapshot.revision) {
+    throw pluginAPIError("CONFLICT", `Document "${snapshot.path}" changed after it was read.`, 409);
   }
 }
 
 function conflict(path: string): never {
-  throw pluginAPIError(
-    "CONFLICT",
-    `Document "${path}" changed after it was read.`,
-    409,
-  );
+  throw pluginAPIError("CONFLICT", `Document "${path}" changed after it was read.`, 409);
 }
 
 function validateEdits(text: string, edits: readonly DocumentTextEdit[]): void {
@@ -126,10 +102,7 @@ export async function replace(
     // SHA-256 is asynchronous. Recheck the exact buffer immediately before
     // dispatch so a keystroke during hashing cannot satisfy a stale revision.
     const currentText = view.state.doc.toString();
-    if (
-      options?.expectedRevision !== undefined &&
-      currentText !== before.text
-    ) {
+    if (options?.expectedRevision !== undefined && currentText !== before.text) {
       conflict(path);
     }
     if (currentText !== text) {

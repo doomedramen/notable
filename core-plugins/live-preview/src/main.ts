@@ -180,7 +180,6 @@ const plugin: NotablePlugin = {
                 return;
               }
               case "FencedCode": {
-                const line = state.doc.lineAt(node.from);
                 const active = lineIsActive(node.from, node.to);
 
                 // Add background class to all lines in the block

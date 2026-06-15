@@ -171,9 +171,7 @@ export class NoteConnection {
     this.onStatus("connecting");
 
     const proto = location.protocol === "https:" ? "wss" : "ws";
-    this.ws = new WebSocket(
-      `${proto}://${location.host}/api/sync/${encodePath(this.path)}`,
-    );
+    this.ws = new WebSocket(`${proto}://${location.host}/api/sync/${encodePath(this.path)}`);
     this.ws.binaryType = "arraybuffer";
 
     this.ws.onopen = () => {

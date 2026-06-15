@@ -20,9 +20,9 @@ describe("plugin document API", () => {
   });
 
   it("reads inactive documents from the CRDT snapshot endpoint", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      jsonResponse({ path: "Plan.md", text: "hello", revision: "r1" }),
-    );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ path: "Plan.md", text: "hello", revision: "r1" }));
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(read("Plan.md")).resolves.toEqual({
@@ -36,9 +36,7 @@ describe("plugin document API", () => {
   it("applies sorted edits with optimistic concurrency", async () => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce(
-        jsonResponse({ path: "Plan.md", text: "hello world", revision: "r1" }),
-      )
+      .mockResolvedValueOnce(jsonResponse({ path: "Plan.md", text: "hello world", revision: "r1" }))
       .mockResolvedValueOnce(
         jsonResponse({ path: "Plan.md", text: "Hello Notable", revision: "r2" }),
       );
@@ -59,20 +57,18 @@ describe("plugin document API", () => {
   });
 
   it("exposes stable conflict error codes", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(new Response("", { status: 409 })),
-    );
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("", { status: 409 })));
 
-    await expect(
-      replace("Plan.md", "new", { expectedRevision: "old" }),
-    ).rejects.toMatchObject({ name: "PluginAPIError", code: "CONFLICT" });
+    await expect(replace("Plan.md", "new", { expectedRevision: "old" })).rejects.toMatchObject({
+      name: "PluginAPIError",
+      code: "CONFLICT",
+    });
   });
 
   it("rejects overlapping edits before writing", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      jsonResponse({ path: "Plan.md", text: "hello", revision: "r1" }),
-    );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ path: "Plan.md", text: "hello", revision: "r1" }));
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
@@ -102,9 +98,7 @@ describe("plugin document API", () => {
     setActiveNoteId("Plan.md");
     setActiveView(view);
 
-    const write = applyEdits("Plan.md", [
-      { from: 5, to: 5, insert: " world" },
-    ]);
+    const write = applyEdits("Plan.md", [{ from: 5, to: 5, insert: " world" }]);
     await vi.waitFor(() => expect(finishDigest).toBeTypeOf("function"));
     view.dispatch({ changes: { from: 0, to: 0, insert: "!" } });
     finishDigest(new ArrayBuffer(32));

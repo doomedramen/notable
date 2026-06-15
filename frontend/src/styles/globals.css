@@ -135,36 +135,68 @@ body .select-text {
 /* ---------------------------------------------------------------- */
 
 @keyframes ui-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 @keyframes ui-pop-in {
-  from { opacity: 0; scale: 0.98; }
-  to { opacity: 1; scale: 1; }
+  from {
+    opacity: 0;
+    scale: 0.98;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
 }
 /* Animate ONLY opacity + the standalone `scale` property: Tailwind v4's
    translate utilities use the `translate` property, and animating
    `transform` alongside it would double-shift the dialog while the
    animation runs (visible as a jump from off-center). */
 @keyframes ui-dialog-in {
-  from { opacity: 0; scale: 0.97; }
-  to { opacity: 1; scale: 1; }
+  from {
+    opacity: 0;
+    scale: 0.97;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
 }
 @keyframes ui-sheet-overlay-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 @keyframes ui-sheet-overlay-out {
-  from { opacity: 1; }
-  to { opacity: 0; }
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
 }
 @keyframes ui-sheet-left-in {
-  from { transform: translateX(-100%); }
-  to { transform: translateX(0); }
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
 }
 @keyframes ui-sheet-left-out {
-  from { transform: translateX(0); }
-  to { transform: translateX(-100%); }
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
 }
 
 .ui-overlay[data-state="open"] {
@@ -240,7 +272,9 @@ body .select-text {
 }
 
 @keyframes ui-spin {
-  to { rotate: 360deg; }
+  to {
+    rotate: 360deg;
+  }
 }
 
 @media (max-width: 767px) {
@@ -338,6 +372,130 @@ body .select-text {
 
 /* Preflight un-reset for content rendered inside the editor. */
 .cm-content input[type="checkbox"] {
+  appearance: auto;
+  accent-color: var(--accent);
+}
+
+/* ---------------------------------------------------------------- */
+/* Tiptap (ProseMirror) style bridge                                  */
+/*                                                                    */
+/* Mirrors the .cm-editor tokens above so the rich editor matches the */
+/* source editor's typography, caret, selection, and dark-mode theme. */
+/* ---------------------------------------------------------------- */
+
+.ProseMirror {
+  height: 100%;
+  font-family: var(--font-sans);
+  font-size: var(--editor-font-size, 14px);
+  line-height: 1.7;
+  letter-spacing: -0.006em;
+  color: var(--foreground);
+  padding: 1.1rem 0 40dvh;
+  outline: none;
+  caret-color: var(--accent);
+}
+.ProseMirror p.is-editor-empty:first-child::before {
+  color: var(--faint);
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+.ProseMirror ::selection {
+  background: var(--accent-soft);
+}
+.ProseMirror h1,
+.ProseMirror h2,
+.ProseMirror h3,
+.ProseMirror h4,
+.ProseMirror h5,
+.ProseMirror h6 {
+  font-weight: 650;
+  letter-spacing: -0.025em;
+}
+.ProseMirror h1 {
+  font-size: 1.5em;
+  font-weight: 700;
+}
+.ProseMirror h2 {
+  font-size: 1.28em;
+}
+.ProseMirror h3 {
+  font-size: 1.14em;
+  font-weight: 600;
+}
+.ProseMirror h4,
+.ProseMirror h5 {
+  font-weight: 600;
+}
+.ProseMirror h6 {
+  font-weight: 600;
+  color: var(--muted);
+}
+.ProseMirror strong {
+  font-weight: 650;
+}
+.ProseMirror a {
+  color: var(--accent);
+}
+.ProseMirror code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: var(--accent-soft);
+  border-radius: 0.25em;
+  padding: 0.1em 0.3em;
+}
+.ProseMirror pre {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.75em 1em;
+  overflow-x: auto;
+}
+.ProseMirror pre code {
+  background: none;
+  padding: 0;
+}
+.ProseMirror blockquote {
+  color: var(--muted);
+  font-style: italic;
+  border-left: 2px solid var(--border);
+  padding-left: 1em;
+  margin-inline: 0;
+}
+.ProseMirror hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.5em 0;
+}
+.ProseMirror ul,
+.ProseMirror ol {
+  padding-left: 1.5em;
+}
+.ProseMirror ul:not([data-type="taskList"]) {
+  list-style: disc;
+}
+.ProseMirror ol {
+  list-style: decimal;
+}
+.ProseMirror li::marker {
+  color: var(--faint);
+}
+.ProseMirror ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+}
+.ProseMirror ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5em;
+}
+.ProseMirror ul[data-type="taskList"] li > label {
+  margin-top: 0.2em;
+}
+.ProseMirror ul[data-type="taskList"] input[type="checkbox"] {
   appearance: auto;
   accent-color: var(--accent);
 }

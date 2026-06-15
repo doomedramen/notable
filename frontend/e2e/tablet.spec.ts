@@ -1,8 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("tablet layout keeps the sidebar and calm responsive density", async ({
-  page,
-}) => {
+test("tablet layout keeps the sidebar and calm responsive density", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("complementary")).toBeVisible();
   await expect(page.getByTestId("mobile-top-bar")).not.toBeVisible();
@@ -40,10 +38,7 @@ test("reduced motion removes structural animation time", async ({ page }) => {
   expect(Number.parseFloat(duration)).toBeLessThanOrEqual(0.01);
 });
 
-test("routine synced feedback recedes while warnings remain visible", async ({
-  page,
-  context,
-}) => {
+test("routine synced feedback recedes while warnings remain visible", async ({ page, context }) => {
   await page.goto("/");
   await page.getByLabel("New…").click();
   await page.getByRole("menuitem", { name: "New note" }).click();

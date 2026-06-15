@@ -18,26 +18,17 @@ describe("notice", () => {
 
   it("forwards a default notice with its duration", () => {
     notice("saved", { duration: 1000 });
-    expect(mockToast).toHaveBeenCalledWith(
-      "saved",
-      expect.objectContaining({ duration: 1000 }),
-    );
+    expect(mockToast).toHaveBeenCalledWith("saved", expect.objectContaining({ duration: 1000 }));
   });
 
   it("treats duration 0 as persistent (Infinity)", () => {
     notice("stay", { duration: 0 });
-    expect(mockToast).toHaveBeenCalledWith(
-      "stay",
-      expect.objectContaining({ duration: Infinity }),
-    );
+    expect(mockToast).toHaveBeenCalledWith("stay", expect.objectContaining({ duration: Infinity }));
   });
 
   it("supports the legacy numeric duration argument", () => {
     notice("legacy", 1000);
-    expect(mockToast).toHaveBeenCalledWith(
-      "legacy",
-      expect.objectContaining({ duration: 1000 }),
-    );
+    expect(mockToast).toHaveBeenCalledWith("legacy", expect.objectContaining({ duration: 1000 }));
   });
 
   it("routes the danger variant to toast.error", () => {

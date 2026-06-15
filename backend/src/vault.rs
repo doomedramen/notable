@@ -193,7 +193,7 @@ pub async fn list(State(state): State<Arc<AppState>>) -> Json<VaultListing> {
                 notes.push(meta_for(rel, modified));
             }
         }
-        notes.sort_by(|a, b| b.modified.cmp(&a.modified));
+        notes.sort_by_key(|note| std::cmp::Reverse(note.modified));
         folders.sort();
         VaultListing { notes, folders }
     })
@@ -433,7 +433,7 @@ pub async fn list_trash(State(state): State<Arc<AppState>>) -> Json<Vec<TrashedN
     })
     .await
     .unwrap_or_default();
-    items.sort_by(|a, b| b.deleted_at.cmp(&a.deleted_at));
+    items.sort_by_key(|item| std::cmp::Reverse(item.deleted_at));
     Json(items)
 }
 

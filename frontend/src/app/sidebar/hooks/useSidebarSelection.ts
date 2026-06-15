@@ -55,9 +55,7 @@ export function useSidebarSelection(noteOrder: string[]) {
   /** Selected paths for context-menu callbacks, with `path` always first. */
   const selectionFor = useCallback(
     (path: string): string[] =>
-      selected.has(path)
-        ? [path, ...[...selected].filter((p) => p !== path)]
-        : [path],
+      selected.has(path) ? [path, ...[...selected].filter((p) => p !== path)] : [path],
     [selected],
   );
 

@@ -1,16 +1,9 @@
-import {
-  deleteStagedContent,
-  getStagedContent,
-  putStagedContent,
-} from "@/store/vault-db";
+import { deleteStagedContent, getStagedContent, putStagedContent } from "@/store/vault-db";
 
 const LEGACY_PREFIX = "notable-pending-content:";
 
 /** Stage initial text without relying on localStorage's small quota. */
-export async function setPendingContent(
-  path: string,
-  content: string,
-): Promise<void> {
+export async function setPendingContent(path: string, content: string): Promise<void> {
   await putStagedContent(path, content);
 }
 

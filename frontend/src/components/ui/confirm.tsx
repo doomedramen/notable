@@ -1,12 +1,6 @@
 import { createStore, useStore } from "zustand";
 import { Button } from "./button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogTitle,
-} from "./dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./dialog";
 import { triggerFeedback } from "@/core/feedback";
 
 /* Promise-based confirm dialog, callable from outside React

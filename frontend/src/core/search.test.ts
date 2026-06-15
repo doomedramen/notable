@@ -5,16 +5,12 @@ describe("plugin search API", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("passes bounded result limits to full-text search", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(new Response("[]", { status: 200 }));
+    const fetchMock = vi.fn().mockResolvedValue(new Response("[]", { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
     await query("road map", { limit: 12 });
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/search?q=road+map&limit=12",
-    );
+    expect(fetchMock).toHaveBeenCalledWith("/api/search?q=road+map&limit=12");
   });
 
   it("maps backend backlink fields to the public camelCase contract", async () => {

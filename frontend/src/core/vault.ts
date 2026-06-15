@@ -1,13 +1,6 @@
-import type {
-  CreateNoteOptions,
-  NoteMeta,
-  VaultListing,
-} from "@/plugin-api";
+import type { CreateNoteOptions, NoteMeta, VaultListing } from "@/plugin-api";
 import { useNotesStore } from "@/store/notes-store";
-import {
-  validateFolderPath,
-  validateNotePath,
-} from "@/store/notes";
+import { validateFolderPath, validateNotePath } from "@/store/notes";
 import { activeNoteId } from "./navigation";
 import { pluginAPIError, requestError } from "./plugin-api-error";
 
@@ -90,8 +83,7 @@ export async function create(
         options.path,
       );
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Could not create note.";
+    const message = error instanceof Error ? error.message : "Could not create note.";
     if (message.includes("already exists")) {
       throw pluginAPIError("CONFLICT", message);
     }
@@ -108,8 +100,7 @@ export async function rename(from: string, to: string): Promise<NoteMeta> {
     assertNotePath(to);
     return await useNotesStore.getState().rename(from, to);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : `Could not rename "${from}".`;
+    const message = error instanceof Error ? error.message : `Could not rename "${from}".`;
     if (message.startsWith("Invalid") || message.includes("must end in .md")) {
       throw pluginAPIError("INVALID_ARGUMENT", message);
     }

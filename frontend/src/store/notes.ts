@@ -8,17 +8,9 @@ import {
   removeCachedFolderTree,
   removeCachedIconAssignment,
 } from "@/core/icon-assignments";
-import {
-  clearPendingContent,
-  peekPendingContent,
-} from "@/core/pending-content";
+import { clearPendingContent, peekPendingContent } from "@/core/pending-content";
 import { dirtyContent, isDirty, moveDirty } from "@/sync/dirty";
-import {
-  getKV,
-  getStagedContent,
-  mutateMeta,
-  setKV,
-} from "./vault-db";
+import { getKV, getStagedContent, mutateMeta, setKV } from "./vault-db";
 
 export interface NoteMeta {
   /** Vault-relative path — the note's identity. */
@@ -127,8 +119,7 @@ function validateSegments(path: string, allowTrash = false): void {
         !part ||
         part === "." ||
         part === ".." ||
-        (part.startsWith(".") &&
-          !(allowTrash && index === 0 && part === ".trash")),
+        (part.startsWith(".") && !(allowTrash && index === 0 && part === ".trash")),
     )
   ) {
     throw new Error(`Invalid vault path: ${path}`);
@@ -200,21 +191,48 @@ async function cachedState(): Promise<{
   return { listing: listing ?? EMPTY, queue: queue ?? [] };
 }
 
-function mergeServerListing(
+/**
+ * Reconcile the authoritative server listing with operations still sitting in
+ * the offline queue, so the UI reflects offline mutations even when a refresh
+ * races ahead of the queue flush. Every queued op must be represented here:
+ * a `create`/`rename` target is re-added, and a `delete`/`rename` source is
+ * removed — otherwise an offline-deleted or trashed note (trash is a rename
+ * into `.trash/`) resurfaces the moment the server is reachable again.
+ */
+export function mergeServerListing(
   server: VaultListing,
   local: VaultListing,
   queue: Pending[],
 ): VaultListing {
-  const pendingCreates = new Set(
-    queue.filter((op) => op.kind === "create").map((op) => op.path),
-  );
-  const localPending = local.notes.filter((note) =>
-    pendingCreates.has(note.path),
-  );
-  const notes = [...server.notes];
-  const notePaths = new Set(notes.map((note) => note.path));
-  for (const note of localPending) {
-    if (!notePaths.has(note.path)) notes.unshift(note);
+  // Paths the queue will remove from / add to the server's current view.
+  const removed = new Set<string>();
+  const added = new Set<string>();
+  for (const op of queue) {
+    if (op.kind === "create") added.add(op.path);
+    else if (op.kind === "delete") removed.add(op.path);
+    else if (op.kind === "rename") {
+      removed.add(op.from);
+      added.add(op.to);
+    }
+  }
+
+  const localByPath = new Map(local.notes.map((note) => [note.path, note]));
+  const notes: NoteMeta[] = [];
+  const seen = new Set<string>();
+  for (const note of server.notes) {
+    if (removed.has(note.path)) continue;
+    notes.push(note);
+    seen.add(note.path);
+  }
+  // Re-add optimistic notes the server doesn't know about yet. Trashed notes
+  // (rename targets under `.trash/`) are intentionally excluded from listings.
+  for (const path of added) {
+    if (seen.has(path) || path.startsWith(".trash/")) continue;
+    const meta = localByPath.get(path);
+    if (meta) {
+      notes.unshift(meta);
+      seen.add(path);
+    }
   }
 
   const folders = new Set(server.folders);
@@ -246,10 +264,7 @@ async function freePath(name: string, folder: string): Promise<string> {
   if (folder) validateFolderPath(folder);
   const listing = (await getKV<VaultListing>("vault")) ?? EMPTY;
   const prefix = folder ? `${folder}/` : "";
-  return duplicatePath(
-    `${prefix}${safeName}.md`,
-    new Set(listing.notes.map((note) => note.path)),
-  );
+  return duplicatePath(`${prefix}${safeName}.md`, new Set(listing.notes.map((note) => note.path)));
 }
 
 export async function createNote(
@@ -478,9 +493,7 @@ export async function stageImport(
     const contentPuts: Array<{ key: string; content: string }> = [];
     const pendingCreates: Pending[] = [];
     const folderSet = new Set(listing.folders);
-    const queuedFolders = new Set(
-      queue.filter((op) => op.kind === "mkdir").map((op) => op.path),
-    );
+    const queuedFolders = new Set(queue.filter((op) => op.kind === "mkdir").map((op) => op.path));
 
     for (const entry of entries) {
       validateNotePath(entry.path);
@@ -507,9 +520,7 @@ export async function stageImport(
       }
     }
 
-    const newFolders = [...folderSet].filter(
-      (folder) => !listing.folders.includes(folder),
-    );
+    const newFolders = [...folderSet].filter((folder) => !listing.folders.includes(folder));
     for (const folder of newFolders) {
       if (!queuedFolders.has(folder)) {
         queue.push({ id: queueId(), kind: "mkdir", path: folder });
@@ -577,15 +588,11 @@ async function markServerCreated(id: string): Promise<void> {
   }));
 }
 
-async function reconcileImportConflicts(
-  server: VaultListing,
-): Promise<ImportConflict[]> {
+async function reconcileImportConflicts(server: VaultListing): Promise<ImportConflict[]> {
   const { queue } = await cachedState();
   const candidates = queue.filter(
     (operation): operation is CreatePending =>
-      operation.kind === "create" &&
-      operation.source === "import" &&
-      !operation.serverCreated,
+      operation.kind === "create" && operation.source === "import" && !operation.serverCreated,
   );
   const staged = new Map<string, string>();
   for (const operation of candidates) {
@@ -600,10 +607,7 @@ async function reconcileImportConflicts(
   const changes = await mutateMeta((rawVault, rawQueue) => {
     const current = asListing(rawVault);
     const serverPaths = new Set(server.notes.map((note) => note.path));
-    const taken = new Set([
-      ...serverPaths,
-      ...current.notes.map((note) => note.path),
-    ]);
+    const taken = new Set([...serverPaths, ...current.notes.map((note) => note.path)]);
     const conflicts: ImportConflict[] = [];
     const replacements = new Map<string, string>();
 
@@ -655,9 +659,7 @@ async function reconcileImportConflicts(
 
   for (const change of changes) {
     moveDirty(change.from, change.to);
-    window.dispatchEvent(
-      new CustomEvent("notable:pending-path-renamed", { detail: change }),
-    );
+    window.dispatchEvent(new CustomEvent("notable:pending-path-renamed", { detail: change }));
   }
   return changes;
 }
@@ -674,25 +676,16 @@ async function processOperation(operation: Pending): Promise<boolean> {
       if (!created.ok) throw new Error(`create failed (${created.status})`);
       await markServerCreated(operation.id);
 
-      let staged = await peekPendingContent(
-        operation.contentKey ?? operation.path,
-      );
-      if (
-        staged === null &&
-        operation.content !== undefined &&
-        !isDirty(operation.path)
-      ) {
+      let staged = await peekPendingContent(operation.contentKey ?? operation.path);
+      if (staged === null && operation.content !== undefined && !isDirty(operation.path)) {
         staged = operation.content;
       }
       if (staged !== null) {
-        const written = await fetch(
-          `/api/documents/${encodePath(operation.path)}`,
-          {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text: staged }),
-          },
-        );
+        const written = await fetch(`/api/documents/${encodePath(operation.path)}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: staged }),
+        });
         if (!written.ok) {
           throw new Error(`initial content failed (${written.status})`);
         }
@@ -711,14 +704,11 @@ async function processOperation(operation: Pending): Promise<boolean> {
       });
       if (!response.ok) throw new Error();
     } else {
-      const response = await fetch(
-        `/api/notes/${encodePath(operation.from)}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ new_path: operation.to }),
-        },
-      );
+      const response = await fetch(`/api/notes/${encodePath(operation.from)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ new_path: operation.to }),
+      });
       if (!response.ok) throw new Error();
     }
     await removeQueued(operation.id);
@@ -728,21 +718,15 @@ async function processOperation(operation: Pending): Promise<boolean> {
   }
 }
 
-async function runLimited(
-  operations: Pending[],
-  limit: number,
-): Promise<number> {
+async function runLimited(operations: Pending[], limit: number): Promise<number> {
   let cursor = 0;
   let completed = 0;
-  const workers = Array.from(
-    { length: Math.min(limit, operations.length) },
-    async () => {
-      while (cursor < operations.length) {
-        const operation = operations[cursor++];
-        if (await processOperation(operation)) completed += 1;
-      }
-    },
-  );
+  const workers = Array.from({ length: Math.min(limit, operations.length) }, async () => {
+    while (cursor < operations.length) {
+      const operation = operations[cursor++];
+      if (await processOperation(operation)) completed += 1;
+    }
+  });
   await Promise.all(workers);
   return completed;
 }
@@ -790,9 +774,7 @@ export function flushQueue(): Promise<FlushResult> {
   return activeFlush;
 }
 
-export async function pendingCreatePaths(
-  paths: readonly string[],
-): Promise<Set<string>> {
+export async function pendingCreatePaths(paths: readonly string[]): Promise<Set<string>> {
   const wanted = new Set(paths);
   const queue = (await getKV<Pending[]>("queue")) ?? [];
   return new Set(

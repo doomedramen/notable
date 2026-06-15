@@ -12,10 +12,7 @@ export const SheetOverlay = forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Overlay
     ref={ref}
-    className={cn(
-      "ui-sheet-overlay fixed inset-0 z-30 bg-black/50",
-      className,
-    )}
+    className={cn("ui-sheet-overlay fixed inset-0 z-30 bg-black/50", className)}
     {...props}
   />
 ));
@@ -30,15 +27,10 @@ export const SheetContent = forwardRef<
 >(({ className, children, title, description, ...props }, ref) => (
   <DialogPrimitive.Content
     ref={ref}
-    className={cn(
-      "ui-sheet-content fixed inset-y-0 left-0 z-40 focus:outline-none",
-      className,
-    )}
+    className={cn("ui-sheet-content fixed inset-y-0 left-0 z-40 focus:outline-none", className)}
     {...props}
   >
-    <DialogPrimitive.Title className="sr-only">
-      {title}
-    </DialogPrimitive.Title>
+    <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title>
     <DialogPrimitive.Description className="sr-only">
       {description ?? title}
     </DialogPrimitive.Description>

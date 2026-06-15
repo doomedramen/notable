@@ -24,12 +24,7 @@ interface NotesState {
   folders: string[];
   loaded: boolean;
   refresh: () => Promise<void>;
-  create: (
-    name?: string,
-    folder?: string,
-    content?: string,
-    path?: string,
-  ) => Promise<NoteMeta>;
+  create: (name?: string, folder?: string, content?: string, path?: string) => Promise<NoteMeta>;
   /** Update cached modification metadata after an in-place text edit. */
   touch: (path: string, modified?: number) => void;
   remove: (path: string) => Promise<void>;
@@ -62,9 +57,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   },
   touch: (path, modified = Date.now()) => {
     set({
-      notes: get().notes.map((note) =>
-        note.path === path ? { ...note, modified } : note,
-      ),
+      notes: get().notes.map((note) => (note.path === path ? { ...note, modified } : note)),
     });
   },
   remove: async (path) => {
@@ -95,15 +88,11 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     // swapping the path prefix. Reusing the note rename means files, the
     // search index, live sync rooms and icon assignments all move with it,
     // and it goes through the offline queue like any other rename.
-    for (const n of notes.filter(
-      (n) => n.folder === from || n.folder.startsWith(`${from}/`),
-    )) {
+    for (const n of notes.filter((n) => n.folder === from || n.folder.startsWith(`${from}/`))) {
       await get().rename(n.path, `${to}${n.path.slice(from.length)}`);
     }
     // Recreate the folder and any empty subfolders under the new name.
-    for (const f of folders.filter(
-      (f) => f === from || f.startsWith(`${from}/`),
-    )) {
+    for (const f of folders.filter((f) => f === from || f.startsWith(`${from}/`))) {
       await get().mkdir(`${to}${f.slice(from.length)}`);
     }
     // Drop the old, now-empty tree. Best-effort: offline this throws (there
@@ -113,9 +102,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
       await get().rmdir(from);
     } catch {
       set({
-        folders: get().folders.filter(
-          (f) => f !== from && !f.startsWith(`${from}/`),
-        ),
+        folders: get().folders.filter((f) => f !== from && !f.startsWith(`${from}/`)),
       });
     }
     emit("folder:rename", { from, to });
@@ -131,9 +118,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   rmdir: async (path) => {
     await deleteFolder(path);
     set({
-      folders: get().folders.filter(
-        (f) => f !== path && !f.startsWith(`${path}/`),
-      ),
+      folders: get().folders.filter((f) => f !== path && !f.startsWith(`${path}/`)),
     });
     emit("folder:delete", path);
   },

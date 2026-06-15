@@ -92,8 +92,7 @@ export async function fetchPluginStore(): Promise<CommunityPlugin[]> {
     });
     return data.plugins;
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Could not load plugin registry";
+    const message = error instanceof Error ? error.message : "Could not load plugin registry";
     pluginStore.setState({ storeError: message });
     return [];
   }
@@ -102,9 +101,7 @@ export async function fetchPluginStore(): Promise<CommunityPlugin[]> {
 /** Load every enabled plugin. Safe to retry after reconnecting. */
 export async function loadEnabledPlugins(): Promise<void> {
   const available = await fetchPlugins();
-  await Promise.all(
-    available.filter((p) => p.enabled).map((p) => loadPlugin(p)),
-  );
+  await Promise.all(available.filter((p) => p.enabled).map((p) => loadPlugin(p)));
 }
 
 export async function loadPlugin(manifest: PluginManifest): Promise<boolean> {
@@ -181,10 +178,7 @@ export async function unloadPlugin(id: string): Promise<void> {
 }
 
 /** Toggle a plugin: persists the flag and loads/unloads live. */
-export async function setPluginEnabled(
-  id: string,
-  enabled: boolean,
-): Promise<void> {
+export async function setPluginEnabled(id: string, enabled: boolean): Promise<void> {
   const res = await fetch(`/api/plugins/${encodeURIComponent(id)}/enabled`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -206,8 +200,7 @@ export async function installCommunityPlugin(id: string): Promise<void> {
   const wasRunning = loaded.has(id) || loading.has(id);
   const selectedTheme = useUI.getState().customTheme;
   const selectedIconTheme = useUI.getState().appIconTheme;
-  const restoreTheme =
-    selectedTheme?.startsWith(`${id}:`) === true ? selectedTheme : null;
+  const restoreTheme = selectedTheme?.startsWith(`${id}:`) === true ? selectedTheme : null;
   const restoreIconTheme =
     selectedIconTheme?.startsWith(`${id}:`) === true ? selectedIconTheme : null;
   const res = await fetch(`/api/plugins/${encodeURIComponent(id)}`, {

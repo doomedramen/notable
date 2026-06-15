@@ -353,13 +353,9 @@ export interface LegacyStatusBarItemSpec {
   text?: never;
 }
 
-export type StatusBarItemSpec =
-  | StatusBarTextItemSpec
-  | LegacyStatusBarItemSpec;
+export type StatusBarItemSpec = StatusBarTextItemSpec | LegacyStatusBarItemSpec;
 
-export type StatusBarItemUpdate = Partial<
-  Omit<StatusBarTextItemSpec, "id" | "mount">
->;
+export type StatusBarItemUpdate = Partial<Omit<StatusBarTextItemSpec, "id" | "mount">>;
 
 export interface StatusBarItemRegistration extends Disposable {
   update(update: StatusBarItemUpdate): void;
@@ -387,20 +383,13 @@ export interface AppEvents {
   "note:open": (id: string) => void;
   "note:create": (meta: NoteMeta) => void;
   "note:delete": (id: string) => void;
-  "note:rename": (event: {
-    from: string;
-    to: string;
-    meta: NoteMeta;
-  }) => void;
+  "note:rename": (event: { from: string; to: string; meta: NoteMeta }) => void;
   /**
    * The text changed in this browser. Editor changes include local edits and
    * remote CRDT updates; plugin changes identify writes made through
    * `api.documents`.
    */
-  "note:change": (event: {
-    path: string;
-    source: "editor" | "plugin";
-  }) => void;
+  "note:change": (event: { path: string; source: "editor" | "plugin" }) => void;
   "folder:create": (path: string) => void;
   "folder:delete": (path: string) => void;
   "folder:rename": (event: { from: string; to: string }) => void;
@@ -461,16 +450,12 @@ export interface NotableAPI {
     registerSidebarPanel(panel: PanelSpec): Disposable;
     registerRightPanel(panel: PanelSpec): Disposable;
     registerSettingsTab(tab: SettingsTabSpec): Disposable;
-    registerStatusBarItem(
-      item: StatusBarItemSpec,
-    ): StatusBarItemRegistration;
+    registerStatusBarItem(item: StatusBarItemSpec): StatusBarItemRegistration;
     registerNoteToolbarItem(item: NoteToolbarItemSpec): Disposable;
     registerNoteContextMenu(item: ContextMenuItemSpec): Disposable;
     registerFolderContextMenu(item: ContextMenuItemSpec): Disposable;
     /** Annotate sidebar note rows with a badge and/or replacement icon. */
-    registerNoteDecoration(
-      decorate: (note: NoteMeta) => NoteDecoration | null,
-    ): Disposable;
+    registerNoteDecoration(decorate: (note: NoteMeta) => NoteDecoration | null): Disposable;
     /**
      * Override the sidebar's note ordering within each folder. The most
      * recently registered comparator wins.
@@ -515,11 +500,7 @@ export interface NotableAPI {
      * Replace a document through the active editor or its server-side Yjs
      * room. The returned snapshot reflects the accepted write.
      */
-    replace(
-      path: string,
-      text: string,
-      options?: DocumentWriteOptions,
-    ): Promise<DocumentSnapshot>;
+    replace(path: string, text: string, options?: DocumentWriteOptions): Promise<DocumentSnapshot>;
     /**
      * Apply non-overlapping edits against one coherent snapshot. Offsets use
      * JavaScript/CodeMirror UTF-16 positions and edits must be sorted.

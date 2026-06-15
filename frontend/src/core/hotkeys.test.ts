@@ -12,9 +12,7 @@ describe("hotkeys", () => {
 
   it("normalizes Mod to the platform modifier, in canonical order", () => {
     expect(normalizeKey("Mod-k")).toBe(`${MOD}-k`);
-    expect(normalizeKey("Shift-Mod-P")).toBe(
-      IS_MAC ? "shift-meta-p" : "ctrl-shift-p",
-    );
+    expect(normalizeKey("Shift-Mod-P")).toBe(IS_MAC ? "shift-meta-p" : "ctrl-shift-p");
     expect(normalizeKey("Alt-,")).toBe("alt-,");
   });
 

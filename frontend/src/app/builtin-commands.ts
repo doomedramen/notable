@@ -45,6 +45,16 @@ export function registerBuiltinCommands(): void {
   });
 
   registerCommand({
+    id: "editor.toggle-mode",
+    name: "Toggle Rich/Source Mode",
+    hotkey: "Mod-Shift-e",
+    run: () => {
+      const { editorMode, setEditorMode } = useUI.getState();
+      setEditorMode(editorMode === "rich" ? "source" : "rich");
+    },
+  });
+
+  registerCommand({
     id: "theme.cycle",
     name: "Cycle theme (light / dark / system)",
     run: () => {

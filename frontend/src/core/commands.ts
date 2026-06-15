@@ -46,7 +46,5 @@ export function runCommand(id: string): boolean {
 
 /** Commands currently available (respects `when` guards). */
 export function availableCommands(): Command[] {
-  return [...commandStore.getState().commands.values()].filter(
-    (c) => !c.when || c.when(),
-  );
+  return [...commandStore.getState().commands.values()].filter((c) => !c.when || c.when());
 }

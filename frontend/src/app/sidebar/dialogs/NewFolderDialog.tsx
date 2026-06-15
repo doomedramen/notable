@@ -11,13 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-export function NewFolderDialog({
-  open,
-  onClose,
-}: {
-  open: boolean;
-  onClose: () => void;
-}) {
+export function NewFolderDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const mkdir = useNotesStore((s) => s.mkdir);
   const [name, setName] = useState("");
 
@@ -41,9 +35,7 @@ export function NewFolderDialog({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent showClose={false}>
         <DialogTitle>New folder</DialogTitle>
-        <DialogDescription>
-          Nested folders work too, e.g. “Projects/Work”.
-        </DialogDescription>
+        <DialogDescription>Nested folders work too, e.g. “Projects/Work”.</DialogDescription>
         <form onSubmit={submit}>
           <Input
             value={name}

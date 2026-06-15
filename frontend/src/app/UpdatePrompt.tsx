@@ -13,8 +13,9 @@ export function UpdatePrompt() {
   } = useRegisterSW({
     onRegisteredSW(_url, registration) {
       // Pick up new versions promptly without waiting for a navigation.
-      registration &&
+      if (registration) {
         setInterval(() => void registration.update(), 60 * 60 * 1000);
+      }
     },
   });
 

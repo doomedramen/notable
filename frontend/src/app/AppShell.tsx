@@ -57,27 +57,17 @@ function AppShellInner() {
 
   useEffect(() => {
     const handlePendingRename = (event: Event) => {
-      const { from, to } = (event as CustomEvent<{ from: string; to: string }>)
-        .detail;
+      const { from, to } = (event as CustomEvent<{ from: string; to: string }>).detail;
       if (activePath === from) openNote(to);
     };
-    window.addEventListener(
-      "notable:pending-path-renamed",
-      handlePendingRename,
-    );
-    return () =>
-      window.removeEventListener(
-        "notable:pending-path-renamed",
-        handlePendingRename,
-      );
+    window.addEventListener("notable:pending-path-renamed", handlePendingRename);
+    return () => window.removeEventListener("notable:pending-path-renamed", handlePendingRename);
   }, [activePath]);
 
   return (
     <ThemeProvider>
       <TooltipProvider delayDuration={400}>
-        <div
-          className="flex h-dvh min-h-0 flex-col bg-background text-foreground"
-        >
+        <div className="flex h-dvh min-h-0 flex-col bg-background text-foreground">
           <div className="relative flex min-h-0 flex-1">
             <Sidebar />
             <main className="flex min-w-0 flex-1 flex-col pb-[var(--keyboard-inset,0px)]">
@@ -216,9 +206,7 @@ export function EmptyState() {
 
         {hasNotes && recentNotes.length > 0 && (
           <div className="mt-9 border-t border-border pt-4 text-left">
-            <p className="px-2 text-xs font-medium tracking-wide text-faint">
-              Recently opened
-            </p>
+            <p className="px-2 text-xs font-medium tracking-wide text-faint">Recently opened</p>
             <div className="mt-1 space-y-0.5">
               {recentNotes.map((note, index) => (
                 <button
@@ -232,12 +220,16 @@ export function EmptyState() {
                   </span>
                   <span className="truncate">{note.name}</span>
                   {index === 0 && (
-                    <span className="ml-auto shrink-0 text-xs text-faint">
-                      Continue
-                    </span>
+                    <span className="ml-auto shrink-0 text-xs text-faint">Continue</span>
                   )}
                   {note.folder && (
-                    <span className={index === 0 ? "max-w-[32%] truncate text-xs text-faint" : "ml-auto max-w-[40%] truncate text-xs text-faint"}>
+                    <span
+                      className={
+                        index === 0
+                          ? "max-w-[32%] truncate text-xs text-faint"
+                          : "ml-auto max-w-[40%] truncate text-xs text-faint"
+                      }
+                    >
                       {note.folder}
                     </span>
                   )}

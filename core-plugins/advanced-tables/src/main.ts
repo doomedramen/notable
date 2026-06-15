@@ -295,7 +295,7 @@ function tNextCell(model: TableModel, cursor: Cursor): void {
     cursor.col = 0;
     cursor.modelRow += 1;
     if (cursor.modelRow - 1 >= model.body.length) {
-      model.body.push(new Array(colCount).fill(""));
+      model.body.push(Array.from({ length: colCount }, () => ""));
     }
   }
   cursor.offsetInCell = 0;
@@ -319,7 +319,7 @@ function tNextRow(model: TableModel, cursor: Cursor): void {
   const colCount = colCountOf(model);
   cursor.modelRow += 1;
   if (cursor.modelRow - 1 >= model.body.length) {
-    model.body.push(new Array(colCount).fill(""));
+    model.body.push(Array.from({ length: colCount }, () => ""));
   }
   cursor.offsetInCell = 0;
 }
@@ -327,7 +327,7 @@ function tNextRow(model: TableModel, cursor: Cursor): void {
 function tInsertRowAbove(model: TableModel, cursor: Cursor): void {
   const colCount = colCountOf(model);
   const bodyIdx = cursor.modelRow - 1;
-  model.body.splice(bodyIdx, 0, new Array(colCount).fill(""));
+  model.body.splice(bodyIdx, 0, Array.from({ length: colCount }, () => ""));
   cursor.col = 0;
   cursor.offsetInCell = 0;
 }
@@ -335,7 +335,7 @@ function tInsertRowAbove(model: TableModel, cursor: Cursor): void {
 function tInsertRowBelow(model: TableModel, cursor: Cursor): void {
   const colCount = colCountOf(model);
   const bodyIdx = cursor.modelRow - 1;
-  model.body.splice(bodyIdx + 1, 0, new Array(colCount).fill(""));
+  model.body.splice(bodyIdx + 1, 0, Array.from({ length: colCount }, () => ""));
   cursor.modelRow += 1;
   cursor.col = 0;
   cursor.offsetInCell = 0;
@@ -344,7 +344,8 @@ function tInsertRowBelow(model: TableModel, cursor: Cursor): void {
 function tDeleteRow(model: TableModel, cursor: Cursor): void {
   const bodyIdx = cursor.modelRow - 1;
   model.body.splice(bodyIdx, 1);
-  if (model.body.length === 0) model.body.push(new Array(colCountOf(model)).fill(""));
+  if (model.body.length === 0)
+    model.body.push(Array.from({ length: colCountOf(model) }, () => ""));
   cursor.modelRow = Math.min(cursor.modelRow, model.body.length);
   cursor.offsetInCell = 0;
 }

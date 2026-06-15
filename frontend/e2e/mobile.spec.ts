@@ -1,9 +1,4 @@
-import {
-  expect,
-  test,
-  type CDPSession,
-  type Page,
-} from "@playwright/test";
+import { expect, test, type CDPSession, type Page } from "@playwright/test";
 
 const MOBILE_DRAWER_WIDTH = 288;
 
@@ -23,9 +18,7 @@ async function mockHaptics(page: Page) {
 
 async function hapticCount(page: Page): Promise<number> {
   return page.evaluate(
-    () =>
-      ((window as Window & { __hapticCalls?: unknown[] }).__hapticCalls ?? [])
-        .length,
+    () => ((window as Window & { __hapticCalls?: unknown[] }).__hapticCalls ?? []).length,
   );
 }
 
@@ -34,9 +27,7 @@ async function hapticCount(page: Page): Promise<number> {
    drawer to reveal the editor. Runs under the "mobile" project
    (iPhone-ish viewport, touch). */
 
-test("sidebar is a drawer: closed on load, opens, closes on navigation", async ({
-  page,
-}) => {
+test("sidebar is a drawer: closed on load, opens, closes on navigation", async ({ page }) => {
   await page.goto("/");
 
   // Drawer starts closed on small screens; the top bar is visible.
@@ -62,17 +53,13 @@ test("sidebar is a drawer: closed on load, opens, closes on navigation", async (
 
   // The editor surfaces the open note's name (the top bar stays minimal:
   // drawer toggle + search only).
-  await expect(
-    page.getByRole("heading", { name: title, exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
 });
 
 test("top bar search button opens the command palette", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("Search").click();
-  await expect(
-    page.getByPlaceholder("Search notes and commands…"),
-  ).toBeVisible();
+  await expect(page.getByPlaceholder("Search notes and commands…")).toBeVisible();
 });
 
 test("footer sits flush with the viewport bottom", async ({ page }) => {
@@ -86,9 +73,7 @@ test("footer sits flush with the viewport bottom", async ({ page }) => {
   await expect(footer).toHaveCSS("padding-bottom", "0px");
 });
 
-test("haptic preference persists and suppresses touch feedback", async ({
-  page,
-}) => {
+test("haptic preference persists and suppresses touch feedback", async ({ page }) => {
   await mockHaptics(page);
   await page.goto("/");
   await page.getByLabel("Open sidebar").click();
@@ -101,16 +86,12 @@ test("haptic preference persists and suppresses touch feedback", async ({
   await page.reload();
   await page.getByLabel("Open sidebar").click();
   await page.getByLabel("Settings").click();
-  await expect(
-    page.getByRole("switch", { name: "Haptic feedback" }),
-  ).not.toBeChecked();
+  await expect(page.getByRole("switch", { name: "Haptic feedback" })).not.toBeChecked();
   await page.keyboard.press("Escape");
   await page.keyboard.press("Escape");
 });
 
-test("plugin status moves into a menu only when it runs out of room", async ({
-  page,
-}) => {
+test("plugin status moves into a menu only when it runs out of room", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("status-bar-overflow")).toHaveCount(0);
 
@@ -177,13 +158,7 @@ async function endTouchDrag(client: CDPSession) {
   await client.detach();
 }
 
-async function touchDrag(
-  page: Page,
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-) {
+async function touchDrag(page: Page, x1: number, y1: number, x2: number, y2: number) {
   const client = await startTouchDrag(page, x1, y1, x2, y2);
   await endTouchDrag(client);
 }
@@ -209,9 +184,7 @@ test("edge swipe opens the drawer, swipe left closes it", async ({ page }) => {
   // Swipe right starting near the left edge -> opens the drawer.
   await swipe(page, 5, 200);
   await expect(sidebar).toBeInViewport();
-  await expect
-    .poll(async () => (await sidebar.boundingBox())?.x)
-    .toBeCloseTo(0, 0);
+  await expect.poll(async () => (await sidebar.boundingBox())?.x).toBeCloseTo(0, 0);
 
   // The gesture/CSS handoff must not replay the sheet's open keyframe after
   // the custom settle transition finishes.
@@ -238,9 +211,7 @@ test("edge swipe opens the drawer, swipe left closes it", async ({ page }) => {
   await expect(sidebar).not.toBeInViewport();
 });
 
-test("interactive sidebar hides its toggle and reopens after backdrop close", async ({
-  page,
-}) => {
+test("interactive sidebar hides its toggle and reopens after backdrop close", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("mobile-top-bar")).toBeVisible();
   const sidebar = page.getByRole("dialog", { name: "Sidebar" });
@@ -254,10 +225,7 @@ test("interactive sidebar hides its toggle and reopens after backdrop close", as
     const target = window as Window & { __sidebarAnimations?: string[] };
     target.__sidebarAnimations = [];
     document.addEventListener("animationstart", (event) => {
-      if (
-        event.target instanceof HTMLElement &&
-        event.target.dataset.testid === "mobile-sidebar"
-      ) {
+      if (event.target instanceof HTMLElement && event.target.dataset.testid === "mobile-sidebar") {
         target.__sidebarAnimations?.push(event.animationName);
       }
     });
@@ -268,9 +236,7 @@ test("interactive sidebar hides its toggle and reopens after backdrop close", as
   await expect
     .poll(() =>
       page.evaluate(
-        () =>
-          (window as Window & { __sidebarAnimations?: string[] })
-            .__sidebarAnimations ?? [],
+        () => (window as Window & { __sidebarAnimations?: string[] }).__sidebarAnimations ?? [],
       ),
     )
     .toContain("ui-sheet-left-out");
@@ -293,9 +259,7 @@ test("drawer commitment threshold emits feedback once", async ({ page }) => {
   await endTouchDrag(client);
 });
 
-test("swiping the drawer open does not trigger header tooltips", async ({
-  page,
-}) => {
+test("swiping the drawer open does not trigger header tooltips", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("mobile-top-bar")).toBeVisible();
   const sidebar = page.getByRole("dialog", { name: "Sidebar" });
@@ -321,9 +285,7 @@ test("edge swipe dims the page while the drawer is moving", async ({ page }) => 
   expect(sidebarBox).not.toBeNull();
   expect(sidebarBox!.x).toBeGreaterThan(-MOBILE_DRAWER_WIDTH + 20);
   expect(sidebarBox!.width).toBe(MOBILE_DRAWER_WIDTH);
-  const opacity = await backdrop.evaluate((element) =>
-    Number(getComputedStyle(element).opacity),
-  );
+  const opacity = await backdrop.evaluate((element) => Number(getComputedStyle(element).opacity));
   expect(opacity).toBeGreaterThan(0);
   expect(opacity).toBeLessThan(1);
 
@@ -348,9 +310,7 @@ test("short sidebar swipes cancel in both directions", async ({ page }) => {
   await expect(sidebar).toBeInViewport();
 });
 
-test("settings opens as a near-fullscreen sheet with tab strip", async ({
-  page,
-}) => {
+test("settings opens as a near-fullscreen sheet with tab strip", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("Open sidebar").click();
   await page.getByLabel("Settings").click();
@@ -365,9 +325,7 @@ test("settings opens as a near-fullscreen sheet with tab strip", async ({
   expect(box.width).toBeGreaterThan(viewport.width * 0.9);
 });
 
-test("settings sheet can be dismissed with a downward drag", async ({
-  page,
-}) => {
+test("settings sheet can be dismissed with a downward drag", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("Open sidebar").click();
   await page.getByLabel("Settings").click();
@@ -414,9 +372,7 @@ test("settings gestures do not move the open sidebar", async ({ page }) => {
 
   await settings.getByRole("button", { name: "Close" }).click();
   await expect(settings).not.toBeVisible();
-  await expect
-    .poll(async () => (await sidebar.boundingBox())?.x)
-    .toBeCloseTo(0, 0);
+  await expect.poll(async () => (await sidebar.boundingBox())?.x).toBeCloseTo(0, 0);
 
   await swipe(page, 250, 50);
   await expect(sidebar).not.toBeInViewport();
@@ -435,9 +391,7 @@ test("edge swipe is ignored while settings is open", async ({ page }) => {
 
 /** Reads the path of the note currently open from the URL. */
 function currentNoteName(page: Page): string {
-  const path = decodeURIComponent(
-    new URL(page.url()).pathname.replace(/^\/note\//, ""),
-  );
+  const path = decodeURIComponent(new URL(page.url()).pathname.replace(/^\/note\//, ""));
   return path.replace(/\.md$/, "").split("/").pop()!;
 }
 
@@ -492,7 +446,5 @@ test("long-press dragging a note onto a folder moves it", async ({ page }) => {
   });
   await client.detach();
 
-  await expect(page).toHaveURL(
-    new RegExp(`/note/${encodeURIComponent(folder)}/`),
-  );
+  await expect(page).toHaveURL(new RegExp(`/note/${encodeURIComponent(folder)}/`));
 });

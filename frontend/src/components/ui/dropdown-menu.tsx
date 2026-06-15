@@ -45,34 +45,19 @@ export function DropdownMenuCheckboxItem({
   className,
   ...props
 }: ComponentProps<typeof DropdownPrimitive.CheckboxItem>) {
-  return (
-    <DropdownPrimitive.CheckboxItem
-      className={cn(menuItemClass, className)}
-      {...props}
-    />
-  );
+  return <DropdownPrimitive.CheckboxItem className={cn(menuItemClass, className)} {...props} />;
 }
 
 export function DropdownMenuLabel({
   className,
   ...props
 }: ComponentProps<typeof DropdownPrimitive.Label>) {
-  return (
-    <DropdownPrimitive.Label
-      className={cn(menuLabelClass, className)}
-      {...props}
-    />
-  );
+  return <DropdownPrimitive.Label className={cn(menuLabelClass, className)} {...props} />;
 }
 
 export function DropdownMenuSeparator({
   className,
   ...props
 }: ComponentProps<typeof DropdownPrimitive.Separator>) {
-  return (
-    <DropdownPrimitive.Separator
-      className={cn(menuSeparatorClass, className)}
-      {...props}
-    />
-  );
+  return <DropdownPrimitive.Separator className={cn(menuSeparatorClass, className)} {...props} />;
 }

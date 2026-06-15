@@ -18,9 +18,7 @@ function isIOSSafariNotInstalled(): boolean {
 }
 
 export function InstallPrompt() {
-  const [dismissed, setDismissed] = useState(
-    () => localStorage.getItem(DISMISS_KEY) === "1",
-  );
+  const [dismissed, setDismissed] = useState(() => localStorage.getItem(DISMISS_KEY) === "1");
 
   if (dismissed || !isIOSSafariNotInstalled()) return null;
 
@@ -30,10 +28,9 @@ export function InstallPrompt() {
       className="fixed top-[calc(3.5rem+env(safe-area-inset-top))] left-1/2 z-50 flex w-[min(26rem,calc(100vw-2rem))] -translate-x-1/2 items-start gap-2 rounded-md border border-border bg-background/95 p-3 text-sm leading-relaxed shadow-[var(--shadow-dialog)] backdrop-blur-xl md:top-auto md:bottom-10"
     >
       <p className="m-0 flex-1">
-        <strong className="text-accent">Protect your offline notes:</strong>{" "}
-        add this app to your Home Screen. iOS can delete browser-stored data
-        after 7 days of inactivity — installed apps are exempt. Tap{" "}
-        <span aria-label="Share">Share</span> → <em>Add to Home Screen</em>.
+        <strong className="text-accent">Protect your offline notes:</strong> add this app to your
+        Home Screen. iOS can delete browser-stored data after 7 days of inactivity — installed apps
+        are exempt. Tap <span aria-label="Share">Share</span> → <em>Add to Home Screen</em>.
       </p>
       <button
         onClick={() => {

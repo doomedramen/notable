@@ -107,14 +107,7 @@ export function AppIcon({
   const fallbackSlot = typeof icon === "string" ? icon : fallback;
   if (fallbackSlot) {
     const Fallback = fallbacks[fallbackSlot];
-    return (
-      <Fallback
-        aria-hidden
-        size={size}
-        strokeWidth={strokeWidth}
-        className={className}
-      />
-    );
+    return <Fallback aria-hidden size={size} strokeWidth={strokeWidth} className={className} />;
   }
 
   return null;

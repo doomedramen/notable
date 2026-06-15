@@ -1,12 +1,7 @@
 import { WebHaptics, type HapticInput } from "web-haptics";
 import { useUI } from "@/store/ui";
 
-export type FeedbackKind =
-  | "selection"
-  | "impact"
-  | "success"
-  | "warning"
-  | "error";
+export type FeedbackKind = "selection" | "impact" | "success" | "warning" | "error";
 
 export const FEEDBACK_PATTERNS: Record<FeedbackKind, HapticInput> = {
   selection: "selection",
@@ -23,10 +18,7 @@ function isTouchCapable(): boolean {
   if (typeof navigator === "undefined" || typeof window === "undefined") {
     return false;
   }
-  return (
-    navigator.maxTouchPoints > 0 ||
-    window.matchMedia?.("(pointer: coarse)").matches === true
-  );
+  return navigator.maxTouchPoints > 0 || window.matchMedia?.("(pointer: coarse)").matches === true;
 }
 
 function destroyFeedback(): void {

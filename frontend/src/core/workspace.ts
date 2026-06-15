@@ -62,9 +62,7 @@ function registerIn<T extends { id: string }>(
     dispose: () => {
       workspaceStore.setState((s) => {
         const next: Partial<WorkspaceState> = {
-          [key]: (s[key] as unknown as readonly T[]).filter(
-            (i) => i !== item,
-          ) as never,
+          [key]: (s[key] as unknown as readonly T[]).filter((i) => i !== item) as never,
         };
         if (key === "rightPanels" && s.activeRightPanel === item.id) {
           next.activeRightPanel = null;
@@ -75,15 +73,10 @@ function registerIn<T extends { id: string }>(
   };
 }
 
-export const registerSidebarPanel = (p: PanelSpec) =>
-  registerIn("sidebarPanels", p);
-export const registerRightPanel = (p: PanelSpec) =>
-  registerIn("rightPanels", p);
-export const registerSettingsTab = (t: SettingsTabSpec) =>
-  registerIn("settingsTabs", t);
-export function registerStatusBarItem(
-  item: StatusBarItemSpec,
-): StatusBarItemRegistration {
+export const registerSidebarPanel = (p: PanelSpec) => registerIn("sidebarPanels", p);
+export const registerRightPanel = (p: PanelSpec) => registerIn("rightPanels", p);
+export const registerSettingsTab = (t: SettingsTabSpec) => registerIn("settingsTabs", t);
+export function registerStatusBarItem(item: StatusBarItemSpec): StatusBarItemRegistration {
   let current = item;
   let disposed = false;
   workspaceStore.setState((state) => ({
@@ -105,9 +98,7 @@ export function registerStatusBarItem(
       if (disposed) return;
       disposed = true;
       workspaceStore.setState((state) => ({
-        statusBarItems: state.statusBarItems.filter(
-          (candidate) => candidate !== current,
-        ),
+        statusBarItems: state.statusBarItems.filter((candidate) => candidate !== current),
       }));
     },
   };
@@ -141,9 +132,7 @@ export function registerSidebarSort(compare: SidebarSortComparator): Disposable 
   return {
     dispose: () => {
       workspaceStore.setState((s) => ({
-        sidebarSortComparators: s.sidebarSortComparators.filter(
-          (c) => c !== compare,
-        ),
+        sidebarSortComparators: s.sidebarSortComparators.filter((c) => c !== compare),
       }));
     },
   };

@@ -14,30 +14,19 @@ async function createNote(page: Page): Promise<string> {
   await expect(page).toHaveURL(/\/note\//);
   await expect(page.getByRole("dialog", { name: "Rename note" })).toBeVisible();
   await page.getByRole("button", { name: "Cancel" }).click();
-  return decodeURIComponent(
-    new URL(page.url()).pathname.replace(/^\/note\//, ""),
-  );
+  return decodeURIComponent(new URL(page.url()).pathname.replace(/^\/note\//, ""));
 }
 
 /** Create a folder and a named note inside it via the "+" / context menus. */
-async function createFolderWithNote(
-  page: Page,
-  folder: string,
-  noteName: string,
-) {
+async function createFolderWithNote(page: Page, folder: string, noteName: string) {
   await page.getByLabel("New…").click();
   await page.getByRole("menuitem", { name: "New folder" }).click();
   await page.getByLabel("Folder name").fill(folder);
   await page.getByRole("button", { name: "Create" }).click();
   const nav = page.locator("nav");
-  await nav
-    .getByRole("button", { name: folder, exact: true })
-    .click({ button: "right" });
+  await nav.getByRole("button", { name: folder, exact: true }).click({ button: "right" });
   await page.getByRole("menuitem", { name: "New note here" }).click();
-  await page
-    .getByRole("dialog", { name: "Rename note" })
-    .getByLabel("New name")
-    .fill(noteName);
+  await page.getByRole("dialog", { name: "Rename note" }).getByLabel("New name").fill(noteName);
   await page.getByRole("button", { name: "Rename", exact: true }).click();
 }
 
@@ -55,19 +44,12 @@ async function typeInEditor(page: Page, text: string) {
   await page.keyboard.type(text);
 }
 
-async function chooseZip(
-  page: Page,
-  name: string,
-  files: Record<string, string>,
-) {
+async function chooseZip(page: Page, name: string, files: Record<string, string>) {
   await page.getByLabel("New…").click();
   await page.getByRole("menuitem", { name: "Import folder or ZIP…" }).click();
   const archive = zipSync(
     Object.fromEntries(
-      Object.entries(files).map(([file, content]) => [
-        file,
-        new TextEncoder().encode(content),
-      ]),
+      Object.entries(files).map(([file, content]) => [file, new TextEncoder().encode(content)]),
     ),
   );
   await page.locator('input[accept*=".zip"]').setInputFiles({
@@ -91,9 +73,7 @@ async function mockHaptics(page: Page) {
   });
 }
 
-test("create a note, type, persists across reload — and is a real file", async ({
-  page,
-}) => {
+test("create a note, type, persists across reload — and is a real file", async ({ page }) => {
   await page.goto("/");
   const notePath = await createNote(page);
   await typeInEditor(page, "# Smoke test");
@@ -120,45 +100,34 @@ test("imports a ZIP and auto-renames duplicate notes", async ({ page }) => {
   };
 
   await chooseZip(page, "notes.zip", files);
-  await expect(page.getByRole("dialog", { name: "Import into vault" })).toContainText(
-    "2",
-  );
+  await expect(page.getByRole("dialog", { name: "Import into vault" })).toContainText("2");
   await page.getByRole("button", { name: "Import 2 notes" }).click();
-  await expect(page.getByRole("dialog")).toContainText(
-    "Everything is synced to the vault.",
-  );
+  await expect(page.getByRole("dialog")).toContainText("Everything is synced to the vault.");
   await page.getByRole("button", { name: "Done" }).click();
 
   await expect(page.locator("nav")).toContainText("Plan");
   await expect(async () => {
-    expect(
-      fs.readFileSync(path.join(VAULT, "Imported/Plan.md"), "utf8"),
-    ).toContain("Imported plan");
-    expect(
-      fs.readFileSync(path.join(VAULT, "Imported/Nested/Idea.md"), "utf8"),
-    ).toContain("nested idea");
+    expect(fs.readFileSync(path.join(VAULT, "Imported/Plan.md"), "utf8")).toContain(
+      "Imported plan",
+    );
+    expect(fs.readFileSync(path.join(VAULT, "Imported/Nested/Idea.md"), "utf8")).toContain(
+      "nested idea",
+    );
   }).toPass({ timeout: 10_000 });
 
   await chooseZip(page, "notes.zip", files);
-  await expect(page.getByRole("dialog")).toContainText(
-    "Conflicting notes will be renamed",
-  );
+  await expect(page.getByRole("dialog")).toContainText("Conflicting notes will be renamed");
   await page.getByRole("button", { name: "Import 2 notes" }).click();
   await expect(page.getByRole("dialog")).toContainText("2 renamed");
   await page.getByRole("button", { name: "Done" }).click();
 
   await expect(async () => {
     expect(fs.existsSync(path.join(VAULT, "Imported/Plan 1.md"))).toBe(true);
-    expect(
-      fs.existsSync(path.join(VAULT, "Imported/Nested/Idea 1.md")),
-    ).toBe(true);
+    expect(fs.existsSync(path.join(VAULT, "Imported/Nested/Idea 1.md"))).toBe(true);
   }).toPass({ timeout: 10_000 });
 });
 
-test("offline ZIP import survives reload and syncs on reconnect", async ({
-  page,
-  context,
-}) => {
+test("offline ZIP import survives reload and syncs on reconnect", async ({ page, context }) => {
   await page.goto("/");
   await page.evaluate(async () => {
     await navigator.serviceWorker.register("/sw.js");
@@ -173,17 +142,12 @@ test("offline ZIP import survives reload and syncs on reconnect", async ({
     "Offline Import/Local.md": "# Local-only import",
   });
   await page.getByRole("button", { name: "Import 1 notes" }).click();
-  await expect(page.getByRole("dialog")).toContainText(
-    "will sync when the server is reachable",
-  );
+  await expect(page.getByRole("dialog")).toContainText("will sync when the server is reachable");
   await page.getByRole("button", { name: "Done" }).click();
 
   await page.reload();
   await expect(page.locator("nav")).toContainText("Local");
-  await page
-    .locator("nav")
-    .getByRole("button", { name: "Local", exact: true })
-    .click();
+  await page.locator("nav").getByRole("button", { name: "Local", exact: true }).click();
   await expect(page.locator(".cm-content")).toContainText("Local-only import");
 
   await context.setOffline(false);
@@ -191,19 +155,13 @@ test("offline ZIP import survives reload and syncs on reconnect", async ({
     timeout: 15_000,
   });
   await expect(async () => {
-    expect(
-      fs.readFileSync(
-        path.join(VAULT, "Offline Import/Local.md"),
-        "utf8",
-      ),
-    ).toContain("Local-only import");
+    expect(fs.readFileSync(path.join(VAULT, "Offline Import/Local.md"), "utf8")).toContain(
+      "Local-only import",
+    );
   }).toPass({ timeout: 15_000 });
 });
 
-test("offline edits are flagged and recover on reconnect", async ({
-  page,
-  context,
-}) => {
+test("offline edits are flagged and recover on reconnect", async ({ page, context }) => {
   await page.goto("/");
   await createNote(page);
   await typeInEditor(page, "first line");
@@ -231,11 +189,9 @@ test("offline edits persist across a reload", async ({ page, context }) => {
     await navigator.serviceWorker.ready;
     if (!navigator.serviceWorker.controller) {
       await new Promise<void>((resolve) => {
-        navigator.serviceWorker.addEventListener(
-          "controllerchange",
-          () => resolve(),
-          { once: true },
-        );
+        navigator.serviceWorker.addEventListener("controllerchange", () => resolve(), {
+          once: true,
+        });
       });
     }
   });
@@ -245,22 +201,16 @@ test("offline edits persist across a reload", async ({ page, context }) => {
   await expect(page.locator("footer")).toContainText("Offline");
   // Guard: the offline keystrokes must be in the live editor before we
   // measure persistence (distinguishes "lost at reload" from "never typed").
-  await expect(page.locator(".cm-content")).toContainText(
-    "saved online and edited offline",
-  );
+  await expect(page.locator(".cm-content")).toContainText("saved online and edited offline");
 
   await page.reload();
-  await expect(page.locator(".cm-content")).toContainText(
-    "saved online and edited offline",
-  );
+  await expect(page.locator(".cm-content")).toContainText("saved online and edited offline");
 
   await context.setOffline(false);
   await expect(page.locator("footer")).toContainText("Synced", {
     timeout: 15_000,
   });
-  await expect(page.locator(".cm-content")).toContainText(
-    "saved online and edited offline",
-  );
+  await expect(page.locator(".cm-content")).toContainText("saved online and edited offline");
   await expect(async () => {
     expect(fs.readFileSync(path.join(VAULT, notePath), "utf8")).toContain(
       "saved online and edited offline",
@@ -268,9 +218,7 @@ test("offline edits persist across a reload", async ({ page, context }) => {
   }).toPass({ timeout: 10_000 });
 
   await page.reload();
-  await expect(page.locator(".cm-content")).toContainText(
-    "saved online and edited offline",
-  );
+  await expect(page.locator(".cm-content")).toContainText("saved online and edited offline");
 });
 
 test("external file edits merge live into an open editor", async ({ page }) => {
@@ -288,10 +236,9 @@ test("external file edits merge live into an open editor", async ({ page }) => {
   fs.writeFileSync(file, "written in the app\n\nadded by an external tool\n");
 
   // Watcher → text diff → broadcast → editor.
-  await expect(page.locator(".cm-content")).toContainText(
-    "added by an external tool",
-    { timeout: 10_000 },
-  );
+  await expect(page.locator(".cm-content")).toContainText("added by an external tool", {
+    timeout: 10_000,
+  });
 });
 
 test("a stale file event cannot erase in-flight typing", async ({ page }) => {
@@ -314,9 +261,7 @@ test("a stale file event cannot erase in-flight typing", async ({ page }) => {
   await page.waitForTimeout(1_000);
   await expect(page.locator(".cm-content")).toContainText("keep this text");
   await expect(async () => {
-    expect(fs.readFileSync(path.join(VAULT, notePath), "utf8")).toContain(
-      "keep this text",
-    );
+    expect(fs.readFileSync(path.join(VAULT, notePath), "utf8")).toContain("keep this text");
   }).toPass({ timeout: 10_000 });
 });
 
@@ -395,9 +340,7 @@ test("delete an empty folder, but not a non-empty one", async ({ page }) => {
   await page.getByRole("menuitem", { name: "Delete folder" }).click();
   await page.getByRole("button", { name: "Confirm" }).click();
   await expect(page.locator("nav")).toContainText(fullFolder);
-  await expect(
-    page.getByText("Folder is not empty."),
-  ).toBeVisible();
+  await expect(page.getByText("Folder is not empty.")).toBeVisible();
   expect(fs.statSync(path.join(VAULT, fullFolder)).isDirectory()).toBe(true);
 
   // Deleting the empty folder succeeds and removes it from disk.
@@ -431,9 +374,7 @@ test("create a folder and a note inside it", async ({ page }) => {
   await expect(page).toHaveURL(/\/note\/Projects\//);
 });
 
-test("quick note captures in place, remembers its folder, and supports Undo", async ({
-  page,
-}) => {
+test("quick note captures in place, remembers its folder, and supports Undo", async ({ page }) => {
   await page.goto("/");
   await enableQuickNote(page);
 
@@ -457,9 +398,7 @@ test("quick note captures in place, remembers its folder, and supports Undo", as
   await expect(page.getByLabel("Folder")).toHaveValue(folder);
   await page.keyboard.press("Escape");
 
-  const row = page
-    .locator("nav")
-    .getByRole("button", { name: "Captured thought", exact: true });
+  const row = page.locator("nav").getByRole("button", { name: "Captured thought", exact: true });
   await row.click({ button: "right" });
   await page.getByRole("menuitem", { name: "Delete note" }).click();
   await expect(page.locator("nav")).not.toContainText("Captured thought");
@@ -481,9 +420,7 @@ test("quick note captures content while offline", async ({ page, context }) => {
   await context.setOffline(false);
 });
 
-test("desktop pointer and keyboard capture do not emit haptics", async ({
-  page,
-}) => {
+test("desktop pointer and keyboard capture do not emit haptics", async ({ page }) => {
   await mockHaptics(page);
   await page.goto("/");
   await enableQuickNote(page);
@@ -494,48 +431,34 @@ test("desktop pointer and keyboard capture do not emit haptics", async ({
 
   expect(
     await page.evaluate(
-      () =>
-        ((window as Window & { __hapticCalls?: unknown[] }).__hapticCalls ?? [])
-          .length,
+      () => ((window as Window & { __hapticCalls?: unknown[] }).__hapticCalls ?? []).length,
     ),
   ).toBe(0);
 });
 
-test("switching notes restores editor focus and scroll position", async ({
-  page,
-}) => {
+test("switching notes restores editor focus and scroll position", async ({ page }) => {
   await page.goto("/");
   await enableQuickNote(page);
   const firstPath = await createNote(page);
   const firstName = firstPath.split("/").pop()!.replace(/\.md$/, "");
-  await typeInEditor(
-    page,
-    Array.from({ length: 80 }, (_, index) => `line ${index}`).join("\n"),
-  );
+  await typeInEditor(page, Array.from({ length: 80 }, (_, index) => `line ${index}`).join("\n"));
 
   await page.keyboard.press("ControlOrMeta+Alt+n");
   await page.getByLabel("Quick note title").fill("Second note");
   await page.getByRole("button", { name: "Save note" }).click();
   await page.getByRole("button", { name: "Open", exact: true }).click();
 
-  const firstRow = page
-    .locator("nav")
-    .getByRole("button", { name: firstName, exact: true });
+  const firstRow = page.locator("nav").getByRole("button", { name: firstName, exact: true });
   await firstRow.click();
   const editor = page.locator(".cm-content");
   await editor.click();
   const scroller = page.locator(".cm-scroller");
   await scroller.hover();
   await page.mouse.wheel(0, 520);
-  await expect
-    .poll(() => scroller.evaluate((element) => element.scrollTop))
-    .toBeGreaterThan(100);
+  await expect.poll(() => scroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(100);
   const remembered = await scroller.evaluate((element) => element.scrollTop);
 
-  await page
-    .locator("nav")
-    .getByRole("button", { name: "Second note", exact: true })
-    .click();
+  await page.locator("nav").getByRole("button", { name: "Second note", exact: true }).click();
   await firstRow.click();
 
   await expect(editor).toBeFocused();
@@ -544,15 +467,11 @@ test("switching notes restores editor focus and scroll position", async ({
     .toBeCloseTo(remembered, -1);
 });
 
-test("sidebar note rows support keyboard navigation and trash", async ({
-  page,
-}) => {
+test("sidebar note rows support keyboard navigation and trash", async ({ page }) => {
   await page.goto("/");
   const notePath = await createNote(page);
   const noteName = notePath.split("/").pop()!.replace(/\.md$/, "");
-  const activeRow = page
-    .locator("nav")
-    .getByRole("button", { name: noteName, exact: true });
+  const activeRow = page.locator("nav").getByRole("button", { name: noteName, exact: true });
   await activeRow.focus();
   await page.keyboard.press("F2");
   await expect(page.getByRole("dialog", { name: "Rename note" })).toBeVisible();
@@ -562,9 +481,7 @@ test("sidebar note rows support keyboard navigation and trash", async ({
   await expect(page.getByRole("button", { name: "Undo" })).toBeVisible();
 });
 
-test("notes drag onto folders and can be moved back with Undo", async ({
-  page,
-}) => {
+test("notes drag onto folders and can be moved back with Undo", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("New…").click();
   await page.getByRole("menuitem", { name: "New folder" }).click();
@@ -574,39 +491,24 @@ test("notes drag onto folders and can be moved back with Undo", async ({
   const notePath = await createNote(page);
   const noteName = notePath.replace(/\.md$/, "").split("/").pop()!;
 
-  const row = page
-    .locator("nav")
-    .getByRole("button", { name: noteName, exact: true });
-  const target = page
-    .locator("nav")
-    .getByRole("button", { name: folder, exact: true });
+  const row = page.locator("nav").getByRole("button", { name: noteName, exact: true });
+  const target = page.locator("nav").getByRole("button", { name: folder, exact: true });
   await row.dragTo(target);
 
-  await expect(page).toHaveURL(
-    new RegExp(`/note/${encodeURIComponent(folder)}/`),
-  );
+  await expect(page).toHaveURL(new RegExp(`/note/${encodeURIComponent(folder)}/`));
   await page.getByRole("button", { name: "Undo", exact: true }).click();
-  await expect(page).not.toHaveURL(
-    new RegExp(`/note/${encodeURIComponent(folder)}/`),
-  );
+  await expect(page).not.toHaveURL(new RegExp(`/note/${encodeURIComponent(folder)}/`));
 });
 
-test("installed-app new-note shortcut creates and opens a note", async ({
-  page,
-}) => {
+test("installed-app new-note shortcut creates and opens a note", async ({ page }) => {
   await page.goto("/new");
   await expect(page).toHaveURL(/\/note\//);
 });
 
-test("full-text search finds notes by content in the palette", async ({
-  page,
-}) => {
+test("full-text search finds notes by content in the palette", async ({ page }) => {
   await page.goto("/");
   const notePath = await createNote(page);
-  await typeInEditor(
-    page,
-    "# Recipes\n\nThe secret ingredient is cardamom obviously",
-  );
+  await typeInEditor(page, "# Recipes\n\nThe secret ingredient is cardamom obviously");
   await expect(page.locator("footer")).toContainText("Synced");
 
   // Indexing happens on the write-behind flush (~2s idle).
@@ -623,9 +525,7 @@ test("full-text search finds notes by content in the palette", async ({
   const hit = page.getByRole("option", { name: /cardamom/ }).first();
   await expect(hit).toBeVisible();
   await hit.click();
-  await expect(page).toHaveURL(
-    new RegExp(encodeURIComponent(notePath.replace(/\.md$/, ""))),
-  );
+  await expect(page).toHaveURL(new RegExp(encodeURIComponent(notePath.replace(/\.md$/, ""))));
 });
 
 test("command palette opens with Mod-K and runs commands", async ({ page }) => {
@@ -672,9 +572,7 @@ test("enabled plugins recover after startup discovery fails", async ({ page }) =
     .toBe(true);
 });
 
-test("word-count plugin enables and disables live, without reload", async ({
-  page,
-}) => {
+test("word-count plugin enables and disables live, without reload", async ({ page }) => {
   await page.goto("/");
   await createNote(page);
   await typeInEditor(page, "five words are typed here");
@@ -692,9 +590,7 @@ test("word-count plugin enables and disables live, without reload", async ({
   await expect(page.locator("footer")).not.toContainText("words");
 });
 
-test("wikilinks render as pills and Mod-click creates + opens the target", async ({
-  page,
-}) => {
+test("wikilinks render as pills and Mod-click creates + opens the target", async ({ page }) => {
   await page.goto("/");
   await createNote(page);
   await typeInEditor(page, "Link: [[Note B]]");
@@ -714,9 +610,7 @@ test("wikilinks render as pills and Mod-click creates + opens the target", async
   await expect(page.locator("h1")).toContainText("Note B");
 });
 
-test("backlinks panel lists notes that link to the open note", async ({
-  page,
-}) => {
+test("backlinks panel lists notes that link to the open note", async ({ page }) => {
   await page.goto("/");
   await createNote(page);
   await typeInEditor(page, "See [[Note C]] for details");
@@ -725,9 +619,7 @@ test("backlinks panel lists notes that link to the open note", async ({
 
   // Follow the link: creates + opens "Note C.md".
   await page.keyboard.press("Enter");
-  await page
-    .locator(".cm-wikilink", { hasText: "Note C" })
-    .click({ modifiers: ["Control"] });
+  await page.locator(".cm-wikilink", { hasText: "Note C" }).click({ modifiers: ["Control"] });
   await expect(page).toHaveURL(/Note%20C/);
 
   await typeInEditor(page, "content");
@@ -746,12 +638,12 @@ test("backlinks panel lists notes that link to the open note", async ({
   // The panel re-fetches on note:open/editor:ready; reopen it to refresh.
   await page.getByLabel("Toggle backlinks panel").click();
   await page.getByLabel("Toggle backlinks panel").click();
-  await expect(page.locator("aside").filter({ hasText: "Backlinks" })).not.toContainText("No notes link here yet.");
+  await expect(page.locator("aside").filter({ hasText: "Backlinks" })).not.toContainText(
+    "No notes link here yet.",
+  );
 });
 
-test("tags: #tag chips in the editor, sidebar panel, and /tag view", async ({
-  page,
-}) => {
+test("tags: #tag chips in the editor, sidebar panel, and /tag view", async ({ page }) => {
   await page.goto("/");
   await createNote(page);
   await typeInEditor(page, "Tagged with #project-x");
@@ -782,9 +674,7 @@ test("tags: #tag chips in the editor, sidebar panel, and /tag view", async ({
   await expect(page).toHaveURL(/\/note\//);
 });
 
-test("live preview hides markdown marks and renders task checkboxes", async ({
-  page,
-}) => {
+test("live preview hides markdown marks and renders task checkboxes", async ({ page }) => {
   await page.goto("/");
   await createNote(page);
   await typeInEditor(page, "**bold**");
@@ -805,9 +695,7 @@ test("live preview hides markdown marks and renders task checkboxes", async ({
   await expect(checkbox).toBeChecked();
 });
 
-test("soft-delete moves a note to .trash/, and it can be restored or purged", async ({
-  page,
-}) => {
+test("soft-delete moves a note to .trash/, and it can be restored or purged", async ({ page }) => {
   await page.goto("/");
   const notePath = await createNote(page);
   await typeInEditor(page, "trash me");
@@ -865,9 +753,7 @@ test("soft-delete moves a note to .trash/, and it can be restored or purged", as
   }).toPass({ timeout: 5_000 });
 });
 
-test("custom theme picker injects a stylesheet link and updates colors", async ({
-  page,
-}) => {
+test("custom theme picker injects a stylesheet link and updates colors", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("Settings").click();
   await expect(page.getByRole("dialog")).toContainText("Custom theme");
@@ -883,16 +769,12 @@ test("custom theme picker injects a stylesheet link and updates colors", async (
   );
   await expect(async () => {
     const after = await page.evaluate(() =>
-      getComputedStyle(document.documentElement)
-        .getPropertyValue("--background")
-        .trim(),
+      getComputedStyle(document.documentElement).getPropertyValue("--background").trim(),
     );
     expect(after).not.toBe(before);
   }).toPass({ timeout: 5_000 });
   const themedBackground = await page.evaluate(() =>
-    getComputedStyle(document.documentElement)
-      .getPropertyValue("--background")
-      .trim(),
+    getComputedStyle(document.documentElement).getPropertyValue("--background").trim(),
   );
 
   // A persisted pre-paint link must still override the app stylesheet.
@@ -900,9 +782,7 @@ test("custom theme picker injects a stylesheet link and updates colors", async (
   await expect
     .poll(() =>
       page.evaluate(() =>
-        getComputedStyle(document.documentElement)
-          .getPropertyValue("--background")
-          .trim(),
+        getComputedStyle(document.documentElement).getPropertyValue("--background").trim(),
       ),
     )
     .toBe(themedBackground);

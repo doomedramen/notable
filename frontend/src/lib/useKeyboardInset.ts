@@ -29,10 +29,7 @@ export function useKeyboardInset(): void {
       // Ignore sub-keyboard noise (rounding, transient URL bars) so surfaces
       // don't drift a few pixels when nothing is actually covering them. A
       // real keyboard is always far taller than this floor.
-      root.style.setProperty(
-        "--keyboard-inset",
-        overlap > 60 ? `${Math.round(overlap)}px` : "0px",
-      );
+      root.style.setProperty("--keyboard-inset", overlap > 60 ? `${Math.round(overlap)}px` : "0px");
     };
 
     update();

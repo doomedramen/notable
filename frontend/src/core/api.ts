@@ -20,15 +20,8 @@ import * as documents from "./documents";
 import * as frontmatter from "./frontmatter";
 import * as search from "./search";
 import { registerTheme } from "./appearance";
-import {
-  registerIconPack,
-  registerIconTheme,
-  requestIconPick,
-} from "./icons";
-import {
-  getIconAssignment,
-  setIconAssignment,
-} from "./icon-assignments";
+import { registerIconPack, registerIconTheme, requestIconPick } from "./icons";
+import { getIconAssignment, setIconAssignment } from "./icon-assignments";
 import { registerCommand } from "./commands";
 import { registerHotkey } from "./hotkeys";
 import * as events from "./events";
@@ -60,10 +53,7 @@ const modules: NotableAPI["modules"] = {
  * the handle is tracked in `disposables` so unloading the plugin cleans
  * up everything it registered, even if its own onunload forgets.
  */
-export function createPluginAPI(
-  manifest: PluginManifest,
-  disposables: Disposable[],
-): NotableAPI {
+export function createPluginAPI(manifest: PluginManifest, disposables: Disposable[]): NotableAPI {
   const track = <T extends Disposable>(d: T): T => {
     disposables.push(d);
     return d;
@@ -90,15 +80,13 @@ export function createPluginAPI(
       register: (cmd: Command) => track(registerCommand(cmd)),
     },
     hotkeys: {
-      register: (key: string, commandId: string) =>
-        track(registerHotkey(key, commandId)),
+      register: (key: string, commandId: string) => track(registerHotkey(key, commandId)),
     },
     assets: {
       url: assetUrl,
     },
     appearance: {
-      registerTheme: (theme) =>
-        track(registerTheme(manifest, theme, assetUrl(theme.stylesheet))),
+      registerTheme: (theme) => track(registerTheme(manifest, theme, assetUrl(theme.stylesheet))),
     },
     icons: {
       registerPack: (pack) => track(registerIconPack(manifest, pack)),
@@ -112,24 +100,16 @@ export function createPluginAPI(
       activeView: () => editor.activeView(),
     },
     workspace: {
-      registerSidebarPanel: (p: PanelSpec) =>
-        track(workspace.registerSidebarPanel(p)),
-      registerRightPanel: (p: PanelSpec) =>
-        track(workspace.registerRightPanel(p)),
-      registerSettingsTab: (t: SettingsTabSpec) =>
-        track(workspace.registerSettingsTab(t)),
-      registerStatusBarItem: (i: StatusBarItemSpec) =>
-        track(workspace.registerStatusBarItem(i)),
+      registerSidebarPanel: (p: PanelSpec) => track(workspace.registerSidebarPanel(p)),
+      registerRightPanel: (p: PanelSpec) => track(workspace.registerRightPanel(p)),
+      registerSettingsTab: (t: SettingsTabSpec) => track(workspace.registerSettingsTab(t)),
+      registerStatusBarItem: (i: StatusBarItemSpec) => track(workspace.registerStatusBarItem(i)),
       registerNoteToolbarItem: (i: NoteToolbarItemSpec) =>
         track(workspace.registerNoteToolbarItem(i)),
-      registerNoteContextMenu: (i) =>
-        track(workspace.registerNoteContextMenu(i)),
-      registerFolderContextMenu: (i) =>
-        track(workspace.registerFolderContextMenu(i)),
-      registerNoteDecoration: (decorate) =>
-        track(workspace.registerNoteDecoration(decorate)),
-      registerSidebarSort: (compare) =>
-        track(workspace.registerSidebarSort(compare)),
+      registerNoteContextMenu: (i) => track(workspace.registerNoteContextMenu(i)),
+      registerFolderContextMenu: (i) => track(workspace.registerFolderContextMenu(i)),
+      registerNoteDecoration: (decorate) => track(workspace.registerNoteDecoration(decorate)),
+      registerSidebarSort: (compare) => track(workspace.registerSidebarSort(compare)),
       openNote,
       openTag,
       toggleRightPanel: workspace.toggleRightPanel,
@@ -162,16 +142,15 @@ export function createPluginAPI(
       notesWithTag: search.notesWithTag,
     },
     events: {
-      on: <K extends keyof AppEvents>(event: K, fn: AppEvents[K]) =>
-        track(events.on(event, fn)),
+      on: <K extends keyof AppEvents>(event: K, fn: AppEvents[K]) => track(events.on(event, fn)),
     },
     settings: {
-      load: async <T,>(): Promise<T | null> => {
+      load: async <T>(): Promise<T | null> => {
         const res = await fetch(`/api/settings/${settingsKey}`);
         if (!res.ok) return null;
         return (await res.json()) as T;
       },
-      save: async <T,>(data: T): Promise<void> => {
+      save: async <T>(data: T): Promise<void> => {
         await fetch(`/api/settings/${settingsKey}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },

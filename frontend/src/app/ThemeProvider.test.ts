@@ -15,10 +15,7 @@ describe("applyCustomThemeStylesheet", () => {
     const cleanup = applyCustomThemeStylesheet("nord", themeUrl);
     const stylesheets = [...document.head.querySelectorAll("link")];
 
-    expect(stylesheets.map((link) => link.id)).toEqual([
-      "app-styles",
-      "notable-custom-theme",
-    ]);
+    expect(stylesheets.map((link) => link.id)).toEqual(["app-styles", "notable-custom-theme"]);
     expect(stylesheets[1]?.getAttribute("href")).toBe(themeUrl);
     cleanup();
   });

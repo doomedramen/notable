@@ -13,13 +13,7 @@ export function PageContainer({ children }: { children: ReactNode }) {
 }
 
 /** Page title with a leading icon, matching across full-page views. */
-export function PageHeader({
-  icon,
-  children,
-}: {
-  icon: IconSource;
-  children: ReactNode;
-}) {
+export function PageHeader({ icon, children }: { icon: IconSource; children: ReactNode }) {
   return (
     <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-[-0.025em]">
       <AppIcon icon={icon} size={20} className="text-faint" />

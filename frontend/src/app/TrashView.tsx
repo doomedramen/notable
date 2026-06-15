@@ -1,10 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  deleteFromTrash,
-  listTrash,
-  restoreFromTrash,
-  type TrashedNote,
-} from "@/store/notes";
+import { deleteFromTrash, listTrash, restoreFromTrash, type TrashedNote } from "@/store/notes";
 import { syncNotesList } from "@/store/notes-store";
 import { useNotesStore } from "@/store/notes-store";
 import { confirm } from "@/components/ui/confirm";

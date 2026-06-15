@@ -6,10 +6,7 @@ type AnyHandler = (...args: never[]) => void;
 
 const handlers = new Map<keyof AppEvents, Set<AnyHandler>>();
 
-export function on<K extends keyof AppEvents>(
-  event: K,
-  fn: AppEvents[K],
-): Disposable {
+export function on<K extends keyof AppEvents>(event: K, fn: AppEvents[K]): Disposable {
   let set = handlers.get(event);
   if (!set) {
     set = new Set();
@@ -23,12 +20,13 @@ export function on<K extends keyof AppEvents>(
   };
 }
 
-export function emit<K extends keyof AppEvents>(
-  event: K,
-  ...args: Parameters<AppEvents[K]>
-): void {
+export function emit<K extends keyof AppEvents>(event: K, ...args: Parameters<AppEvents[K]>): void {
   const set = handlers.get(event);
   if (!set) return;
+  // Snapshot the handler set: a listener may subscribe/unsubscribe during
+  // dispatch (e.g. a plugin tearing itself down), and we want this emit to
+  // fire exactly the handlers registered when it started.
+  // eslint-disable-next-line unicorn/no-useless-spread
   for (const fn of [...set]) {
     try {
       (fn as unknown as (...a: Parameters<AppEvents[K]>) => void)(...args);

@@ -3,10 +3,7 @@ import { useStore } from "zustand";
 import { useSyncStatus } from "@/store/sync-status";
 import { workspaceStore } from "@/core/workspace";
 import { MountHost } from "@/components/MountHost";
-import type {
-  StatusBarItemSpec,
-  StatusBarTextItemSpec,
-} from "@/plugin-api";
+import type { StatusBarItemSpec, StatusBarTextItemSpec } from "@/plugin-api";
 import { useUI, type ThemePref } from "@/store/ui";
 import {
   DropdownMenu,
@@ -78,13 +75,10 @@ function SyncIndicator({
 
   if (status === null && dirty === 0) return null;
   const config = status === null ? null : statusConfig[status];
-  const receded =
-    status === "synced" && dirty === 0 && !showRoutineStatus;
+  const receded = status === "synced" && dirty === 0 && !showRoutineStatus;
   const detail = [
     config?.detail,
-    dirty > 0
-      ? `${dirty} note${dirty === 1 ? "" : "s"} waiting to sync.`
-      : null,
+    dirty > 0 ? `${dirty} note${dirty === 1 ? "" : "s"} waiting to sync.` : null,
   ]
     .filter(Boolean)
     .join(" ");
@@ -96,29 +90,18 @@ function SyncIndicator({
         data-receded={receded}
         className={cn(
           "flex min-w-0 shrink items-center gap-1.5 overflow-hidden whitespace-nowrap transition-[opacity,max-width] duration-300",
-          receded
-            ? "pointer-events-none max-w-0 opacity-0"
-            : "max-w-40 opacity-100",
+          receded ? "pointer-events-none max-w-0 opacity-0" : "max-w-40 opacity-100",
         )}
       >
-        <span
-          className={cn(
-            "h-1.5 w-1.5 shrink-0 rounded-full",
-            config?.dot ?? "bg-warning",
-          )}
-        />
+        <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", config?.dot ?? "bg-warning")} />
         {config && <span className="truncate">{config.label}</span>}
-        {dirty > 0 && (
-          <span className="shrink-0 text-warning">{dirty} pending</span>
-        )}
+        {dirty > 0 && <span className="shrink-0 text-warning">{dirty} pending</span>}
       </span>
     </Tooltip>
   );
 }
 
-function isTextItem(
-  item: StatusBarItemSpec,
-): item is StatusBarTextItemSpec {
+function isTextItem(item: StatusBarItemSpec): item is StatusBarTextItemSpec {
   return typeof item.text === "string";
 }
 
@@ -131,22 +114,14 @@ function StatusBarItems() {
   return (
     <div className="flex min-w-5 flex-1 items-center justify-end gap-2 overflow-hidden">
       {legacyItems.map((item) => (
-        <MountHost
-          key={item.id}
-          mount={item.mount}
-          className="flex shrink-0 items-center"
-        />
+        <MountHost key={item.id} mount={item.mount} className="flex shrink-0 items-center" />
       ))}
       <ResponsiveStatusItems items={textItems} />
     </div>
   );
 }
 
-function ResponsiveStatusItems({
-  items,
-}: {
-  items: StatusBarTextItemSpec[];
-}) {
+function ResponsiveStatusItems({ items }: { items: StatusBarTextItemSpec[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const [overflowed, setOverflowed] = useState(false);
@@ -212,11 +187,7 @@ function InlineStatusItem({ item }: { item: StatusBarTextItemSpec }) {
     </span>
   );
 
-  return item.tooltip ? (
-    <Tooltip label={item.tooltip}>{content}</Tooltip>
-  ) : (
-    content
-  );
+  return item.tooltip ? <Tooltip label={item.tooltip}>{content}</Tooltip> : content;
 }
 
 function StatusItemsMenu({ items }: { items: StatusBarTextItemSpec[] }) {
@@ -235,11 +206,7 @@ function StatusItemsMenu({ items }: { items: StatusBarTextItemSpec[] }) {
           </Button>
         </DropdownMenuTrigger>
       </Tooltip>
-      <DropdownMenuContent
-        align="end"
-        side="top"
-        className="max-w-[calc(100vw-1rem)]"
-      >
+      <DropdownMenuContent align="end" side="top" className="max-w-[calc(100vw-1rem)]">
         {items.map((item) => (
           <DropdownMenuItem
             key={item.id}
@@ -249,9 +216,7 @@ function StatusItemsMenu({ items }: { items: StatusBarTextItemSpec[] }) {
               else event.preventDefault();
             }}
           >
-            {item.icon && (
-              <AppIcon icon={item.icon} size={14} className="text-muted" />
-            )}
+            {item.icon && <AppIcon icon={item.icon} size={14} className="text-muted" />}
             <span className="whitespace-nowrap tabular-nums">{item.text}</span>
           </DropdownMenuItem>
         ))}
@@ -269,12 +234,7 @@ function ThemeToggle() {
     <DropdownMenu>
       <Tooltip label="Theme">
         <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-5 w-5 shrink-0"
-            aria-label="Theme"
-          >
+          <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" aria-label="Theme">
             <AppIcon icon={icon} size={14} />
           </Button>
         </DropdownMenuTrigger>

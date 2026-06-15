@@ -28,10 +28,7 @@ describe("vault import parsing", () => {
       "My Notes/Nested/Idea.md",
     ]);
     expect(preview.folders).toContain("My Notes/Nested");
-    expect(preview.skipped.map((item) => item.reason)).toEqual([
-      "not-markdown",
-      "hidden",
-    ]);
+    expect(preview.skipped.map((item) => item.reason)).toEqual(["not-markdown", "hidden"]);
   });
 
   it("rejects invalid UTF-8 and notes over the per-file limit", async () => {
@@ -41,10 +38,7 @@ describe("vault import parsing", () => {
     ]);
 
     expect(preview.entries).toHaveLength(0);
-    expect(preview.skipped.map((item) => item.reason)).toEqual([
-      "invalid-utf8",
-      "note-too-large",
-    ]);
+    expect(preview.skipped.map((item) => item.reason)).toEqual(["invalid-utf8", "note-too-large"]);
   });
 
   it("preserves a shared ZIP root and empty folders", async () => {

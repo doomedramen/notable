@@ -8,10 +8,7 @@ export const MOBILE_MEDIA_QUERY = "(max-width: 767px)";
 /** True when the viewport is in the mobile layout range. Non-reactive — use
     inside event handlers / one-off checks. For render-time use `useIsMobile`. */
 export function isMobileViewport(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    window.matchMedia(MOBILE_MEDIA_QUERY).matches
-  );
+  return typeof window !== "undefined" && window.matchMedia(MOBILE_MEDIA_QUERY).matches;
 }
 
 function subscribe(callback: () => void): () => void {

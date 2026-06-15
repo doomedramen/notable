@@ -64,15 +64,11 @@ export function ImportVaultDialog() {
     try {
       const parsed = await source;
       await useNotesStore.getState().refresh();
-      const existing = useNotesStore
-        .getState()
-        .notes.map((note) => note.path);
+      const existing = useNotesStore.getState().notes.map((note) => note.path);
       setPreview(resolvePreviewConflicts(parsed, existing));
     } catch (cause) {
       if ((cause as DOMException)?.name !== "AbortError") {
-        setError(
-          cause instanceof Error ? cause.message : "Could not read the import.",
-        );
+        setError(cause instanceof Error ? cause.message : "Could not read the import.");
       }
     } finally {
       setStatus(null);
@@ -103,32 +99,22 @@ export function ImportVaultDialog() {
     setStatus("Saving import locally…");
     setError(null);
     try {
-      const staged = await useNotesStore
-        .getState()
-        .importEntries(preview.entries, preview.folders);
+      const staged = await useNotesStore.getState().importEntries(preview.entries, preview.folders);
       setStatus("Syncing with the vault…");
       const flush = await syncNotesList();
       const finalPaths = staged.notes.map((note) => {
-        return (
-          flush.pathChanges.find((change) => change.from === note.path)?.to ??
-          note.path
-        );
+        return flush.pathChanges.find((change) => change.from === note.path)?.to ?? note.path;
       });
       const queued = await pendingCreatePaths(finalPaths);
       setResult({
         imported: staged.notes.length,
         queued: queued.size,
         skipped: preview.skipped.length,
-        renamed:
-          preview.conflicts.length +
-          staged.conflicts.length +
-          flush.pathChanges.length,
+        renamed: preview.conflicts.length + staged.conflicts.length + flush.pathChanges.length,
       });
       setPreview(null);
     } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : "Could not stage the import.",
-      );
+      setError(cause instanceof Error ? cause.message : "Could not stage the import.");
     } finally {
       setStatus(null);
     }
@@ -139,8 +125,8 @@ export function ImportVaultDialog() {
       <DialogContent className="max-h-[min(38rem,calc(100dvh-2rem))] overflow-y-auto">
         <DialogTitle>Import into vault</DialogTitle>
         <DialogDescription>
-          Import a folder or ZIP of Markdown files. The selected outer folder
-          is preserved, and existing notes are never overwritten.
+          Import a folder or ZIP of Markdown files. The selected outer folder is preserved, and
+          existing notes are never overwritten.
         </DialogDescription>
 
         <input
@@ -168,9 +154,7 @@ export function ImportVaultDialog() {
             >
               <AppIcon icon="folder" size={20} className="text-accent" />
               <span>Choose folder</span>
-              <span className="text-xs font-normal text-faint">
-                Preserve its folder tree
-              </span>
+              <span className="text-xs font-normal text-faint">Preserve its folder tree</span>
             </Button>
             <Button
               className="h-auto min-h-20 flex-col gap-1.5 px-4 py-3"
@@ -179,23 +163,17 @@ export function ImportVaultDialog() {
             >
               <AppIcon icon="note" size={20} className="text-accent" />
               <span>Choose ZIP</span>
-              <span className="text-xs font-normal text-faint">
-                Useful on mobile browsers
-              </span>
+              <span className="text-xs font-normal text-faint">Useful on mobile browsers</span>
             </Button>
           </div>
         )}
 
         {status && (
-          <p className="mt-5 rounded-md bg-surface px-3 py-3 text-sm text-muted">
-            {status}
-          </p>
+          <p className="mt-5 rounded-md bg-surface px-3 py-3 text-sm text-muted">{status}</p>
         )}
 
         {error && (
-          <p className="mt-4 rounded-md bg-danger/10 px-3 py-2.5 text-sm text-danger">
-            {error}
-          </p>
+          <p className="mt-4 rounded-md bg-danger/10 px-3 py-2.5 text-sm text-danger">{error}</p>
         )}
 
         {preview && (
@@ -221,9 +199,7 @@ export function ImportVaultDialog() {
 
             {preview.conflicts.length > 0 && (
               <div className="mt-3 text-xs text-muted">
-                <p className="font-medium text-foreground">
-                  Conflicting notes will be renamed
-                </p>
+                <p className="font-medium text-foreground">Conflicting notes will be renamed</p>
                 {preview.conflicts.slice(0, 3).map((conflict) => (
                   <p key={`${conflict.from}-${conflict.to}`} className="mt-1 truncate">
                     {conflict.from} → {conflict.to}

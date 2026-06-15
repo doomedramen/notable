@@ -38,16 +38,11 @@ export const iconsStore = createStore<IconsState>(() => ({
   picker: null,
 }));
 
-let pickerResolve:
-  | ((value: IconRef | null | undefined) => void)
-  | null = null;
+let pickerResolve: ((value: IconRef | null | undefined) => void) | null = null;
 
 const ID_PATTERN = /^[a-z][a-z0-9-]*$/;
 
-export function registerIconPack(
-  manifest: PluginManifest,
-  pack: IconPackSpec,
-): Disposable {
+export function registerIconPack(manifest: PluginManifest, pack: IconPackSpec): Disposable {
   validatePack(pack);
   const registered: RegisteredIconPack = {
     ...pack,
@@ -66,10 +61,7 @@ export function registerIconPack(
   };
 }
 
-export function registerIconTheme(
-  manifest: PluginManifest,
-  theme: IconThemeSpec,
-): Disposable {
+export function registerIconTheme(manifest: PluginManifest, theme: IconThemeSpec): Disposable {
   if (!ID_PATTERN.test(theme.id) || !theme.name.trim()) {
     throw new Error("icon theme id and name are required");
   }
@@ -103,12 +95,9 @@ export function resolveIcon(source: IconSource): {
   definition: IconDefinition;
   ref: IconRef;
 } | null {
-  const ref =
-    typeof source === "string" ? resolveSlot(source) : source;
+  const ref = typeof source === "string" ? resolveSlot(source) : source;
   if (!ref) return null;
-  const pack = iconsStore
-    .getState()
-    .packs.find((candidate) => candidate.id === ref.packId);
+  const pack = iconsStore.getState().packs.find((candidate) => candidate.id === ref.packId);
   const definition = pack?.icons[ref.iconId];
   return definition ? { definition, ref } : null;
 }
@@ -132,10 +121,7 @@ export function finishIconPick(value: IconRef | null | undefined): void {
 }
 
 export function selectIconTheme(id: string | null): void {
-  if (
-    id === null ||
-    iconsStore.getState().themes.some((theme) => theme.id === id)
-  ) {
+  if (id === null || iconsStore.getState().themes.some((theme) => theme.id === id)) {
     useUI.getState().setAppIconTheme(id);
   }
 }
@@ -143,11 +129,7 @@ export function selectIconTheme(id: string | null): void {
 function resolveSlot(slot: AppIconSlot): IconRef | null {
   const selected = useUI.getState().appIconTheme;
   if (!selected) return null;
-  return (
-    iconsStore.getState().themes.find((theme) => theme.id === selected)?.icons[
-      slot
-    ] ?? null
-  );
+  return iconsStore.getState().themes.find((theme) => theme.id === selected)?.icons[slot] ?? null;
 }
 
 function rememberIcon(icon: IconRef): void {
@@ -156,8 +138,7 @@ function rememberIcon(icon: IconRef): void {
     [
       icon,
       ...state.recentIcons.filter(
-        (candidate) =>
-          candidate.packId !== icon.packId || candidate.iconId !== icon.iconId,
+        (candidate) => candidate.packId !== icon.packId || candidate.iconId !== icon.iconId,
       ),
     ].slice(0, 24),
   );
@@ -177,9 +158,7 @@ function validatePack(pack: IconPackSpec): void {
 function namespaceRef(pluginId: string, icon: IconRef): IconRef {
   return {
     ...icon,
-    packId: icon.packId.includes(":")
-      ? icon.packId
-      : namespaced(pluginId, icon.packId),
+    packId: icon.packId.includes(":") ? icon.packId : namespaced(pluginId, icon.packId),
   };
 }
 

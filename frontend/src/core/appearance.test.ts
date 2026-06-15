@@ -1,10 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import {
-  appearanceStore,
-  registerTheme,
-  selectTheme,
-  setThemeControl,
-} from "./appearance";
+import { appearanceStore, registerTheme, selectTheme, setThemeControl } from "./appearance";
 import { useUI } from "@/store/ui";
 
 describe("appearance registry", () => {
@@ -79,20 +74,14 @@ describe("appearance registry", () => {
     );
 
     selectTheme("type:set");
-    expect(useUI.getState().customThemeVariables["--font-family"]).toBe(
-      "Inter, sans-serif",
-    );
+    expect(useUI.getState().customThemeVariables["--font-family"]).toBe("Inter, sans-serif");
 
     setThemeControl("type:set", "family", "'Fira Code', monospace");
-    expect(useUI.getState().customThemeVariables["--font-family"]).toBe(
-      "'Fira Code', monospace",
-    );
+    expect(useUI.getState().customThemeVariables["--font-family"]).toBe("'Fira Code', monospace");
 
     // Not one of the curated options: falls back to the default.
     setThemeControl("type:set", "family", "Comic Sans MS");
-    expect(useUI.getState().customThemeVariables["--font-family"]).toBe(
-      "Inter, sans-serif",
-    );
+    expect(useUI.getState().customThemeVariables["--font-family"]).toBe("Inter, sans-serif");
   });
 
   it("rejects unsafe font defaults", () => {

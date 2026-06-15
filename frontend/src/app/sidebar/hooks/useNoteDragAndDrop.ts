@@ -156,10 +156,7 @@ export function useNoteDragAndDrop({
       if (
         drag &&
         !drag.active &&
-        Math.hypot(
-          event.clientX - drag.startX,
-          event.clientY - drag.startY,
-        ) >= CANCEL_THRESHOLD_PX
+        Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) >= CANCEL_THRESHOLD_PX
       ) {
         clearTimeout(drag.timer);
         touchDragRef.current = null;
@@ -173,8 +170,7 @@ export function useNoteDragAndDrop({
         ?.closest<HTMLElement>("[data-folder-drop]");
       const folder = target?.dataset.folderDrop;
       const allowed =
-        folder !== undefined &&
-        folderDropAllowed(folder, { kind: drag.kind, path: drag.path });
+        folder !== undefined && folderDropAllowed(folder, { kind: drag.kind, path: drag.path });
       drag.targetFolder = allowed ? folder : null;
       setDragOverFolder(allowed ? folder : null);
       const nav = navRef.current;
@@ -202,11 +198,9 @@ export function useNoteDragAndDrop({
     onDrop: (event) => {
       event.preventDefault();
       const folderPath =
-        event.dataTransfer.getData(FOLDER_MIME) ||
-        (draggedKind === "folder" ? draggedPath : "");
+        event.dataTransfer.getData(FOLDER_MIME) || (draggedKind === "folder" ? draggedPath : "");
       const notePath =
-        event.dataTransfer.getData(NOTE_MIME) ||
-        (draggedKind === "note" ? draggedPath : "");
+        event.dataTransfer.getData(NOTE_MIME) || (draggedKind === "note" ? draggedPath : "");
       if (folderPath && folderDropAllowed(folder, { kind: "folder", path: folderPath })) {
         onMoveFolder(folderPath, folder);
       } else if (notePath) {

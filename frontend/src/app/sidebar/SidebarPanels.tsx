@@ -25,10 +25,7 @@ export function SidebarPanels() {
               <AppIcon
                 icon="chevron-down"
                 size={12}
-                className={cn(
-                  "transition-transform duration-200",
-                  !open && "-rotate-90",
-                )}
+                className={cn("transition-transform duration-200", !open && "-rotate-90")}
               />
               {panel.title}
             </button>

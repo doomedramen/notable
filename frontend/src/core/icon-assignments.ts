@@ -47,10 +47,7 @@ export function getIconAssignment(target: IconTarget): IconRef | null {
   return iconAssignmentStore.getState().assignments.get(key(target)) ?? null;
 }
 
-export async function setIconAssignment(
-  target: IconTarget,
-  icon: IconRef | null,
-): Promise<void> {
+export async function setIconAssignment(target: IconTarget, icon: IconRef | null): Promise<void> {
   updateLocal(target, icon);
   const mutation = { ...target, icon };
   try {
@@ -75,11 +72,7 @@ export async function flushIconAssignmentQueue(): Promise<void> {
   await putCached(QUEUE_KEY, remaining);
 }
 
-export function moveCachedIconAssignment(
-  kind: IconTarget["kind"],
-  from: string,
-  to: string,
-): void {
+export function moveCachedIconAssignment(kind: IconTarget["kind"], from: string, to: string): void {
   const icon = getIconAssignment({ kind, path: from });
   if (!icon) return;
   const assignments = new Map(iconAssignmentStore.getState().assignments);
@@ -89,10 +82,7 @@ export function moveCachedIconAssignment(
   void persistMap(assignments);
 }
 
-export function removeCachedIconAssignment(
-  kind: IconTarget["kind"],
-  path: string,
-): void {
+export function removeCachedIconAssignment(kind: IconTarget["kind"], path: string): void {
   const assignments = new Map(iconAssignmentStore.getState().assignments);
   if (!assignments.delete(key({ kind, path }))) return;
   iconAssignmentStore.setState({ assignments });
@@ -103,10 +93,7 @@ export function removeCachedFolderTree(path: string): void {
   const assignments = new Map(iconAssignmentStore.getState().assignments);
   let changed = false;
   for (const assignmentKey of assignments.keys()) {
-    if (
-      assignmentKey === `folder:${path}` ||
-      assignmentKey.startsWith(`folder:${path}/`)
-    ) {
+    if (assignmentKey === `folder:${path}` || assignmentKey.startsWith(`folder:${path}/`)) {
       assignments.delete(assignmentKey);
       changed = true;
     }
@@ -137,9 +124,7 @@ function key(target: IconTarget): string {
   return `${target.kind}:${target.path}`;
 }
 
-function assignmentMap(
-  assignments: readonly IconAssignment[],
-): ReadonlyMap<string, IconRef> {
+function assignmentMap(assignments: readonly IconAssignment[]): ReadonlyMap<string, IconRef> {
   return new Map(assignments.map((assignment) => [key(assignment), assignment.icon]));
 }
 
@@ -164,8 +149,7 @@ async function persistMap(assignments: ReadonlyMap<string, IconRef>): Promise<vo
 function openDatabase(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, 1);
-    request.onupgradeneeded = () =>
-      request.result.createObjectStore(STORE_NAME);
+    request.onupgradeneeded = () => request.result.createObjectStore(STORE_NAME);
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
@@ -174,10 +158,7 @@ function openDatabase(): Promise<IDBDatabase> {
 async function getCached<T>(cacheKey: string): Promise<T | undefined> {
   const database = await openDatabase();
   return new Promise((resolve, reject) => {
-    const request = database
-      .transaction(STORE_NAME)
-      .objectStore(STORE_NAME)
-      .get(cacheKey);
+    const request = database.transaction(STORE_NAME).objectStore(STORE_NAME).get(cacheKey);
     request.onsuccess = () => resolve(request.result as T | undefined);
     request.onerror = () => reject(request.error);
   });

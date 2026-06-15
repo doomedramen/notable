@@ -1,7 +1,4 @@
-import type {
-  PluginAPIError,
-  PluginAPIErrorCode,
-} from "@/plugin-api";
+import type { PluginAPIError, PluginAPIErrorCode } from "@/plugin-api";
 
 /**
  * Create the stable error shape exposed by asynchronous plugin APIs.
@@ -24,10 +21,7 @@ export function pluginAPIError(
 }
 
 /** Convert a failed HTTP response into a documented plugin API error. */
-export async function responseError(
-  response: Response,
-  fallback: string,
-): Promise<PluginAPIError> {
+export async function responseError(response: Response, fallback: string): Promise<PluginAPIError> {
   const message = (await response.text()).trim() || fallback;
   const code =
     response.status === 400
@@ -42,10 +36,7 @@ export async function responseError(
 
 /** Normalize network failures without hiding programming errors. */
 export function requestError(error: unknown, fallback: string): PluginAPIError {
-  if (
-    error instanceof Error &&
-    (error as Partial<PluginAPIError>).code !== undefined
-  ) {
+  if (error instanceof Error && (error as Partial<PluginAPIError>).code !== undefined) {
     return error as PluginAPIError;
   }
   return pluginAPIError(

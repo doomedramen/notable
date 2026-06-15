@@ -9,19 +9,10 @@ import { useUI } from "@/store/ui";
 import { normalizeKey } from "@/core/hotkeys";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AppIcon } from "@/components/AppIcon";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  getIconAssignment,
-  iconAssignmentStore,
-} from "@/core/icon-assignments";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { getIconAssignment, iconAssignmentStore } from "@/core/icon-assignments";
 
-const IS_MAC =
-  typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
+const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
 
 function prettyHotkey(hotkey: string): string {
   return normalizeKey(hotkey)
@@ -53,15 +44,16 @@ interface SearchHit {
 /** Render a server snippet, turning the control-char markers into
     highlights without ever interpreting note content as HTML. */
 function Snippet({ text }: { text: string }) {
+  // The server brackets matched terms with control chars; splitting on them
+  // is deliberate, not an accidental control-char match.
+  // eslint-disable-next-line no-control-regex
   const parts = text.split(/[\u0001\u0002]/);
   return (
     <span className="truncate text-xs text-muted">
       {parts.map((part, i) => (
         <Fragment key={i}>
           {i % 2 === 1 ? (
-            <mark className="rounded-xs bg-accent-soft px-0.5 text-accent">
-              {part}
-            </mark>
+            <mark className="rounded-xs bg-accent-soft px-0.5 text-accent">{part}</mark>
           ) : (
             part
           )}
@@ -117,7 +109,10 @@ export function CommandPalette() {
 
   const visibleCommands = useMemo(
     () => [...commands.values()].filter((c) => !c.when || c.when()),
-    [commands, open], // re-evaluate `when` guards each time it opens
+    // `open` isn't read in the callback, but listing it intentionally
+    // re-evaluates the `when` guards each time the palette opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [commands, open],
   );
 
   // fuzzysort over titles/names; empty query shows recents/all commands.
@@ -127,12 +122,12 @@ export function CommandPalette() {
       const recent = recentNotePaths
         .map((path) => byPath.get(path))
         .filter((note): note is (typeof notes)[number] => note !== undefined);
-      return [...recent, ...notes.filter((note) => !recentNotePaths.includes(note.path))]
-        .slice(0, 8);
+      return [...recent, ...notes.filter((note) => !recentNotePaths.includes(note.path))].slice(
+        0,
+        8,
+      );
     }
-    return fuzzysort
-      .go(query, notes, { keys: ["name", "path"], limit: 8 })
-      .map((r) => r.obj);
+    return fuzzysort.go(query, notes, { keys: ["name", "path"], limit: 8 }).map((r) => r.obj);
   }, [query, notes, recentNotePaths]);
 
   const commandResults = useMemo(() => {
@@ -144,9 +139,7 @@ export function CommandPalette() {
           (order.get(b.id) ?? Number.MAX_SAFE_INTEGER),
       );
     }
-    return fuzzysort
-      .go(query, visibleCommands, { key: "name", limit: 10 })
-      .map((r) => r.obj);
+    return fuzzysort.go(query, visibleCommands, { key: "name", limit: 10 }).map((r) => r.obj);
   }, [query, visibleCommands, recentCommandIds]);
 
   return (
@@ -173,9 +166,7 @@ export function CommandPalette() {
 
             {noteResults.length > 0 && (
               <Cmdk.Group
-                heading={
-                  query || recentNotePaths.length === 0 ? "Notes" : "Recent notes"
-                }
+                heading={query || recentNotePaths.length === 0 ? "Notes" : "Recent notes"}
                 className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-faint"
               >
                 {noteResults.map((note) => (
@@ -189,10 +180,7 @@ export function CommandPalette() {
                     className="flex cursor-default items-center gap-2 rounded-sm px-2 py-2 text-sm text-foreground select-none data-[selected=true]:bg-surface-hover"
                   >
                     <AppIcon
-                      icon={
-                        getIconAssignment({ kind: "note", path: note.path }) ??
-                        "note"
-                      }
+                      icon={getIconAssignment({ kind: "note", path: note.path }) ?? "note"}
                       fallback="note"
                       size={14}
                       className="shrink-0 text-faint"
@@ -230,11 +218,7 @@ export function CommandPalette() {
                     }}
                     className="flex cursor-default items-center gap-2 rounded-sm px-2 py-2 text-sm text-foreground select-none data-[selected=true]:bg-surface-hover"
                   >
-                    <AppIcon
-                      icon="file-search"
-                      size={14}
-                      className="shrink-0 text-faint"
-                    />
+                    <AppIcon icon="file-search" size={14} className="shrink-0 text-faint" />
                     <span className="shrink-0">{hit.name}</span>
                     <Snippet text={hit.snippet} />
                   </Cmdk.Item>
@@ -244,11 +228,7 @@ export function CommandPalette() {
 
             {commandResults.length > 0 && (
               <Cmdk.Group
-                heading={
-                  query || recentCommandIds.length === 0
-                    ? "Commands"
-                    : "Recent commands"
-                }
+                heading={query || recentCommandIds.length === 0 ? "Commands" : "Recent commands"}
                 className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-faint"
               >
                 {commandResults.map((cmd) => (

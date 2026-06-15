@@ -68,10 +68,7 @@ export async function getStagedContent(key: string): Promise<string | undefined>
   }
 }
 
-export async function putStagedContent(
-  key: string,
-  content: string,
-): Promise<void> {
+export async function putStagedContent(key: string, content: string): Promise<void> {
   const db = await openVaultDB();
   try {
     const transaction = db.transaction(CONTENT_STORE, "readwrite");
@@ -98,10 +95,7 @@ export async function mutateMeta<T>(
 ): Promise<T> {
   const db = await openVaultDB();
   try {
-    const transaction = db.transaction(
-      [KV_STORE, CONTENT_STORE],
-      "readwrite",
-    );
+    const transaction = db.transaction([KV_STORE, CONTENT_STORE], "readwrite");
     const kv = transaction.objectStore(KV_STORE);
     const content = transaction.objectStore(CONTENT_STORE);
     const vaultRequest = kv.get("vault");

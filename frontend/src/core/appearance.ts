@@ -1,10 +1,5 @@
 import { createStore } from "zustand";
-import type {
-  Disposable,
-  PluginManifest,
-  ThemeControl,
-  ThemeSpec,
-} from "@/plugin-api";
+import type { Disposable, PluginManifest, ThemeControl, ThemeSpec } from "@/plugin-api";
 import { useUI } from "@/store/ui";
 
 export interface RegisteredTheme extends ThemeSpec {
@@ -65,15 +60,11 @@ export function selectTheme(id: string | null): void {
   }
   const theme = appearanceStore.getState().themes.find((item) => item.id === id);
   if (!theme) return;
-  useUI
-    .getState()
-    .setCustomTheme(theme.id, theme.stylesheetUrl, variablesFor(theme));
+  useUI.getState().setCustomTheme(theme.id, theme.stylesheetUrl, variablesFor(theme));
 }
 
 export function selectLocalTheme(id: string | null): void {
-  useUI
-    .getState()
-    .setCustomTheme(id, id ? `/api/themes/${encodeURIComponent(id)}.css` : null);
+  useUI.getState().setCustomTheme(id, id ? `/api/themes/${encodeURIComponent(id)}.css` : null);
 }
 
 export function setThemeControl(
@@ -81,9 +72,7 @@ export function setThemeControl(
   controlId: string,
   value: string | number | boolean,
 ): void {
-  const theme = appearanceStore
-    .getState()
-    .themes.find((item) => item.id === themeId);
+  const theme = appearanceStore.getState().themes.find((item) => item.id === themeId);
   const control = theme?.controls?.find((item) => item.id === controlId);
   if (!theme || !control) return;
   const normalized = normalizeValue(control, value);
@@ -91,7 +80,7 @@ export function setThemeControl(
   const themeSettings = {
     ...state.themeSettings,
     [themeId]: {
-      ...(state.themeSettings[themeId] ?? {}),
+      ...state.themeSettings[themeId],
       [controlId]: normalized,
     },
   };
@@ -118,9 +107,7 @@ function variablesFor(
       if (control.cssVariable) variables[control.cssVariable] = option.value;
       Object.assign(variables, option.variables ?? {});
     } else if (control.type === "toggle") {
-      variables[control.cssVariable] = value
-        ? control.trueValue
-        : control.falseValue;
+      variables[control.cssVariable] = value ? control.trueValue : control.falseValue;
     } else if (control.type === "number") {
       variables[control.cssVariable] = `${value}${control.unit ?? ""}`;
     } else {
@@ -135,9 +122,7 @@ function normalizeValue(
   value: string | number | boolean,
 ): string | number | boolean {
   if (control.type === "color") {
-    return typeof value === "string" && COLOR_PATTERN.test(value)
-      ? value
-      : control.default;
+    return typeof value === "string" && COLOR_PATTERN.test(value) ? value : control.default;
   }
   if (control.type === "number") {
     const number = typeof value === "number" ? value : Number(value);
@@ -154,9 +139,7 @@ function normalizeValue(
     }
     return value;
   }
-  return control.options.some((option) => option.value === value)
-    ? String(value)
-    : control.default;
+  return control.options.some((option) => option.value === value) ? String(value) : control.default;
 }
 
 function validateTheme(theme: ThemeSpec): void {
@@ -177,9 +160,7 @@ function validateTheme(theme: ThemeSpec): void {
     }
     if (
       control.type === "number" &&
-      (control.min > control.max ||
-        control.default < control.min ||
-        control.default > control.max)
+      (control.min > control.max || control.default < control.min || control.default > control.max)
     ) {
       throw new Error(`invalid number range for "${control.id}"`);
     }

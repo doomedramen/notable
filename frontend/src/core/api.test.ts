@@ -29,10 +29,7 @@ describe("plugin API handle", () => {
 
   it("tracks every registration and disposes them all", () => {
     const disposables: Disposable[] = [];
-    const api = createPluginAPI(
-      { id: "test-plugin", name: "Test", version: "0.0.0" },
-      disposables,
-    );
+    const api = createPluginAPI({ id: "test-plugin", name: "Test", version: "0.0.0" }, disposables);
 
     const onOpen = vi.fn();
     api.commands.register({ id: "tp.cmd", name: "Cmd", run: vi.fn() });
@@ -67,10 +64,7 @@ describe("plugin API handle", () => {
   });
 
   it("exposes the host's CodeMirror/Yjs module instances", async () => {
-    const api = createPluginAPI(
-      { id: "test-plugin", name: "Test", version: "0.0.0" },
-      [],
-    );
+    const api = createPluginAPI({ id: "test-plugin", name: "Test", version: "0.0.0" }, []);
     const hostState = await import("@codemirror/state");
     const hostYjs = await import("yjs");
     // Identity, not just shape — a duplicate instance breaks the editor.
@@ -79,10 +73,7 @@ describe("plugin API handle", () => {
   });
 
   it("builds versioned safe asset URLs", () => {
-    const api = createPluginAPI(
-      { id: "test-plugin", name: "Test", version: "1.2.3" },
-      [],
-    );
+    const api = createPluginAPI({ id: "test-plugin", name: "Test", version: "1.2.3" }, []);
     expect(api.assets.url("assets/icon pack.json")).toBe(
       "/api/plugins/test-plugin/assets/icon%20pack.json?v=1.2.3",
     );

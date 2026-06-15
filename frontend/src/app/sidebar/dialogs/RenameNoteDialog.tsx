@@ -4,12 +4,7 @@ import { openNote } from "@/core/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { notice } from "@/components/ui/toast";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import type { NoteMeta } from "@/store/notes";
 
 export function RenameNoteDialog({
@@ -36,9 +31,7 @@ export function RenameNoteDialog({
       onClose();
       return;
     }
-    const newPath = note.folder
-      ? `${note.folder}/${trimmed}.md`
-      : `${trimmed}.md`;
+    const newPath = note.folder ? `${note.folder}/${trimmed}.md` : `${trimmed}.md`;
     const wasActive = note.path === activePath;
     onClose();
     try {

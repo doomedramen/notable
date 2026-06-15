@@ -135,9 +135,7 @@ export function useMobileSidebarGesture({
         settleTimerRef.current = null;
         if (closeAfter) {
           setOpen(false);
-          requestAnimationFrame(() =>
-            setVisual({ active: false, dragging: false, progress: 0 }),
-          );
+          requestAnimationFrame(() => setVisual({ active: false, dragging: false, progress: 0 }));
           return;
         }
         // Keep the gesture-owned styles while the sheet remains open.
@@ -215,9 +213,7 @@ export function useMobileSidebarGesture({
         Math.max(Math.abs(deltaX), Math.abs(deltaY)) >= ACTIVATION_DELTA
       ) {
         gesture.axis =
-          deltaX > 0 && Math.abs(deltaX) > Math.abs(deltaY)
-            ? "horizontal"
-            : "vertical";
+          deltaX > 0 && Math.abs(deltaX) > Math.abs(deltaY) ? "horizontal" : "vertical";
         if (gesture.axis === "horizontal") {
           // Set the dragged transform in the same update as opening the
           // sheet, so it never renders at Radix's default open position
@@ -242,10 +238,7 @@ export function useMobileSidebarGesture({
       gesture.currentX = touch.clientX;
       gesture.currentTime = event.timeStamp;
       gesture.progress = clamp(deltaX / width);
-      if (
-        gesture.progress >= COMMIT_PROGRESS &&
-        !gesture.feedbackTriggered
-      ) {
+      if (gesture.progress >= COMMIT_PROGRESS && !gesture.feedbackTriggered) {
         gesture.feedbackTriggered = true;
         triggerFeedback("selection");
       }
@@ -255,10 +248,7 @@ export function useMobileSidebarGesture({
     const finishOpening = (event: TouchEvent, cancelled: boolean) => {
       const gesture = gestureRef.current;
       if (!gesture || gesture.kind !== "opening") return;
-      if (
-        event.type === "touchend" &&
-        !findTouch(event.changedTouches, gesture.id)
-      ) {
+      if (event.type === "touchend" && !findTouch(event.changedTouches, gesture.id)) {
         return;
       }
       if (gesture.axis !== "horizontal") {
@@ -271,9 +261,7 @@ export function useMobileSidebarGesture({
       const elapsed = Math.max(1, gesture.currentTime - gesture.previousTime);
       const velocity = (gesture.currentX - gesture.previousX) / elapsed;
       const commit =
-        !cancelled &&
-        (gesture.progress >= COMMIT_PROGRESS ||
-          velocity >= COMMIT_VELOCITY);
+        !cancelled && (gesture.progress >= COMMIT_PROGRESS || velocity >= COMMIT_VELOCITY);
       if (cancelled) cancelFeedback();
       finishVisual(commit ? 1 : 0, !commit);
     };
@@ -301,14 +289,7 @@ export function useMobileSidebarGesture({
       window.removeEventListener("touchcancel", onTouchCancel);
       window.removeEventListener("resize", onResize);
     };
-  }, [
-    applyProgress,
-    clearFrame,
-    clearSettleTimer,
-    finishVisual,
-    setOpen,
-    width,
-  ]);
+  }, [applyProgress, clearFrame, clearSettleTimer, finishVisual, setOpen, suppressedRef, width]);
 
   useEffect(() => {
     if (!disabled || !gestureRef.current) return;
@@ -351,11 +332,7 @@ export function useMobileSidebarGesture({
 
   const onPointerMove: PointerEventHandler<HTMLDivElement> = (event) => {
     const gesture = gestureRef.current;
-    if (
-      !gesture ||
-      gesture.kind !== "closing" ||
-      gesture.id !== event.pointerId
-    ) {
+    if (!gesture || gesture.kind !== "closing" || gesture.id !== event.pointerId) {
       return;
     }
     if (suppressedRef?.current && gesture.axis === "pending") {
@@ -368,10 +345,7 @@ export function useMobileSidebarGesture({
       gesture.axis === "pending" &&
       Math.max(Math.abs(deltaX), Math.abs(deltaY)) >= ACTIVATION_DELTA
     ) {
-      gesture.axis =
-        deltaX < 0 && Math.abs(deltaX) > Math.abs(deltaY)
-          ? "horizontal"
-          : "vertical";
+      gesture.axis = deltaX < 0 && Math.abs(deltaX) > Math.abs(deltaY) ? "horizontal" : "vertical";
       if (gesture.axis === "horizontal") {
         event.currentTarget.setPointerCapture(event.pointerId);
       }
@@ -390,10 +364,7 @@ export function useMobileSidebarGesture({
     gesture.currentX = event.clientX;
     gesture.currentTime = event.timeStamp;
     gesture.progress = clamp(1 + deltaX / width);
-    if (
-      gesture.progress <= 1 - COMMIT_PROGRESS &&
-      !gesture.feedbackTriggered
-    ) {
+    if (gesture.progress <= 1 - COMMIT_PROGRESS && !gesture.feedbackTriggered) {
       gesture.feedbackTriggered = true;
       triggerFeedback("selection");
     }
@@ -405,11 +376,7 @@ export function useMobileSidebarGesture({
     cancelled: boolean,
   ) => {
     const gesture = gestureRef.current;
-    if (
-      !gesture ||
-      gesture.kind !== "closing" ||
-      gesture.id !== event.pointerId
-    ) {
+    if (!gesture || gesture.kind !== "closing" || gesture.id !== event.pointerId) {
       return;
     }
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
@@ -424,9 +391,7 @@ export function useMobileSidebarGesture({
     const elapsed = Math.max(1, gesture.currentTime - gesture.previousTime);
     const velocity = (gesture.currentX - gesture.previousX) / elapsed;
     const commit =
-      !cancelled &&
-      (gesture.progress <= 1 - COMMIT_PROGRESS ||
-        velocity <= -COMMIT_VELOCITY);
+      !cancelled && (gesture.progress <= 1 - COMMIT_PROGRESS || velocity <= -COMMIT_VELOCITY);
     if (cancelled) cancelFeedback();
     finishVisual(commit ? 0 : 1, commit);
   };
@@ -452,9 +417,7 @@ export function useMobileSidebarGesture({
     ? {
         animation: "none",
         opacity: visual.progress,
-        transition: visual.dragging
-          ? "none"
-          : `opacity ${TRANSITION_MS}ms ease`,
+        transition: visual.dragging ? "none" : `opacity ${TRANSITION_MS}ms ease`,
       }
     : undefined;
 
@@ -467,9 +430,8 @@ export function useMobileSidebarGesture({
       onPointerMove,
       onPointerUp: (event: Parameters<PointerEventHandler<HTMLDivElement>>[0]) =>
         finishClosing(event, false),
-      onPointerCancel: (
-        event: Parameters<PointerEventHandler<HTMLDivElement>>[0],
-      ) => finishClosing(event, true),
+      onPointerCancel: (event: Parameters<PointerEventHandler<HTMLDivElement>>[0]) =>
+        finishClosing(event, true),
     },
   };
 }

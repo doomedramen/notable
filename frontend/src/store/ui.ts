@@ -29,6 +29,9 @@ interface UIState {
   /** Editor content font size in px. */
   editorFontSize: number;
   setEditorFontSize: (size: number) => void;
+  /** Rich (Tiptap) vs. source (CodeMirror) editor — prototype, applies globally. */
+  editorMode: "source" | "rich";
+  setEditorMode: (mode: "source" | "rich") => void;
   hapticsEnabled: boolean;
   setHapticsEnabled: (enabled: boolean) => void;
   sidebarOpen: boolean;
@@ -63,11 +66,8 @@ export const useUI = create<UIState>()(
       customThemeUrl: null,
       customThemeVariables: {},
       themeSettings: {},
-      setCustomTheme: (
-        customTheme,
-        customThemeUrl = null,
-        customThemeVariables = {},
-      ) => set({ customTheme, customThemeUrl, customThemeVariables }),
+      setCustomTheme: (customTheme, customThemeUrl = null, customThemeVariables = {}) =>
+        set({ customTheme, customThemeUrl, customThemeVariables }),
       setThemeSettings: (themeSettings, customThemeVariables) =>
         set({ themeSettings, customThemeVariables }),
       appIconTheme: null,
@@ -76,6 +76,8 @@ export const useUI = create<UIState>()(
       setRecentIcons: (recentIcons) => set({ recentIcons }),
       editorFontSize: 14,
       setEditorFontSize: (editorFontSize) => set({ editorFontSize }),
+      editorMode: "source",
+      setEditorMode: (editorMode) => set({ editorMode }),
       hapticsEnabled: true,
       setHapticsEnabled: (hapticsEnabled) => set({ hapticsEnabled }),
       sidebarOpen: startOpen,
@@ -102,18 +104,18 @@ export const useUI = create<UIState>()(
       recentNotePaths: [],
       recordRecentNote: (path) =>
         set((state) => ({
-          recentNotePaths: [
-            path,
-            ...state.recentNotePaths.filter((item) => item !== path),
-          ].slice(0, 12),
+          recentNotePaths: [path, ...state.recentNotePaths.filter((item) => item !== path)].slice(
+            0,
+            12,
+          ),
         })),
       recentCommandIds: [],
       recordRecentCommand: (id) =>
         set((state) => ({
-          recentCommandIds: [
-            id,
-            ...state.recentCommandIds.filter((item) => item !== id),
-          ].slice(0, 12),
+          recentCommandIds: [id, ...state.recentCommandIds.filter((item) => item !== id)].slice(
+            0,
+            12,
+          ),
         })),
     }),
     // Key is read by the pre-paint script in index.html — keep in sync.
@@ -128,6 +130,7 @@ export const useUI = create<UIState>()(
         appIconTheme: s.appIconTheme,
         recentIcons: s.recentIcons,
         editorFontSize: s.editorFontSize,
+        editorMode: s.editorMode,
         hapticsEnabled: s.hapticsEnabled,
         sidebarOpen: s.sidebarOpen,
         collapsedFolders: s.collapsedFolders,

@@ -7,11 +7,7 @@ import type {
   TaggedNote,
 } from "@/plugin-api";
 import { encodePath } from "@/store/notes";
-import {
-  pluginAPIError,
-  requestError,
-  responseError,
-} from "./plugin-api-error";
+import { pluginAPIError, requestError, responseError } from "./plugin-api-error";
 
 async function getJSON<T>(url: string, fallback: string): Promise<T> {
   try {
@@ -23,20 +19,12 @@ async function getJSON<T>(url: string, fallback: string): Promise<T> {
   }
 }
 
-export function query(
-  text: string,
-  options: SearchOptions = {},
-): Promise<SearchHit[]> {
+export function query(text: string, options: SearchOptions = {}): Promise<SearchHit[]> {
   if (
     options.limit !== undefined &&
-    (!Number.isInteger(options.limit) ||
-      options.limit < 1 ||
-      options.limit > 100)
+    (!Number.isInteger(options.limit) || options.limit < 1 || options.limit > 100)
   ) {
-    throw pluginAPIError(
-      "INVALID_ARGUMENT",
-      "Search limit must be an integer between 1 and 100.",
-    );
+    throw pluginAPIError("INVALID_ARGUMENT", "Search limit must be an integer between 1 and 100.");
   }
   const params = new URLSearchParams({ q: text });
   if (options.limit !== undefined) {
@@ -46,9 +34,10 @@ export function query(
 }
 
 export async function backlinks(path: string): Promise<Backlink[]> {
-  const rows = await getJSON<
-    { source_path: string; source_name: string; context: string }[]
-  >(`/api/backlinks/${encodePath(path)}`, `Could not load backlinks for "${path}".`);
+  const rows = await getJSON<{ source_path: string; source_name: string; context: string }[]>(
+    `/api/backlinks/${encodePath(path)}`,
+    `Could not load backlinks for "${path}".`,
+  );
   return rows.map((row) => ({
     sourcePath: row.source_path,
     sourceName: row.source_name,
@@ -69,8 +58,5 @@ export function tags(): Promise<TagCount[]> {
 }
 
 export function notesWithTag(tag: string): Promise<TaggedNote[]> {
-  return getJSON(
-    `/api/tags/${encodePath(tag)}`,
-    `Could not load notes tagged "${tag}".`,
-  );
+  return getJSON(`/api/tags/${encodePath(tag)}`, `Could not load notes tagged "${tag}".`);
 }

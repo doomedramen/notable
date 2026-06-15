@@ -13,11 +13,7 @@ export function installAuthInterceptor() {
     if (res.status === 401) {
       const input = args[0];
       const url =
-        typeof input === "string"
-          ? input
-          : input instanceof URL
-            ? input.pathname
-            : input.url;
+        typeof input === "string" ? input : input instanceof URL ? input.pathname : input.url;
       if (url.startsWith("/api/") && !url.startsWith("/api/login")) {
         window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
       }
@@ -82,9 +78,7 @@ function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
         className="w-full max-w-xs rounded-md border border-border bg-surface p-5 shadow-dialog"
       >
         <h1 className="text-[15px] font-semibold">Notable</h1>
-        <p className="mt-1 text-sm text-muted">
-          Enter the password to continue.
-        </p>
+        <p className="mt-1 text-sm text-muted">Enter the password to continue.</p>
         <Input
           type="password"
           autoFocus

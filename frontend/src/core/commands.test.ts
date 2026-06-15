@@ -1,10 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  availableCommands,
-  commandStore,
-  registerCommand,
-  runCommand,
-} from "./commands";
+import { availableCommands, commandStore, registerCommand, runCommand } from "./commands";
 
 describe("command registry", () => {
   beforeEach(() => {

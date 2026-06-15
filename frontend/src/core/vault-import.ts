@@ -1,13 +1,5 @@
-import {
-  Unzip,
-  UnzipInflate,
-  UnzipPassThrough,
-  type UnzipFile,
-} from "fflate";
-import type {
-  ImportConflict,
-  StagedImportEntry,
-} from "@/store/notes";
+import { Unzip, UnzipInflate, UnzipPassThrough, type UnzipFile } from "fflate";
+import type { ImportConflict, StagedImportEntry } from "@/store/notes";
 
 export const MAX_IMPORT_ENTRIES = 10_000;
 export const MAX_NOTE_BYTES = 10 * 1024 * 1024;
@@ -46,9 +38,7 @@ interface FileSystemFileHandleLike {
 interface FileSystemDirectoryHandleLike {
   kind: "directory";
   name: string;
-  values(): AsyncIterableIterator<
-    FileSystemFileHandleLike | FileSystemDirectoryHandleLike
-  >;
+  values(): AsyncIterableIterator<FileSystemFileHandleLike | FileSystemDirectoryHandleLike>;
 }
 
 declare global {
@@ -58,21 +48,13 @@ declare global {
 }
 
 function normalizedPath(path: string): string | null {
-  if (
-    !path ||
-    path.includes("\\") ||
-    path.startsWith("/") ||
-    /^[A-Za-z]:/.test(path)
-  ) {
+  if (!path || path.includes("\\") || path.startsWith("/") || /^[A-Za-z]:/.test(path)) {
     return null;
   }
   const parts = path.split("/").filter((part, index, all) => {
     return !(index === all.length - 1 && part === "");
   });
-  if (
-    parts.length === 0 ||
-    parts.some((part) => !part || part === "." || part === "..")
-  ) {
+  if (parts.length === 0 || parts.some((part) => !part || part === "." || part === "..")) {
     return null;
   }
   return parts.join("/");
@@ -208,9 +190,7 @@ async function readCandidate(
   }
 }
 
-export async function previewDirectoryFiles(
-  files: Iterable<File>,
-): Promise<ImportPreview> {
+export async function previewDirectoryFiles(files: Iterable<File>): Promise<ImportPreview> {
   const list = [...files];
   const firstPath = list[0]?.webkitRelativePath || list[0]?.name || "Import";
   const rootName = firstPath.split("/")[0] || "Import";
@@ -282,12 +262,7 @@ export async function previewDirectoryPicker(): Promise<ImportPreview> {
     count: 0,
   };
   await walkDirectory(handle, root, state);
-  return finalizePreview(
-    root,
-    state.entries,
-    state.folders,
-    state.skipped,
-  );
+  return finalizePreview(root, state.entries, state.folders, state.skipped);
 }
 
 function zipRootName(filename: string): string {
@@ -300,19 +275,14 @@ function commonZipRoot(paths: readonly string[]): string | null {
   if (paths.length === 0) return null;
   const roots = paths.map((path) => path.split("/"));
   const first = roots[0][0];
-  return first && roots.every((parts) => parts.length > 1 && parts[0] === first)
-    ? first
-    : null;
+  return first && roots.every((parts) => parts.length > 1 && parts[0] === first) ? first : null;
 }
 
 export async function previewZip(file: File): Promise<ImportPreview> {
   if (file.size > MAX_IMPORT_BYTES) {
-    return finalizePreview(
-      zipRootName(file.name),
-      [],
-      new Set(),
-      [{ path: file.name, reason: "import-too-large" }],
-    );
+    return finalizePreview(zipRootName(file.name), [], new Set(), [
+      { path: file.name, reason: "import-too-large" },
+    ]);
   }
   const compressed = new Uint8Array(await file.arrayBuffer());
   const rawEntries: ImportEntry[] = [];
@@ -352,10 +322,7 @@ export async function previewZip(file: File): Promise<ImportPreview> {
         skipped.push({ path, reason: "not-markdown" });
         return;
       }
-      if (
-        entry.originalSize !== undefined &&
-        entry.originalSize > MAX_NOTE_BYTES
-      ) {
+      if (entry.originalSize !== undefined && entry.originalSize > MAX_NOTE_BYTES) {
         skipped.push({ path, reason: "note-too-large" });
         return;
       }
@@ -428,10 +395,7 @@ export async function previewZip(file: File): Promise<ImportPreview> {
     }
   });
 
-  const sourcePaths = [
-    ...rawEntries.map((entry) => entry.path),
-    ...rawFolders,
-  ];
+  const sourcePaths = [...rawEntries.map((entry) => entry.path), ...rawFolders];
   const commonRoot = commonZipRoot(sourcePaths);
   const rootName = commonRoot ?? zipRootName(file.name);
   const prefix = commonRoot ? "" : `${rootName}/`;
@@ -439,9 +403,7 @@ export async function previewZip(file: File): Promise<ImportPreview> {
     ...entry,
     path: `${prefix}${entry.path}`,
   }));
-  const folders = new Set(
-    [...rawFolders].map((folder) => `${prefix}${folder}`),
-  );
+  const folders = new Set([...rawFolders].map((folder) => `${prefix}${folder}`));
   if (!commonRoot) folders.add(rootName);
   return finalizePreview(rootName, entries, folders, skipped);
 }

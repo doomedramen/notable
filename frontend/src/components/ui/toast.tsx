@@ -17,22 +17,15 @@ export interface NoticeOptions {
 }
 
 /** Show a transient notification. Safe to call from anywhere. */
-export function notice(
-  message: string,
-  durationOrOptions: number | NoticeOptions = {},
-): void {
+export function notice(message: string, durationOrOptions: number | NoticeOptions = {}): void {
   const opts =
-    typeof durationOrOptions === "number"
-      ? { duration: durationOrOptions }
-      : durationOrOptions;
+    typeof durationOrOptions === "number" ? { duration: durationOrOptions } : durationOrOptions;
   const { duration = 4000, variant = "default", action } = opts;
   const emit = variant === "danger" ? toast.error : toast;
   emit(message, {
     // duration 0 historically meant "stay until dismissed".
     duration: duration === 0 ? Infinity : duration,
-    action: action
-      ? { label: action.label, onClick: () => void action.run() }
-      : undefined,
+    action: action ? { label: action.label, onClick: () => void action.run() } : undefined,
   });
 }
 
@@ -65,8 +58,7 @@ export function Toaster() {
           error: "!text-danger",
           actionButton:
             "!bg-transparent !rounded-sm !px-1.5 !py-0.5 !font-medium !text-accent hover:!bg-accent-soft",
-          closeButton:
-            "!bg-background !border-border !text-faint hover:!text-foreground",
+          closeButton: "!bg-background !border-border !text-faint hover:!text-foreground",
         },
       }}
     />

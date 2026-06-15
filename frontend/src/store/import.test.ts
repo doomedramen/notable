@@ -1,9 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  flushQueue,
-  stageImport,
-  type VaultListing,
-} from "./notes";
+import { flushQueue, stageImport, type VaultListing } from "./notes";
 import { getKV, getStagedContent, setKV } from "./vault-db";
 
 function deleteDatabase(): Promise<void> {
@@ -39,7 +35,7 @@ describe("offline import staging and replay", () => {
     expect(result.listing.notes[0]?.path).toBe("Vault/Plan.md");
     expect(result.listing.folders).toEqual(["Vault", "Vault/Empty"]);
     expect(await getStagedContent("Vault/Plan.md")).toBe("# Plan");
-    expect((await getKV<unknown[]>("queue"))).toHaveLength(3);
+    expect(await getKV<unknown[]>("queue")).toHaveLength(3);
   });
 
   it("keeps failed creates queued while removing successful ones", async () => {
@@ -58,9 +54,7 @@ describe("offline import staging and replay", () => {
         if (!init?.method) return json(listing);
         if (url === "/api/notes" && init.method === "POST") {
           const path = JSON.parse(String(init.body)).path as string;
-          return path.endsWith("One.md")
-            ? json({}, 201)
-            : json({}, 500);
+          return path.endsWith("One.md") ? json({}, 201) : json({}, 500);
         }
         if (url.includes("/api/documents/")) return json({});
         return json({}, 201);
@@ -76,10 +70,7 @@ describe("offline import staging and replay", () => {
   });
 
   it("reapplies duplicate naming when the server changed while offline", async () => {
-    await stageImport(
-      [{ path: "Vault/Plan.md", content: "mine", size: 4 }],
-      [],
-    );
+    await stageImport([{ path: "Vault/Plan.md", content: "mine", size: 4 }], []);
     const server: VaultListing = {
       notes: [
         {
@@ -107,9 +98,7 @@ describe("offline import staging and replay", () => {
 
     const result = await flushQueue();
 
-    expect(result.pathChanges).toEqual([
-      { from: "Vault/Plan.md", to: "Vault/Plan 1.md" },
-    ]);
+    expect(result.pathChanges).toEqual([{ from: "Vault/Plan.md", to: "Vault/Plan 1.md" }]);
     expect(requests).toEqual(["Vault/Plan 1.md"]);
     expect(await getStagedContent("Vault/Plan.md")).toBeUndefined();
   });
@@ -126,9 +115,7 @@ describe("offline import staging and replay", () => {
       ],
       folders: [],
     });
-    await setKV("queue", [
-      { kind: "create", path: "Legacy.md", content: "legacy body" },
-    ]);
+    await setKV("queue", [{ kind: "create", path: "Legacy.md", content: "legacy body" }]);
     const writes: string[] = [];
     vi.stubGlobal(
       "fetch",

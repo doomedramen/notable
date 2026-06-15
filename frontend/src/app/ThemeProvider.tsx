@@ -15,9 +15,7 @@ function syncThemeColor() {
     .getPropertyValue("--background")
     .trim();
   if (background) {
-    document
-      .querySelector('meta[name="theme-color"]')
-      ?.setAttribute("content", background);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", background);
   }
 }
 
@@ -32,17 +30,12 @@ export function applyCustomThemeStylesheet(
     return () => {};
   }
 
-  const link =
-    existing instanceof HTMLLinkElement
-      ? existing
-      : document.createElement("link");
+  const link = existing instanceof HTMLLinkElement ? existing : document.createElement("link");
   const onLoad = () => syncThemeColor();
   link.addEventListener("load", onLoad);
   link.id = CUSTOM_THEME_LINK_ID;
   link.rel = "stylesheet";
-  link.href =
-    customThemeUrl ??
-    `/api/themes/${encodeURIComponent(customTheme)}.css`;
+  link.href = customThemeUrl ?? `/api/themes/${encodeURIComponent(customTheme)}.css`;
 
   // The pre-paint script can create this link before Vite's base stylesheet.
   // Appending an existing node moves it to the end so custom tokens win.
@@ -73,10 +66,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, [theme]);
 
   useEffect(() => {
-    document.documentElement.style.setProperty(
-      "--editor-font-size",
-      `${editorFontSize}px`,
-    );
+    document.documentElement.style.setProperty("--editor-font-size", `${editorFontSize}px`);
   }, [editorFontSize]);
 
   useEffect(

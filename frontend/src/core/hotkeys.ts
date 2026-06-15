@@ -9,8 +9,7 @@ import { commandStore, runCommand } from "./commands";
 
 const explicit = new Map<string, string>(); // normalized key -> command id
 
-const IS_MAC =
-  typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
+const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
 
 /** Normalize "Mod-Shift-K" / "Ctrl-k" etc. to a canonical form. */
 export function normalizeKey(key: string): string {
@@ -21,9 +20,7 @@ export function normalizeKey(key: string): string {
   if (mods.delete("mod")) mods.add(IS_MAC ? "meta" : "ctrl");
   if (mods.delete("cmd")) mods.add("meta");
   if (mods.delete("control")) mods.add("ctrl");
-  return [...["ctrl", "alt", "shift", "meta"].filter((m) => mods.has(m)), k].join(
-    "-",
-  );
+  return [...["ctrl", "alt", "shift", "meta"].filter((m) => mods.has(m)), k].join("-");
 }
 
 export function eventToKey(e: KeyboardEvent): string {

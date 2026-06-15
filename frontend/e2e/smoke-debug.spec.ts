@@ -11,7 +11,9 @@ async function enableQuickNote(page: Page) {
 test("debug full flow", async ({ page }) => {
   page.on("console", (msg) => console.log("CONSOLE:", msg.type(), msg.text()));
   page.on("pageerror", (err) => console.log("PAGEERROR:", err.message, err.stack));
-  page.on("response", (res) => { if (res.status() >= 400) console.log("HTTP", res.status(), res.url()); });
+  page.on("response", (res) => {
+    if (res.status() >= 400) console.log("HTTP", res.status(), res.url());
+  });
   await page.goto("/");
   await enableQuickNote(page);
 

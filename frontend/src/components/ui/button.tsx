@@ -10,16 +10,14 @@ type Variant = "primary" | "secondary" | "ghost" | "danger" | "dangerSolid";
 type Size = "sm" | "md" | "icon";
 
 const variants: Record<Variant, string> = {
-  primary:
-    "bg-accent text-accent-foreground hover:opacity-90 active:opacity-80 font-medium",
+  primary: "bg-accent text-accent-foreground hover:opacity-90 active:opacity-80 font-medium",
   secondary:
     "bg-surface text-foreground border border-border hover:bg-surface-hover hover:border-border-strong",
   ghost: "text-muted hover:text-foreground hover:bg-surface-hover",
   // Subtle: icon/menu actions inline with other content (e.g. uninstall).
   danger: "text-danger hover:bg-danger/10",
   // Solid: the destructive confirm CTA in a dialog footer.
-  dangerSolid:
-    "bg-danger text-white hover:opacity-90 active:opacity-80 font-medium",
+  dangerSolid: "bg-danger text-white hover:opacity-90 active:opacity-80 font-medium",
 };
 
 const sizes: Record<Size, string> = {

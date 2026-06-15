@@ -8,7 +8,11 @@ export interface FolderNode {
   children: FolderNode[];
 }
 
-export function useFolderTree(notes: NoteMeta[], folders: string[], sortComparator?: (a: NoteMeta, b: NoteMeta) => number) {
+export function useFolderTree(
+  notes: NoteMeta[],
+  folders: string[],
+  sortComparator?: (a: NoteMeta, b: NoteMeta) => number,
+) {
   return useMemo(() => {
     const root: FolderNode = { path: "", name: "", notes: [], children: [] };
     const map = new Map<string, FolderNode>();

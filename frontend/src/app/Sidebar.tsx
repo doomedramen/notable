@@ -34,12 +34,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Sheet,
-  SheetContent,
-  SheetOverlay,
-  SheetPortal,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetOverlay, SheetPortal } from "@/components/ui/sheet";
 import { cn } from "@/lib/cn";
 import { useIsMobile } from "@/lib/viewport";
 import { AppIcon } from "@/components/AppIcon";
@@ -50,10 +45,7 @@ import {
   type ItemDragHandlers,
   type FolderDropHandlers,
 } from "./sidebar/hooks/useNoteDragAndDrop";
-import {
-  getIconAssignment,
-  iconAssignmentStore,
-} from "@/core/icon-assignments";
+import { getIconAssignment, iconAssignmentStore } from "@/core/icon-assignments";
 import { SidebarPanels } from "./sidebar/SidebarPanels";
 import { NewFolderDialog } from "./sidebar/dialogs/NewFolderDialog";
 import { RenameNoteDialog } from "./sidebar/dialogs/RenameNoteDialog";
@@ -96,12 +88,7 @@ export function Sidebar() {
   const noteDragActiveRef = useRef(false);
   const isMobile = useIsMobile();
   const modalOpen = settingsOpen || paletteOpen || importOpen;
-  const {
-    contentStyle,
-    overlayStyle,
-    gestureActive,
-    contentHandlers,
-  } = useMobileSidebarGesture({
+  const { contentStyle, overlayStyle, gestureActive, contentHandlers } = useMobileSidebarGesture({
     open: mobileOpen,
     setOpen: setMobileOpen,
     disabled: modalOpen,
@@ -110,10 +97,7 @@ export function Sidebar() {
     suppressedRef: noteDragActiveRef,
   });
 
-  const sidebarSortComparators = useStore(
-    workspaceStore,
-    (state) => state.sidebarSortComparators,
-  );
+  const sidebarSortComparators = useStore(workspaceStore, (state) => state.sidebarSortComparators);
 
   const tree = useFolderTree(
     notes,
@@ -200,9 +184,7 @@ export function Sidebar() {
           action: {
             label: "Undo",
             run: async () => {
-              const restored = await Promise.all(
-                targets.map((note) => restore(note.path)),
-              );
+              const restored = await Promise.all(targets.map((note) => restore(note.path)));
               if (activeWasTrashed && restored[0]) {
                 openNote(restored[0].path);
               }
@@ -292,9 +274,7 @@ export function Sidebar() {
   const sidebarBody = (
     <div className="flex h-full min-h-0 flex-1 flex-col">
       <div className="flex items-center gap-1.5 px-3 pt-3 pb-2">
-        <span className="flex-1 text-sm font-semibold tracking-tight select-none">
-          Notable
-        </span>
+        <span className="flex-1 text-sm font-semibold tracking-tight select-none">Notable</span>
         <Tooltip label="Settings" disabled={isMobile}>
           <Button
             variant="ghost"
@@ -307,12 +287,7 @@ export function Sidebar() {
         </Tooltip>
         {!isMobile && (
           <Tooltip label="Hide sidebar">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggle}
-              aria-label="Hide sidebar"
-            >
+            <Button variant="ghost" size="icon" onClick={toggle} aria-label="Hide sidebar">
               <AppIcon icon="sidebar" size={15} />
             </Button>
           </Tooltip>
@@ -347,10 +322,7 @@ export function Sidebar() {
         </DropdownMenu>
       </div>
 
-      <nav
-        ref={navRef}
-        className="flex-1 overflow-y-auto overscroll-contain px-1.5 pb-2"
-      >
+      <nav ref={navRef} className="flex-1 overflow-y-auto overscroll-contain px-1.5 pb-2">
         {!loaded ? (
           <div className="space-y-1 px-2 py-2">
             <Skeleton className="h-7 w-full" />
@@ -358,9 +330,7 @@ export function Sidebar() {
             <Skeleton className="h-7 w-3/4" />
           </div>
         ) : notes.length === 0 && folders.length === 0 ? (
-          <EmptyState icon="note">
-            No notes yet. Create one to start writing.
-          </EmptyState>
+          <EmptyState icon="note">No notes yet. Create one to start writing.</EmptyState>
         ) : (
           <>
             <ul
@@ -397,9 +367,7 @@ export function Sidebar() {
                 onNoteContextMenu={ensureSelected}
                 onCreateNote={() => void handleCreate(node.path)}
                 onRename={setRenaming}
-                onDelete={(note) =>
-                  void handleTrash(selectionFor(note.path))
-                }
+                onDelete={(note) => void handleTrash(selectionFor(note.path))}
                 onRenameFolder={() => setRenamingFolder(node.path)}
                 onDeleteFolder={() => void handleDeleteFolder(node.path)}
                 onDownload={() => handleDownload(node.path)}
@@ -410,7 +378,6 @@ export function Sidebar() {
                 getFolderDragHandlers={getFolderDragHandlers}
                 getFolderDropHandlers={getFolderDropHandlers}
                 handleCreate={handleCreate}
-                handleTrash={handleTrash}
                 handleDeleteFolder={handleDeleteFolder}
                 setRenamingFolder={setRenamingFolder}
               />
@@ -457,10 +424,7 @@ export function Sidebar() {
       {/* Mobile: Radix modal sheet with local edge-open/drag-close gestures. */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetPortal>
-          <SheetOverlay
-            data-testid="sidebar-swipe-backdrop"
-            style={overlayStyle}
-          />
+          <SheetOverlay data-testid="sidebar-swipe-backdrop" style={overlayStyle} />
           <SheetContent
             ref={mobileSidebarRef}
             data-testid="mobile-sidebar"
@@ -513,7 +477,6 @@ function FolderGroup({
   getFolderDragHandlers,
   getFolderDropHandlers,
   handleCreate,
-  handleTrash,
   handleDeleteFolder,
   setRenamingFolder,
 }: {
@@ -536,22 +499,16 @@ function FolderGroup({
   getFolderDragHandlers: (path: string) => ItemDragHandlers;
   getFolderDropHandlers: (folder: string) => FolderDropHandlers;
   handleCreate: (folder?: string) => Promise<void>;
-  handleTrash: (paths: string[]) => Promise<void>;
   handleDeleteFolder: (folder: string) => Promise<void>;
   setRenamingFolder: (folder: string | null) => void;
 }) {
   const collapsed = useUI((state) => state.collapsedFolders.includes(node.path));
   const toggleCollapsed = useUI((state) => state.toggleFolderCollapsed);
   const revealId = useId();
-  const menuItems = useStore(
-    workspaceStore,
-    (state) => state.folderContextMenuItems,
-  );
+  const menuItems = useStore(workspaceStore, (state) => state.folderContextMenuItems);
   useStore(iconAssignmentStore, (state) => state.assignments);
   const icon = getIconAssignment({ kind: "folder", path: node.path }) ?? "folder";
-  const contributed = menuItems.filter(
-    (item) => !item.when || item.when(node.path, [node.path]),
-  );
+  const contributed = menuItems.filter((item) => !item.when || item.when(node.path, [node.path]));
 
   return (
     <section className="mt-1">
@@ -582,14 +539,12 @@ function FolderGroup({
             <AppIcon
               icon="chevron-down"
               size={12}
-              className={cn("shrink-0 transition-transform duration-200", collapsed && "-rotate-90")}
+              className={cn(
+                "shrink-0 transition-transform duration-200",
+                collapsed && "-rotate-90",
+              )}
             />
-            <AppIcon
-              icon={icon}
-              fallback="folder"
-              size={14}
-              className="shrink-0 text-faint"
-            />
+            <AppIcon icon={icon} fallback="folder" size={14} className="shrink-0 text-faint" />
             <span className="truncate font-medium">{node.name}</span>
           </button>
         </ContextMenuTrigger>
@@ -598,10 +553,7 @@ function FolderGroup({
           <ContextMenuItem onSelect={onRenameFolder}>Rename folder…</ContextMenuItem>
           <ContextMenuItem onSelect={onDownload}>Download as ZIP</ContextMenuItem>
           {contributed.map((item) => (
-            <ContextMenuItem
-              key={item.id}
-              onSelect={() => item.run(node.path, [node.path])}
-            >
+            <ContextMenuItem key={item.id} onSelect={() => item.run(node.path, [node.path])}>
               {item.icon && <AppIcon icon={item.icon} size={14} />}
               {item.label}
             </ContextMenuItem>
@@ -659,7 +611,6 @@ function FolderGroup({
                 getFolderDragHandlers={getFolderDragHandlers}
                 getFolderDropHandlers={getFolderDropHandlers}
                 handleCreate={handleCreate}
-                handleTrash={handleTrash}
                 handleDeleteFolder={handleDeleteFolder}
                 setRenamingFolder={setRenamingFolder}
               />
@@ -696,14 +647,8 @@ function NoteRow({
   dragHandlers: ItemDragHandlers;
   hideFolder?: boolean;
 }) {
-  const menuItems = useStore(
-    workspaceStore,
-    (state) => state.noteContextMenuItems,
-  );
-  const decorators = useStore(
-    workspaceStore,
-    (state) => state.noteDecorators,
-  );
+  const menuItems = useStore(workspaceStore, (state) => state.noteContextMenuItems);
+  const decorators = useStore(workspaceStore, (state) => state.noteDecorators);
   useStore(iconAssignmentStore, (state) => state.assignments);
   let badge: string | undefined;
   let iconOverride: IconSource | undefined;
@@ -713,12 +658,9 @@ function NoteRow({
     if (result.badge !== undefined) badge = result.badge;
     if (result.icon !== undefined) iconOverride = result.icon;
   }
-  const icon =
-    iconOverride ?? getIconAssignment({ kind: "note", path: note.path }) ?? "note";
+  const icon = iconOverride ?? getIconAssignment({ kind: "note", path: note.path }) ?? "note";
   const paths = selectedPaths ?? [note.path];
-  const contributed = menuItems.filter(
-    (item) => !item.when || item.when(note.path, paths),
-  );
+  const contributed = menuItems.filter((item) => !item.when || item.when(note.path, paths));
   return (
     <li>
       <ContextMenu>
@@ -735,10 +677,7 @@ function NoteRow({
               } else if (event.key === "Delete") {
                 event.preventDefault();
                 onDelete();
-              } else if (
-                event.key === "ArrowDown" ||
-                event.key === "ArrowUp"
-              ) {
+              } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
                 event.preventDefault();
                 // Skip rows inside collapsed folders: they're `inert`, so
                 // focus() on them is a no-op and arrow nav would silently
@@ -746,8 +685,7 @@ function NoteRow({
                 const rows = [
                   ...(event.currentTarget
                     .closest("nav")
-                    ?.querySelectorAll<HTMLButtonElement>("[data-note-row]") ??
-                    []),
+                    ?.querySelectorAll<HTMLButtonElement>("[data-note-row]") ?? []),
                 ].filter((row) => !row.closest("[inert]"));
                 const index = rows.indexOf(event.currentTarget);
                 rows[
@@ -771,10 +709,7 @@ function NoteRow({
               icon={icon}
               fallback="note"
               size={14}
-              className={cn(
-                "shrink-0",
-                active ? "text-accent" : "text-faint",
-              )}
+              className={cn("shrink-0", active ? "text-accent" : "text-faint")}
             />
             <span className="truncate">{note.name}</span>
             {badge && (
@@ -783,9 +718,7 @@ function NoteRow({
               </span>
             )}
             {!hideFolder && note.folder && (
-              <span className="ml-auto truncate text-xs text-faint">
-                {note.folder}
-              </span>
+              <span className="ml-auto truncate text-xs text-faint">{note.folder}</span>
             )}
           </button>
         </ContextMenuTrigger>
@@ -793,10 +726,7 @@ function NoteRow({
           <ContextMenuItem onSelect={onRename}>Rename…</ContextMenuItem>
           <ContextMenuItem onSelect={onDownload}>Download</ContextMenuItem>
           {contributed.map((item) => (
-            <ContextMenuItem
-              key={item.id}
-              onSelect={() => item.run(note.path, paths)}
-            >
+            <ContextMenuItem key={item.id} onSelect={() => item.run(note.path, paths)}>
               {item.icon && <AppIcon icon={item.icon} size={14} />}
               {item.label}
             </ContextMenuItem>

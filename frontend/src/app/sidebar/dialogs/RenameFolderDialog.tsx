@@ -4,12 +4,7 @@ import { openNote } from "@/core/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { notice } from "@/components/ui/toast";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 
 export function RenameFolderDialog({
   folder,
@@ -33,9 +28,7 @@ export function RenameFolderDialog({
     if (!folder) return;
     // Rename the leaf segment only — keep the folder where it is.
     const leaf = name.trim().replace(/^\/+|\/+$/g, "");
-    const parent = folder.includes("/")
-      ? folder.slice(0, folder.lastIndexOf("/"))
-      : "";
+    const parent = folder.includes("/") ? folder.slice(0, folder.lastIndexOf("/")) : "";
     const target = parent ? `${parent}/${leaf}` : leaf;
     if (!leaf || target === folder) {
       onClose();
@@ -49,8 +42,7 @@ export function RenameFolderDialog({
       notice("A folder with that name already exists.", { variant: "danger" });
       return;
     }
-    const movingActive =
-      activePath === folder || activePath?.startsWith(`${folder}/`);
+    const movingActive = activePath === folder || activePath?.startsWith(`${folder}/`);
     onClose();
     try {
       await renameFolder(folder, target);

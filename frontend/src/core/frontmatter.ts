@@ -30,10 +30,7 @@ export function parseFrontmatter(text: string): ParsedFrontmatter {
  * Render `data` as a YAML frontmatter block followed by `body`. An empty
  * `data` object omits the frontmatter block entirely.
  */
-export function stringifyFrontmatter(
-  data: Record<string, unknown>,
-  body: string,
-): string {
+export function stringifyFrontmatter(data: Record<string, unknown>, body: string): string {
   if (Object.keys(data).length === 0) return body;
   const yaml = YAML.stringify(data).trimEnd();
   return `---\n${yaml}\n---\n${body}`;
