@@ -1,6 +1,7 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useStore } from "zustand";
-import { useSyncStatus } from "@/store/sync-status";
+import { useSyncStatus, type SyncStatus } from "@/store/sync-status";
+import { dirtyNotes } from "@/sync/dirty";
 import { workspaceStore } from "@/core/workspace";
 import { MountHost } from "@/components/MountHost";
 import type { StatusBarItemSpec, StatusBarTextItemSpec } from "@/plugin-api";
@@ -16,23 +17,59 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/cn";
 import { AppIcon } from "@/components/AppIcon";
 
-const statusConfig = {
-  synced: {
-    label: "Synced",
-    detail: "All changes are synced.",
-    dot: "bg-success",
-  },
-  connecting: {
-    label: "Connecting",
-    detail: "Connecting to the sync server.",
-    dot: "bg-warning animate-pulse",
-  },
-  offline: {
-    label: "Offline",
-    detail: "Changes are saved locally until the server is reachable.",
-    dot: "bg-warning",
-  },
-} as const;
+interface VisualConfig {
+  dot: string;
+  label: string;
+  detail: string;
+}
+
+function getVisualConfig(status: SyncStatus | null, dirty: number): VisualConfig {
+  if (status === "synced" && dirty === 0) {
+    return { dot: "bg-success", label: "Synced", detail: "All changes are synced." };
+  }
+  if (status === "synced" && dirty > 0) {
+    return {
+      dot: "bg-warning",
+      label: `${dirty} pending`,
+      detail: `${dirty} note${dirty === 1 ? "" : "s"} waiting to sync.`,
+    };
+  }
+  if (status === "connecting") {
+    return {
+      dot: "bg-warning animate-pulse",
+      label: "Connecting",
+      detail: "Connecting to the sync server.",
+    };
+  }
+  if (status === "offline") {
+    return {
+      dot: "bg-danger",
+      label: dirty > 0 ? `Offline · ${dirty} pending` : "Offline",
+      detail: "Changes are saved locally until the server is reachable.",
+    };
+  }
+  // status === null
+  if (dirty > 0) {
+    return {
+      dot: "bg-danger",
+      label: `${dirty} pending`,
+      detail: `${dirty} note${dirty === 1 ? "" : "s"} have unsent changes.`,
+    };
+  }
+  return { dot: "bg-success", label: "Synced", detail: "All changes are synced." };
+}
+
+function relativeTime(ts: number): string {
+  const diff = Date.now() - ts;
+  if (diff < 5000) return "just now";
+  const sec = Math.floor(diff / 1000);
+  if (sec < 60) return `${sec}s ago`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  return `${Math.floor(hr / 24)}d ago`;
+}
 
 const themeIcons: Record<ThemePref, "theme-light" | "theme-dark" | "theme-system"> = {
   light: "theme-light",
@@ -59,45 +96,49 @@ function SyncIndicator({
   status,
   dirty,
 }: {
-  status: keyof typeof statusConfig | null;
+  status: SyncStatus | null;
   dirty: number;
 }) {
-  const [showRoutineStatus, setShowRoutineStatus] = useState(true);
-  useEffect(() => {
-    if (status !== "synced" || dirty > 0) {
-      setShowRoutineStatus(true);
-      return;
-    }
-    setShowRoutineStatus(true);
-    const timeout = window.setTimeout(() => setShowRoutineStatus(false), 2800);
-    return () => window.clearTimeout(timeout);
-  }, [status, dirty]);
-
-  if (status === null && dirty === 0) return null;
-  const config = status === null ? null : statusConfig[status];
-  const receded = status === "synced" && dirty === 0 && !showRoutineStatus;
-  const detail = [
-    config?.detail,
-    dirty > 0 ? `${dirty} note${dirty === 1 ? "" : "s"} waiting to sync.` : null,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const lastSynced = useSyncStatus((s) => s.lastSynced);
+  const config = getVisualConfig(status, dirty);
+  const notes = dirty > 0 ? dirtyNotes() : [];
 
   return (
-    <Tooltip label={detail}>
-      <span
-        data-testid="sync-indicator"
-        data-receded={receded}
-        className={cn(
-          "flex min-w-0 shrink items-center gap-1.5 overflow-hidden whitespace-nowrap transition-[opacity,max-width] duration-300",
-          receded ? "pointer-events-none max-w-0 opacity-0" : "max-w-40 opacity-100",
-        )}
-      >
-        <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", config?.dot ?? "bg-warning")} />
-        {config && <span className="truncate">{config.label}</span>}
-        {dirty > 0 && <span className="shrink-0 text-warning">{dirty} pending</span>}
-      </span>
-    </Tooltip>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          data-testid="sync-indicator"
+          aria-label="Sync status"
+          className="flex min-w-0 shrink items-center gap-1.5 overflow-hidden whitespace-nowrap text-xs transition-colors hover:text-accent"
+        >
+          <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", config.dot)} />
+          <span className="truncate">{config.label}</span>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" side="top" className="w-64">
+        <div className="p-2.5">
+          <div className="mb-1.5 flex items-center gap-2">
+            <span className={cn("h-2 w-2 shrink-0 rounded-full", config.dot)} />
+            <span className="text-xs font-medium">{config.detail}</span>
+          </div>
+          {lastSynced != null && (
+            <div className="text-xs text-muted">Last synced: {relativeTime(lastSynced)}</div>
+          )}
+          {notes.length > 0 && (
+            <div className="mt-2">
+              <div className="mb-1 text-xs font-medium">Pending notes:</div>
+              <div className="max-h-32 space-y-0.5 overflow-y-auto">
+                {notes.map((note) => (
+                  <div key={note} className="truncate text-xs text-muted">
+                    {note}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

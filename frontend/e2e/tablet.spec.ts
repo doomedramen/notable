@@ -38,22 +38,19 @@ test("reduced motion removes structural animation time", async ({ page }) => {
   expect(Number.parseFloat(duration)).toBeLessThanOrEqual(0.01);
 });
 
-test("routine synced feedback recedes while warnings remain visible", async ({ page, context }) => {
+test("sync indicator reflects online/offline state", async ({ page, context }) => {
   await page.goto("/");
   await page.getByLabel("New…").click();
   await page.getByRole("menuitem", { name: "New note" }).click();
   await page.getByRole("button", { name: "Save note" }).click();
   await page.getByRole("button", { name: "Open", exact: true }).click();
   const indicator = page.getByTestId("sync-indicator");
-  await expect(indicator).toHaveAttribute("data-receded", "false");
-  await expect(indicator).toHaveAttribute("data-receded", "true", {
-    timeout: 5000,
-  });
+  await expect(indicator).toContainText("Synced");
 
   await context.setOffline(true);
   await page.locator(".cm-content").click();
   await page.keyboard.type("offline warning");
   await expect(indicator).toContainText("Offline");
-  await expect(indicator).toHaveAttribute("data-receded", "false");
   await context.setOffline(false);
+  await expect(indicator).toContainText("Synced", { timeout: 10000 });
 });

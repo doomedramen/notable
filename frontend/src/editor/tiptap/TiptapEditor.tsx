@@ -42,7 +42,10 @@ export function TiptapEditor({ notePath }: { notePath: string }) {
 
     void (async () => {
       connection = new NoteConnection(notePath, takePendingContent(notePath));
-      connection.onStatus = (status) => useSyncStatus.getState().setStatus(status);
+      connection.onStatus = (status) => {
+        useSyncStatus.getState().setStatus(status);
+        if (status === "synced") useSyncStatus.getState().setLastSynced(Date.now());
+      };
       connection.onReset = () => setGeneration((value) => value + 1);
       await connection.ready;
       if (cancelled || !connection) {

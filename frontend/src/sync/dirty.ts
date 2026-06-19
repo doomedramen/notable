@@ -51,6 +51,10 @@ export function dirtyCount(): number {
   return read().size;
 }
 
+export function dirtyNotes(): string[] {
+  return [...read()];
+}
+
 export function isDirty(noteId: string): boolean {
   return read().has(noteId);
 }
