@@ -161,10 +161,7 @@ export class NoteConnection {
   }
 
   private connect() {
-    if (this.closed || this.resetting || !navigator.onLine) {
-      this.onStatus("offline");
-      return;
-    }
+    if (this.closed || this.resetting) return;
     if (this.ws?.readyState === WebSocket.OPEN || this.ws?.readyState === WebSocket.CONNECTING) {
       return;
     }
