@@ -25,16 +25,28 @@ const plugin: NotablePlugin = {
     api.editor.registerExtension(
       EditorView.domEventHandlers({
         paste(event, view) {
-          const selection = view.state.selection.main;
-          if (selection.empty) return false;
-
-          const label = view.state.doc.sliceString(selection.from, selection.to);
-          if (!label.trim() || label.includes("\n")) return false;
-
           const clipboard = event.clipboardData?.getData("text/plain").trim();
           if (!clipboard || !isWebUrl(clipboard)) return false;
 
           event.preventDefault();
+
+          const selection = view.state.selection.main;
+          if (selection.empty) {
+            const markdown = `[](${escapeDestination(clipboard)})`;
+            view.dispatch({
+              changes: {
+                from: selection.from,
+                insert: markdown,
+              },
+              selection: { anchor: selection.from + 1 },
+              scrollIntoView: true,
+            });
+            return true;
+          }
+
+          const label = view.state.doc.sliceString(selection.from, selection.to);
+          if (!label.trim() || label.includes("\n")) return false;
+
           const markdown = `[${escapeLabel(label)}](${escapeDestination(clipboard)})`;
           view.dispatch({
             changes: {
