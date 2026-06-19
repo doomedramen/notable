@@ -32,13 +32,13 @@ const plugin: NotablePlugin = {
 
           const selection = view.state.selection.main;
           if (selection.empty) {
-            const markdown = `[](${escapeDestination(clipboard)})`;
+            const markdown = `[${escapeLabel(clipboard)}](${escapeDestination(clipboard)})`;
             view.dispatch({
               changes: {
                 from: selection.from,
                 insert: markdown,
               },
-              selection: { anchor: selection.from + 1 },
+              selection: { anchor: selection.from + markdown.length },
               scrollIntoView: true,
             });
             return true;
